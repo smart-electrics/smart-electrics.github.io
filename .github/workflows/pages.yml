@@ -31,7 +31,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set up Ruby
-        uses: ruby/setup-ruby@e5517072e87f198d9533967ae13d97c11b604005 # v1.99.0
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
         with:
           ruby-version: .ruby-version
           bundler-cache: true
