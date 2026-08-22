@@ -1,0 +1,34 @@
+<header class="site-header">
+  <div class="site-header__inner shell">
+    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics — головна">
+      {% include brand-logo.html %}
+    </a>
+
+    <nav class="desktop-nav" aria-label="Основна навігація">
+      {% for item in site.data.navigation %}
+        {% assign current_item = false %}
+        {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
+        {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
+        <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
+      {% endfor %}
+    </nav>
+
+    <a class="header-cta" href="{{ '/contact/' | relative_url }}">Форма запиту готується</a>
+
+    <details class="mobile-nav">
+      <summary aria-label="Відкрити меню">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </summary>
+      <nav aria-label="Мобільна навігація">
+        {% for item in site.data.navigation %}
+          {% assign current_item = false %}
+          {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
+          {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
+          <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
+        {% endfor %}
+        <a class="mobile-nav__cta" href="{{ '/contact/' | relative_url }}">Форма запиту готується</a>
+      </nav>
+    </details>
+  </div>
+</header>

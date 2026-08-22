@@ -1,0 +1,21 @@
+{
+  "name": "smart-electrics.github.io",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser quality gates for the Smart Electrics Jekyll site.",
+  "scripts": {
+    "test": "playwright test",
+    "test:browser": "playwright test",
+    "test:browser:headed": "playwright test --headed",
+    "test:browser:update": "playwright test --update-snapshots"
+  },
+  "engines": {
+    "node": "24.x",
+    "npm": ">=11"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.62.1"
+  }
+}

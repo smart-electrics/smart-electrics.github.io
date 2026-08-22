@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 170" role="img" aria-labelledby="logo-mono-title logo-mono-desc">
+  <title id="logo-mono-title">Smart Electrics</title>
+  <desc id="logo-mono-desc">Одноколірний логотип Smart Electrics.</desc>
+  <g fill="none" stroke="#0b0908" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 42V24a10 10 0 0 1 10-10h51M170 42V24a10 10 0 0 0-10-10h-51M18 138v18a10 10 0 0 0 10 10h51M170 138v18a10 10 0 0 1-10 10h-51" stroke-width="13"/>
+    <path d="M18 72v35M170 72v35" stroke-width="13"/>
+    <path d="M18 90h38c7 0 12 5 12 12v17c0 7 5 12 12 12h66" stroke-width="8"/>
+  </g>
+  <circle cx="146" cy="131" r="11" fill="#0b0908"/>
+  <text x="232" y="93" fill="#0b0908" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="66" font-weight="600" letter-spacing="-2">Smart Electrics</text>
+</svg>

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="{{ page.lang | default: site.lang }}">
+  <head>
+    {% include head.html %}
+  </head>
+  <body class="layout-{{ page.layout | default: 'default' }}">
+    <a class="skip-link" href="#main-content">До основного вмісту</a>
+    <div class="ambient" aria-hidden="true">
+      <span class="ambient__glow ambient__glow--one"></span>
+      <span class="ambient__glow ambient__glow--two"></span>
+      <span class="ambient__grid"></span>
+    </div>
+    {% include header.html %}
+    <main id="main-content">
+      {{ content }}
+    </main>
+    {% include footer.html %}
+  </body>
+</html>

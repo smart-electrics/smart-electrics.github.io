@@ -1,0 +1,15 @@
+.DS_Store
+.bundle/
+.jekyll-cache/
+.jekyll-metadata
+.playwright/
+.playwright-cli/
+.sass-cache/
+_site/
+artifacts/
+node_modules/
+vendor/bundle/
+
+.env
+.env.*
+!.env.example

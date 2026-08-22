@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Повідомити про проблему безпеки
+    url: https://github.com/smart-electrics/smart-electrics.github.io/security/advisories/new
+    about: Не публікуйте потенційні вразливості або секрети у звичайних Issues.

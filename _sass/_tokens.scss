@@ -1,0 +1,25 @@
+:root {
+  --ink: #0b0908;
+  --ink-soft: #100d0c;
+  --surface: #15110f;
+  --surface-raised: #1b1613;
+  --surface-warm: #211813;
+  --text: #f7f2ed;
+  --text-soft: #d7ccc4;
+  --muted: #a99c93;
+  --copper: #b66d47;
+  --copper-deep: #75432f;
+  --amber: #f2a65a;
+  --amber-light: #ffc781;
+  --line: rgba(242, 230, 220, 0.14);
+  --line-strong: rgba(242, 230, 220, 0.26);
+  --focus: #ffd39e;
+  --shadow: 0 30px 90px rgba(0, 0, 0, 0.36);
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-sans: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
+  --shell: min(100% - 2rem, 86rem);
+  --radius-sm: 0.75rem;
+  --radius-md: 1.25rem;
+  --radius-lg: 2rem;
+  --header-height: 5.5rem;
+}

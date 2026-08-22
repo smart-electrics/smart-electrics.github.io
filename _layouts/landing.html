@@ -1,0 +1,63 @@
+---
+layout: default
+---
+<section class="hero shell" aria-labelledby="hero-title">
+  <div class="hero__copy">
+    <div class="eyebrow-row">
+      <span class="eyebrow">{{ site.data.site.eyebrow }}</span>
+      <span class="location">{{ site.data.site.location }}</span>
+    </div>
+    <h1 id="hero-title">{{ site.data.site.hero_title }}</h1>
+    <p class="hero__lede">{{ site.data.site.hero_body }}</p>
+
+    {% include estimate-status.html %}
+
+    <ul class="service-strip" aria-label="Напрями роботи">
+      {% for service in site.data.site.service_summary %}
+        <li>{{ service }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="system-visual" aria-label="Схематичне зображення керованої електричної системи" role="img">
+    <div class="system-visual__topline">
+      <span>Система</span>
+      <span class="system-visual__state">Проєктується</span>
+    </div>
+    <svg viewBox="0 0 620 620" aria-hidden="true">
+      <defs>
+        <linearGradient id="signal-gradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#8f5238"/>
+          <stop offset="1" stop-color="#f2a65a"/>
+        </linearGradient>
+        <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="9" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path class="plan-line" d="M76 83h238v96h225v354H299v-97H76z"/>
+      <path class="plan-line plan-line--quiet" d="M314 83v96M299 533v-97M76 320h123M418 179v125h121M199 320v116"/>
+      <path class="signal-line" d="M76 320h123v-78h115v62h104"/>
+      <circle class="signal-node signal-node--start" cx="76" cy="320" r="10"/>
+      <circle class="signal-node" cx="199" cy="242" r="8"/>
+      <circle class="signal-node signal-node--live" cx="418" cy="304" r="13" filter="url(#soft-glow)"/>
+      <g class="system-label" transform="translate(101 108)">
+        <text>01</text><text y="28">Живлення</text>
+      </g>
+      <g class="system-label" transform="translate(338 205)">
+        <text>02</text><text y="28">Керування</text>
+      </g>
+      <g class="system-label" transform="translate(324 462)">
+        <text>03</text><text y="28">Сценарії</text>
+      </g>
+    </svg>
+    <p>{{ site.data.site.launch_note }}</p>
+  </div>
+</section>
+
+<section class="foundation shell" aria-labelledby="foundation-title">
+  <p class="section-kicker">Один відповідальний контур</p>
+  <h2 id="foundation-title">Від першої схеми до щоденного керування</h2>
+  <p>Сайт готується так само, як надійна система: спочатку структура, потім точне налаштування кожного елемента.</p>
+  <a class="text-link" href="{{ '/services/' | relative_url }}">Переглянути напрями робіт <span aria-hidden="true">↗</span></a>
+</section>

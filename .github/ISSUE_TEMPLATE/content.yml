@@ -1,0 +1,34 @@
+name: Контент або доказ твердження
+description: Надати матеріал для точного контенту сайту.
+title: "[Контент]: "
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Публікуємо лише підтверджені твердження. Не додавайте персональні дані клієнтів без їхнього дозволу.
+  - type: textarea
+    id: claim
+    attributes:
+      label: Текст або твердження
+      description: Наведіть точне формулювання українською.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Джерело підтвердження
+      description: Посилання, документ або вказівка на матеріал власника.
+    validations:
+      required: true
+  - type: textarea
+    id: placement
+    attributes:
+      label: Бажане місце на сайті
+  - type: checkboxes
+    id: permission
+    attributes:
+      label: Права на матеріал
+      options:
+        - label: Я маю право передати цей текст, фото або інший матеріал для публікації.
+          required: true

@@ -1,0 +1,89 @@
+title: Smart Electrics
+tagline: Від електромережі до розумного будинку
+description: >-
+  Електрика під ключ для житлових і комерційних об’єктів у Львові та області:
+  від проєктування й монтажу до автоматизації та сервісу.
+logo: /assets/brand/mark.png
+lang: uk
+locale: uk_UA
+url: https://smart-electrics.github.io
+baseurl: ""
+timezone: Europe/Kyiv
+permalink: pretty
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+collections:
+  services:
+    output: true
+    permalink: /services/:name/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: page
+      image:
+        path: /assets/brand/social-card.png
+        width: 1200
+        height: 630
+      sitemap: false
+  - scope:
+      path: ""
+      type: services
+    values:
+      layout: service
+      sitemap: false
+
+launch:
+  indexing: false
+  status: preparing
+
+contacts:
+  email: ""
+  phone: ""
+
+integrations:
+  formspree:
+    enabled: false
+    endpoint: ""
+  google_analytics:
+    enabled: false
+    measurement_id: ""
+
+exclude:
+  - AGENTS.md
+  - CONTEXT.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - .agents
+  - .codex
+  - .github
+  - .bundle
+  - artifacts
+  - docs
+  - Gemfile
+  - Gemfile.lock
+  - Makefile
+  - LICENSE.md
+  - node_modules
+  - output
+  - package.json
+  - package-lock.json
+  - playwright.config.js
+  - README.md
+  - scripts
+  - tests
+  - THIRD_PARTY_NOTICES.md
+  - vendor
+
+keep_files:
+  - .git
+
+sass:
+  style: compressed
+  sourcemap: never
+
+strict_front_matter: true

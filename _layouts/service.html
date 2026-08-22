@@ -1,0 +1,16 @@
+---
+layout: default
+---
+<article class="placeholder-page service-page shell">
+  <header class="placeholder-page__header">
+    <p class="section-kicker">Послуга · детальна сторінка готується</p>
+    <p class="service-page__number" aria-hidden="true">{{ page.order | prepend: '0' | slice: -2, 2 }}</p>
+    <h1>{{ page.title }}</h1>
+    <p class="placeholder-page__lede">{{ page.description }}</p>
+  </header>
+  <div class="placeholder-page__content">
+    {{ content }}
+    <p><a class="text-link" href="{{ '/services/' | relative_url }}">До всіх послуг <span aria-hidden="true">←</span></a></p>
+  </div>
+  {% include estimate-status.html %}
+</article>

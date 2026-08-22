@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="favicon-title favicon-desc">
+  <title id="favicon-title">Smart Electrics</title>
+  <desc id="favicon-desc">Знак Smart Electrics на темній плитці.</desc>
+  <rect width="256" height="256" rx="52" fill="#100d0c"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M51 81V60a12 12 0 0 1 12-12h62M205 81V60a12 12 0 0 0-12-12h-62M51 175v21a12 12 0 0 0 12 12h62M205 175v21a12 12 0 0 1-12 12h-62" stroke="#b66d47" stroke-width="16"/>
+    <path d="M51 114v28M205 114v28" stroke="#75432f" stroke-width="16"/>
+    <path d="M51 128h49c8 0 14 6 14 14v21c0 8 6 14 14 14h51" stroke="#f2a65a" stroke-width="10"/>
+  </g>
+  <circle cx="179" cy="177" r="13" fill="#ffc781"/>
+</svg>

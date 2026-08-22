@@ -1,0 +1,35 @@
+name: Покращення сайту
+description: Запропонувати підтверджене покращення для клієнтського досвіду або процесу.
+title: "[Покращення]: "
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Пишіть українською. Не додавайте секрети, персональні дані або непідтверджені маркетингові твердження.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Проблема або можливість
+      description: Для кого це важливо та яку потребу не закрито?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Очікуваний результат
+      description: Опишіть видиму для користувача зміну, без наперед заданої реалізації.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Джерела та обмеження
+      description: Додайте посилання, контент від власника або явно позначте, що потрібне підтвердження.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Що має бути перевірено, щоб вважати задачу завершеною?
+    validations:
+      required: true

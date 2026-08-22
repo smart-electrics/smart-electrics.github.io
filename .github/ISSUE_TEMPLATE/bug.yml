@@ -1,0 +1,37 @@
+name: Помилка
+description: Повідомити про відтворювану проблему сайту.
+title: "[Помилка]: "
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Не публікуйте секрети, персональні дані чи вразливості. Для безпеки використайте приватне повідомлення за SECURITY.md.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Очікувана поведінка
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Фактична поведінка
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Кроки відтворення
+      placeholder: "1. Відкрити ...\n2. Натиснути ...\n3. Побачити ..."
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Пристрій, браузер і версія
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Безпечний доказ
+      description: Скріншот, URL або redacted console output без секретів.
