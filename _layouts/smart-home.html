@@ -1,0 +1,137 @@
+---
+layout: default
+---
+{% assign smart_home = site.data.smart_home %}
+{% assign initial_scenario = smart_home.scenarios.first %}
+{% assign spatial = smart_home.spatial %}
+{% assign initial_logic_system = initial_scenario.logic.systems | where: 'id', initial_scenario.logic.primary_system | first %}
+{% assign initial_system = spatial.systems | where: 'id', initial_scenario.logic.primary_system | first %}
+{% assign initial_zone = spatial.zones | where: 'id', initial_logic_system.zone | first %}
+{% assign initial_visual = spatial.visuals | where: 'id', initial_logic_system.visual | first %}
+
+<article class="smart-home">
+  <section class="smart-home__hero shell" data-smart-home-section aria-labelledby="smart-home-title">
+    <div class="smart-home__hero-copy">
+      <p class="section-kicker">{{ smart_home.hero.kicker }}</p>
+      <h1 id="smart-home-title">{{ smart_home.hero.title }}</h1>
+      <p class="smart-home__lede">{{ smart_home.hero.description }}</p>
+      <p class="smart-home__disclosure">{{ smart_home.hero.disclosure }}</p>
+    </div>
+  </section>
+
+  <section class="smart-home__simulator shell" data-smart-home-section data-smart-home-simulator aria-labelledby="simulator-title">
+    <div class="smart-home__simulator-heading">
+      <p class="section-kicker">{{ smart_home.simulator.kicker }}</p>
+      <h2 id="simulator-title">{{ smart_home.simulator.title }}</h2>
+      <p>{{ smart_home.simulator.description }}</p>
+    </div>
+
+    <fieldset class="smart-home__scenario-picker" data-scenario-picker>
+      <legend>{{ smart_home.simulator.legend }}</legend>
+      <div class="smart-home__scenario-options">
+        {% for scenario in smart_home.scenarios %}
+          {% assign option_id = 'scenario-' | append: scenario.id %}
+          <div class="smart-home__scenario-choice">
+            <input class="smart-home__scenario-radio" data-scenario-radio id="{{ option_id }}" name="smart-home-scenario" type="radio" value="{{ scenario.id }}"{% if forloop.first %} checked{% endif %}>
+            <label for="{{ option_id }}">{{ scenario.label }}</label>
+          </div>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="smart-home__spatial-stage" data-spatial-stage data-selected-system-prefix="{{ smart_home.simulator.selected_system_prefix }}">
+      <figure class="smart-home__scene" data-scenario-scene>
+        {% for visual in spatial.visuals %}
+          <picture class="smart-home__scene-background" data-scene-picture="{{ visual.id }}" data-motion-layer="background"{% unless visual.id == initial_visual.id %} hidden{% endunless %}>
+            <source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}" width="768" height="512">
+            <source srcset="{{ visual.desktop | relative_url }}" width="1536" height="1024">
+            <img src="{{ visual.desktop | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ visual.alt }}"{% if visual.id == initial_visual.id %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
+          </picture>
+        {% endfor %}
+        <span class="smart-home__scene-wash" data-motion-layer="light" aria-hidden="true"></span>
+        <span class="smart-home__scene-mask" data-motion-layer="mask" aria-hidden="true"><span class="smart-home__scene-label" data-scenario-scene-label>{{ initial_scenario.scene_label }}</span></span>
+        <div class="smart-home__stage-copy" data-motion-layer="type" aria-hidden="true">
+          <span data-scene-eyebrow>{{ initial_scenario.eyebrow }}</span>
+          <strong data-scene-title>{{ initial_scenario.title }}</strong>
+        </div>
+        <svg class="smart-home__route-map" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {% for scenario in smart_home.scenarios %}
+            <polyline class="smart-home__route" data-route-layer="{{ scenario.id }}" points="{% for route_zone in scenario.logic.route %}{% assign zone = spatial.zones | where: 'id', route_zone | first %}{{ zone.x }},{{ zone.y }}{% unless forloop.last %}{{ ' ' }}{% endunless %}{% endfor %}"{% unless forloop.first %} hidden{% endunless %} />
+          {% endfor %}
+        </svg>
+        <div class="smart-home__zone-nodes" data-motion-layer="nodes" aria-hidden="true">
+          {% for zone in spatial.zones %}<span class="smart-home__zone-node" data-zone-node="{{ zone.id }}" style="--zone-x: {{ zone.x }}%; --zone-y: {{ zone.y }}%;"><span></span>{{ zone.label }}</span>{% endfor %}
+        </div>
+        <div class="smart-home__control-lens" data-motion-layer="core" aria-hidden="true">
+          <span class="smart-home__control-axis"></span>
+          <div class="smart-home__control-glass">
+            <span class="smart-home__control-kicker">{{ smart_home.simulator.active_connection_label }}</span>
+            <span class="smart-home__control-core"></span>
+            <strong data-active-system-label>{{ initial_system.label }}</strong>
+            <span data-active-zone-label>{{ initial_zone.label }}</span>
+            <p data-active-system-summary>{{ initial_logic_system.summary }}</p>
+          </div>
+        </div>
+        <figcaption>{{ smart_home.hero.scene_caption }}</figcaption>
+      </figure>
+
+      <div class="smart-home__system-controls" role="group" aria-label="{{ smart_home.simulator.controls_label }}">
+        {% for system in spatial.systems %}
+          <span class="smart-home__system-control" data-system-label="{{ system.id }}" data-control-side="{{ system.side }}" style="--control-x: {{ system.x }}%; --control-y: {{ system.y }}%;"><span class="smart-home__system-control-dot" aria-hidden="true"></span><span>{{ system.label }}</span></span>
+          <button class="smart-home__system-control" data-system-control="{{ system.id }}" data-control-side="{{ system.side }}" data-motion-layer="callout" type="button" hidden aria-pressed="{% if system.id == initial_scenario.logic.primary_system %}true{% else %}false{% endif %}" style="--control-x: {{ system.x }}%; --control-y: {{ system.y }}%;"><span class="smart-home__system-control-dot" aria-hidden="true"></span><span>{{ system.label }}</span></button>
+        {% endfor %}
+      </div>
+      <div class="smart-home__logic-chain" data-logic-chain>
+        <span>{{ initial_scenario.event }}</span><span aria-hidden="true">→</span>
+        <span data-route-summary>{% for route_zone in initial_scenario.logic.route %}{% assign zone = spatial.zones | where: 'id', route_zone | first %}{{ zone.label }}{% unless forloop.last %} · {% endunless %}{% endfor %}</span><span aria-hidden="true">→</span>
+        <span>{{ initial_system.label }}</span><span aria-hidden="true">→</span>
+        <span>{{ initial_logic_system.summary }}</span>
+      </div>
+      <p class="smart-home__scenario-live" data-scenario-live aria-live="polite">{{ initial_scenario.live_summary }}</p>
+    </div>
+
+    <section class="smart-home__configuration" data-smart-home-section aria-labelledby="configuration-title">
+      <div class="smart-home__configuration-heading"><p class="section-kicker">{{ smart_home.simulator.logic_kicker }}</p><h2 id="configuration-title">{{ smart_home.configuration.title }}</h2></div>
+      <div class="smart-home__scenario-panels" data-scenario-panels>
+        {% for scenario in smart_home.scenarios %}
+          <section class="smart-home__scenario-panel" data-scenario-panel="{{ scenario.id }}" data-primary-system="{{ scenario.logic.primary_system }}" data-live-summary="{{ scenario.live_summary }}" data-scene-label="{{ scenario.scene_label }}" aria-labelledby="scenario-{{ scenario.id }}-title">
+            <div class="smart-home__scenario-intro"><p class="section-kicker">{{ scenario.eyebrow }}</p><h3 id="scenario-{{ scenario.id }}-title">{{ scenario.title }}</h3></div>
+            <div class="smart-home__scenario-event"><p class="smart-home__detail-label">{{ smart_home.configuration.event_label }}</p><p>{{ scenario.event }}</p></div>
+            <div class="smart-home__scenario-route"><p class="smart-home__detail-label">{{ smart_home.simulator.route_label }}</p><ol>{% for route_zone in scenario.logic.route %}{% assign zone = spatial.zones | where: 'id', route_zone | first %}<li data-route-zone="{{ route_zone }}">{{ zone.label }}</li>{% endfor %}</ol></div>
+            <div class="smart-home__scenario-system-details">
+              {% for logic_system in scenario.logic.systems %}{% assign system = spatial.systems | where: 'id', logic_system.id | first %}
+                {% assign logic_zone = spatial.zones | where: 'id', logic_system.zone | first %}<article class="smart-home__system-detail" data-system-detail="{{ logic_system.id }}" data-zone-id="{{ logic_system.zone }}" data-zone-label="{{ logic_zone.label }}" data-role="{{ logic_system.role }}" data-summary="{{ logic_system.summary }}" data-visual-id="{{ logic_system.visual }}"><p class="smart-home__detail-label">{{ system.label | default: logic_system.id }}</p><p>{{ logic_system.summary }}</p></article>
+              {% endfor %}
+            </div>
+            <div class="smart-home__scenario-outcomes"><p class="smart-home__detail-label">{{ smart_home.configuration.outcomes_label }}</p><ol>{% for outcome in scenario.outcomes %}<li><span>{{ outcome.zone }}</span><p>{{ outcome.response }}</p></li>{% endfor %}</ol></div>
+            <div class="smart-home__scenario-note"><p class="smart-home__detail-label">{{ smart_home.configuration.project_note_label }}</p><p>{{ scenario.project_note }}</p></div>
+            <div class="smart-home__scenario-related" aria-label="{{ smart_home.simulator.related_aria_prefix }} {{ scenario.label }}">
+              {% for service_slug in scenario.related_services %}{% assign related_service = site.services | where: 'slug', service_slug | first %}{% if related_service %}<a href="{{ related_service.url | relative_url }}">{{ related_service.title }} <span aria-hidden="true">↗</span></a>{% endif %}{% endfor %}
+              {% assign related_solution = site.solutions | where: 'slug', scenario.related_solution | first %}{% if related_solution %}<a href="{{ related_solution.url | relative_url }}">{{ related_solution.title }} <span aria-hidden="true">↗</span></a>{% endif %}
+            </div>
+          </section>
+        {% endfor %}
+      </div>
+    </section>
+  </section>
+
+  <section class="smart-home__systems shell" data-smart-home-section aria-labelledby="systems-title">
+    <div class="smart-home__section-intro"><p class="section-kicker">{{ smart_home.systems.kicker }}</p><h2 id="systems-title">{{ smart_home.systems.title }}</h2><p>{{ smart_home.systems.description }}</p></div>
+    <ol class="smart-home__systems-list">{% for system in smart_home.systems.items %}{% assign system_service = site.services | where: 'slug', system.service | first %}<li><div><h3>{{ system.title }}</h3><p>{{ system.description }}</p></div>{% if system_service %}<a href="{{ system_service.url | relative_url }}" aria-label="{{ system.title }}, переглянути напрям">↗</a>{% endif %}</li>{% endfor %}</ol>
+  </section>
+
+  <section class="smart-home__formation shell" data-smart-home-section aria-labelledby="formation-title">
+    <div class="smart-home__section-intro"><p class="section-kicker">{{ smart_home.formation.kicker }}</p><h2 id="formation-title">{{ smart_home.formation.title }}</h2><p>{{ smart_home.formation.description }}</p></div>
+    <ol class="smart-home__formation-list">{% for step in smart_home.formation.steps %}<li><div><h3>{{ step.title }}</h3><p>{{ step.description }}</p></div></li>{% endfor %}</ol>
+  </section>
+
+  <section class="smart-home__related shell" data-smart-home-section aria-labelledby="related-title">
+    <div class="smart-home__section-intro"><p class="section-kicker">{{ smart_home.related.kicker }}</p><h2 id="related-title">{{ smart_home.related.title }}</h2><p>{{ smart_home.related.description }}</p></div>
+    <ul class="smart-home__related-list">{% for item in smart_home.related.links %}{% if item.type == 'service' %}{% assign destination = site.services | where: 'slug', item.slug | first %}{% elsif item.type == 'solution' %}{% assign destination = site.solutions | where: 'slug', item.slug | first %}{% endif %}{% if destination %}<li><a href="{{ destination.url | relative_url }}"><span><span class="smart-home__related-title">{{ item.label }}</span><span class="smart-home__related-description">{{ item.description }}</span></span><span aria-hidden="true">↗</span></a></li>{% endif %}{% endfor %}</ul>
+  </section>
+
+  <section class="smart-home__contact shell" data-smart-home-section aria-labelledby="contact-title">
+    <div><p class="section-kicker">{{ smart_home.contact.kicker }}</p><h2 id="contact-title">{{ smart_home.contact.title }}</h2><p>{{ smart_home.contact.description }}</p></div>
+    <div class="smart-home__contact-action"><button class="button button--primary" type="button" disabled>{{ smart_home.contact.button_label }}</button><p>{{ smart_home.contact.status }}</p></div>
+  </section>
+</article>

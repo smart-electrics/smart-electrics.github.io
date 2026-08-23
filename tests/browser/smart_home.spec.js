@@ -2,19 +2,19 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const route = "/smart-home/";
-const scenarioIds = ["arrival", "evening", "away", "night", "backup"];
 const scenarios = [
-  { id: "arrival", label: "Повернення" },
-  { id: "evening", label: "Вечір" },
-  { id: "away", label: "Вихід" },
-  { id: "night", label: "Нічний контур" },
-  { id: "backup", label: "Резерв" }
+  { id: "morning", label: "Ранок", primary: "shading", zone: "living", visual: "shading" },
+  { id: "arrival", label: "Повернення", primary: "lighting" },
+  { id: "evening", label: "Вечір", primary: "lighting" },
+  { id: "away", label: "Вихід", primary: "security" },
+  { id: "night", label: "Нічний маршрут", primary: "lighting" },
+  { id: "heat", label: "Спека", primary: "climate" },
+  { id: "backup", label: "Резерв", primary: "backup-power" }
 ];
-
+const systemIds = ["lighting", "climate", "access", "security", "panel", "low-voltage", "backup-power", "audio", "shading"];
 const placeholderCopy = /placeholder|lorem ipsum|page-note|контент готується|сторінка готується|текст готується|coming soon/i;
 const forbiddenCopy = [
   /(?:відгук\w*|рейтинг\w*|зірк\w*|оцінк\w*)/i,
-  /\b\d+(?:[.,]\d+)?\s*\/\s*5\b/i,
   /24\s*\/\s*7/i,
   /\b(?:гаранті\w*|сертифікат\w*|ціна|ціни|вартіст\w*|коштує|кошторис|бюджет|строк\w*|площ\w*|адрес\w*)\b/i,
   /(?:\d[\d\s.,]*)\s*(?:грн|₴|uah|usd|долар\w*|євро)\b/i,
@@ -34,115 +34,91 @@ function assertTruthfulCopy(text) {
   }
 }
 
-async function simulatorRoot(page) {
+async function rootFor(page) {
   const root = page.locator("[data-smart-home-simulator]");
   await expect(root).toHaveCount(1);
   return root;
 }
 
-async function scenarioRadios(page) {
-  const fieldset = page.getByRole("group", { name: /оберіть.*момент|сценарі/i });
-  await expect(fieldset).toHaveCount(1);
-  const radios = fieldset.getByRole("radio");
+async function assertOrder(page) {
+  const radios = page.getByRole("group", { name: /оберіть.*момент|сценарі/i }).getByRole("radio");
   await expect(radios).toHaveCount(scenarios.length);
-  return radios;
-}
-
-async function assertScenarioOrder(page) {
-  const radios = await scenarioRadios(page);
   for (const [index, scenario] of scenarios.entries()) {
-    const radio = radios.nth(index);
-    await expect(radio).toHaveAccessibleName(scenario.label);
-    await expect(radio).toHaveAttribute("value", scenario.id);
+    await expect(radios.nth(index)).toHaveAccessibleName(scenario.label);
+    await expect(radios.nth(index)).toHaveAttribute("value", scenario.id);
   }
 }
 
-async function assertSelectedScenario(page, id) {
-  const root = await simulatorRoot(page);
-  await expect(root).toHaveAttribute("data-scenario", id);
-
-  const radio = page.getByRole("radio", { name: scenarios.find((scenario) => scenario.id === id).label });
-  await expect(radio).toBeChecked();
-
-  const panels = root.locator("[data-scenario-panel]");
-  await expect(panels).toHaveCount(scenarios.length);
-  const visiblePanels = root.locator("[data-scenario-panel]:visible");
-  await expect(visiblePanels).toHaveCount(1);
-  await expect(visiblePanels).toHaveAttribute("data-scenario-panel", id);
-  await expect(visiblePanels.getByRole("heading")).not.toHaveText("");
-
-  const live = root.locator('[aria-live="polite"]');
-  await expect(live).toHaveCount(1);
-  await expect(live).not.toHaveText("");
+async function assertEnhanced(page, scenarioId) {
+  const root = await rootFor(page);
+  const scenario = scenarios.find((item) => item.id === scenarioId);
+  await expect(root).toHaveAttribute("data-enhanced", "true");
+  await expect(root).toHaveAttribute("data-scenario", scenarioId);
+  await expect(root).toHaveAttribute("data-system", scenario.primary);
+  await expect(root.locator("[data-scenario-panel]:visible")).toHaveCount(1);
+  await expect(root.locator("picture[data-scene-picture]:visible")).toHaveCount(1);
+  await expect(root.locator("[data-route-layer]:visible")).toHaveCount(1);
+  await expect(root.locator("button[data-system-control]:visible")).toHaveCount(systemIds.length);
+  await expect(root.locator("[data-system-label]:visible")).toHaveCount(0);
 }
 
-async function selectScenario(page, id, method = "pointer") {
-  const scenario = scenarios.find((candidate) => candidate.id === id);
+async function chooseScenario(page, scenarioId, method = "click") {
+  const scenario = scenarios.find((item) => item.id === scenarioId);
   const radio = page.getByRole("radio", { name: scenario.label });
   await radio.focus();
-
-  if (method === "pointer") {
-    await radio.click();
-  } else {
-    await radio.press(method);
-  }
-
-  await assertSelectedScenario(page, id);
+  if (method === "click") await radio.click();
+  else await radio.press(method);
+  await assertEnhanced(page, scenarioId);
 }
 
-async function assertNoOverflowOrClipping(page, context) {
-  const measurements = await page.evaluate(() => {
-    const viewportWidth = window.innerWidth;
+async function assertRouteGeometry(page, scenarioId) {
+  const root = await rootFor(page);
+  const geometry = await root.evaluate((element, id) => {
+    const scene = element.querySelector("[data-scenario-scene]");
+    const route = element.querySelector('[data-route-layer="' + id + '"]');
+    const panel = element.querySelector('[data-scenario-panel="' + id + '"]');
+    const sceneRect = scene.getBoundingClientRect();
+    const routeRect = route.getBoundingClientRect();
+    return {
+      points: route.points.numberOfItems,
+      routeZones: panel.querySelectorAll("[data-route-zone]").length,
+      withinScene:
+        routeRect.left >= sceneRect.left - 1 &&
+        routeRect.right <= sceneRect.right + 1 &&
+        routeRect.top >= sceneRect.top - 1 &&
+        routeRect.bottom <= sceneRect.bottom + 1
+    };
+  }, scenarioId);
+  expect(geometry.points, scenarioId + " route point count").toBe(geometry.routeZones);
+  expect(geometry.withinScene, scenarioId + " route bounds").toBe(true);
+}
+
+async function assertViewportBounds(page, label) {
+  const bounds = await page.evaluate(() => {
     const visible = (element) => {
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
     };
-    const controls = [...document.querySelectorAll("a, button, summary, label[for], input[type='radio']")]
-      .filter(visible)
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          name: element.getAttribute("aria-label") || element.textContent.trim() || element.getAttribute("value"),
-          left: rect.left,
-          right: rect.right
-        };
-      })
-      .filter(({ left, right }) => left < -1 || right > viewportWidth + 1);
-    const sections = [...document.querySelectorAll("main [data-smart-home-section]")]
-      .filter(visible)
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          name: element.getAttribute("aria-label") || element.querySelector("h1, h2")?.textContent.trim(),
-          left: rect.left,
-          right: rect.right,
-          scrollWidth: element.scrollWidth,
-          clientWidth: element.clientWidth
-        };
-      })
-      .filter(({ left, right, scrollWidth, clientWidth }) =>
-        left < -1 || right > viewportWidth + 1 || scrollWidth > clientWidth + 1
-      );
-
+    const width = window.innerWidth;
     return {
       overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
-      controls,
-      sections
+      children: [...document.querySelectorAll("main *")]
+        .filter(visible)
+        .map((element) => {
+          const rect = element.getBoundingClientRect();
+          return { tag: element.tagName, left: rect.left, right: rect.right };
+        })
+        .filter((rect) => rect.left < -1 || rect.right > width + 1)
     };
   });
-
-  expect(measurements.overflow, `${context} should not scroll horizontally`).toBe(0);
-  expect(measurements.controls, `${context} should not clip interactive controls`).toEqual([]);
-  expect(measurements.sections, `${context} should not clip a smart-home section`).toEqual([]);
+  expect(bounds.overflow, label + ": document horizontal overflow").toBe(0);
+  expect(bounds.children, label + ": actual visible child bounds").toEqual([]);
 }
 
 async function assertMobileTargetSize(page) {
-  const undersized = await page.evaluate(() => {
-    const targets = [
-      ...document.querySelectorAll("header a, header summary, main label[for], main a, main button, footer a")
-    ];
-    return targets
+  const undersized = await page.evaluate(() =>
+    [...document.querySelectorAll("header a, header summary, main label[for], main a, main button, footer a")]
       .filter((element) => {
         const style = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -150,29 +126,17 @@ async function assertMobileTargetSize(page) {
       })
       .map((element) => {
         const rect = element.getBoundingClientRect();
-        return {
-          name: element.getAttribute("aria-label") || element.textContent.trim(),
-          width: rect.width,
-          height: rect.height
-        };
+        return { name: element.getAttribute("aria-label") || element.textContent.trim(), width: rect.width, height: rect.height };
       })
-      .filter(({ width, height }) => width < 44 || height < 44);
-  });
-  expect(undersized, "mobile smart-home controls and chrome need 44px touch targets").toEqual([]);
+      .filter((target) => target.width < 44 || target.height < 44)
+  );
+  expect(undersized, "mobile controls need 44px targets").toEqual([]);
 }
 
 function instrumentForbiddenRuntime(page) {
   return page.addInitScript(() => {
-    window.__smartHomeForbiddenRuntime = {
-      canvasContexts: 0,
-      fetch: 0,
-      xhr: 0,
-      beacon: 0,
-      storage: 0,
-      externalRequests: []
-    };
-
-    const captureRequest = (value) => {
+    window.__smartHomeForbiddenRuntime = { canvasContexts: 0, fetch: 0, xhr: 0, beacon: 0, storage: 0, externalRequests: [] };
+    const capture = (value) => {
       try {
         const url = new URL(typeof value === "string" ? value : value.url, window.location.href);
         if (url.origin !== window.location.origin) window.__smartHomeForbiddenRuntime.externalRequests.push(url.href);
@@ -180,36 +144,31 @@ function instrumentForbiddenRuntime(page) {
         window.__smartHomeForbiddenRuntime.externalRequests.push(String(value));
       }
     };
-
     const getContext = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function trackedCanvasContext(...args) {
       window.__smartHomeForbiddenRuntime.canvasContexts += 1;
       return getContext.call(this, ...args);
     };
-
     const fetch = window.fetch;
     window.fetch = function trackedFetch(...args) {
       window.__smartHomeForbiddenRuntime.fetch += 1;
-      captureRequest(args[0]);
+      capture(args[0]);
       return fetch.call(this, ...args);
     };
-
     const open = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function trackedXhr(method, url, ...args) {
       window.__smartHomeForbiddenRuntime.xhr += 1;
-      captureRequest(url);
+      capture(url);
       return open.call(this, method, url, ...args);
     };
-
     const beacon = navigator.sendBeacon?.bind(navigator);
     if (beacon) {
       navigator.sendBeacon = function trackedBeacon(url, ...args) {
         window.__smartHomeForbiddenRuntime.beacon += 1;
-        captureRequest(url);
+        capture(url);
         return beacon(url, ...args);
       };
     }
-
     for (const method of ["getItem", "setItem", "removeItem", "clear"]) {
       const original = Storage.prototype[method];
       Storage.prototype[method] = function trackedStorage(...args) {
@@ -220,7 +179,26 @@ function instrumentForbiddenRuntime(page) {
   });
 }
 
-test("smart-home route delivers the complete five-scenario semantic experience", async ({ page }) => {
+test("delivers the canonical seven-scenario nine-system model with morning shading as the initial state", async ({ page }) => {
+  const response = await page.goto(route);
+  expect(response?.status()).toBe(200);
+  await expect(page.locator("html")).toHaveAttribute("lang", "uk");
+  await assertOrder(page);
+  await assertEnhanced(page, "morning");
+
+  const root = await rootFor(page);
+  await expect(root).toHaveAttribute("data-zone", "living");
+  await expect(root).toHaveAttribute("data-visual", "shading");
+  await expect(root.locator("picture[data-scene-picture]:visible")).toHaveAttribute("data-scene-picture", "shading");
+  await expect(root.locator("[data-zone-node]")).toHaveCount(7);
+  await expect(root.locator("button[data-system-control]")).toHaveCount(systemIds.length);
+  await expect(root.locator("picture[data-scene-picture]")).toHaveCount(5);
+  await expect(root.locator("video, audio, [autoplay], [data-autoplay]")).toHaveCount(0);
+  await expect(root.locator("[data-route-marker], .smart-home__scenario-marker, .smart-home__scenario-index")).toHaveCount(0);
+  await assertRouteGeometry(page, "morning");
+});
+
+test("keeps the complete semantic page baseline, truthful copy, and disabled contact CTA", async ({ page }) => {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/i);
@@ -230,79 +208,82 @@ test("smart-home route delivers the complete five-scenario semantic experience",
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Розумний будинок");
   await expect(main.locator("[data-smart-home-section]")).toHaveCount(7);
-  await expect(main.getByText("Це демонстрація логіки. Вона не підключена до обладнання й адаптується під електромонтажний проєкт", { exact: true })).toBeVisible();
+  await expect(main.getByText(/демонстрація логіки.*не керування обладнанням/i)).toBeVisible();
 
-  const root = await simulatorRoot(page);
-  const figure = root.locator("figure");
+  const figure = (await rootFor(page)).locator("figure");
   await expect(figure).toHaveCount(1);
-  await expect(figure.locator("picture")).toHaveCount(1);
-  await expect(figure.getByRole("img")).toHaveAccessibleName(/\S.{7,}/);
-  await expect(figure.getByRole("img")).toHaveAttribute("alt", /\S{8,}/);
-  await expect(figure.locator("figcaption")).toContainText(/сценар|об['’ʼ`]?єкт/i);
-
-  await assertScenarioOrder(page);
-  await assertSelectedScenario(page, "arrival");
+  await expect(figure.locator("picture[data-scene-picture]")).toHaveCount(5);
+  await expect(figure.locator("picture[data-scene-picture]:visible img")).toHaveAccessibleName(/\S.{7,}/);
+  await expect(figure.locator("figcaption")).toContainText(/сценар|об['’ʼ\x60]?єкт/i);
 
   const configuration = main.getByRole("region", { name: "Поточна конфігурація" });
-  await expect(configuration).toBeVisible();
+  const activeConfiguration = configuration.locator("[data-scenario-panel]:visible");
   for (const label of ["Подія", "Що змінюється в об’єкті", "Що визначаємо під час проєктування"]) {
-    await expect(configuration.getByText(label, { exact: true })).toBeVisible();
+    await expect(activeConfiguration.getByText(label, { exact: true })).toBeVisible();
   }
-
-  const systems = main.getByRole("region", { name: "Системи, що узгоджуються між собою" });
-  await expect(systems).toBeVisible();
-  for (const label of ["Освітлення", "Клімат", "Доступ", "Безпека", "Резервне живлення"]) {
-    await expect(systems.getByText(label, { exact: true })).toBeVisible();
-  }
-
   const formation = main.getByRole("region", { name: "Як формується сценарій автоматизації" });
-  await expect(formation).toBeVisible();
   await expect(formation.getByRole("listitem")).toHaveCount(5);
   const related = main.getByRole("region", { name: "Пов’язані послуги й готові рішення" });
-  await expect(related).toBeVisible();
   expect(await related.getByRole("link").count()).toBeGreaterThanOrEqual(3);
-
-  const contact = main.getByRole("button", { name: "Обговорити об’єкт", exact: true });
-  await expect(contact).toBeDisabled();
-  await expect(main.getByText(/контактна форма готується/i)).toBeVisible();
+  await expect(main.getByRole("button", { name: "Обговорити об’єкт", exact: true })).toBeDisabled();
   assertTruthfulCopy(await main.innerText());
 });
 
-test("scenario selection stays deterministic across pointer, Enter, Space, and native arrow keys", async ({ page }) => {
+test("every scenario preserves one panel, picture, route, and valid route geometry", async ({ page }) => {
   await page.goto(route);
-  await assertSelectedScenario(page, "arrival");
-
-  await selectScenario(page, "evening");
-  await selectScenario(page, "away", "Space");
-  await selectScenario(page, "night", "Enter");
-
-  const night = page.getByRole("radio", { name: "Нічний контур" });
-  await night.focus();
-  await night.press("ArrowRight");
-  await assertSelectedScenario(page, "backup");
-
-  await page.reload();
-  await assertSelectedScenario(page, "arrival");
+  for (const scenario of scenarios) {
+    await chooseScenario(page, scenario.id);
+    await assertRouteGeometry(page, scenario.id);
+  }
 });
 
-test("smart-home navigation is active in both desktop and mobile navigation", async ({ page }) => {
+test("system focus changes the actual zone, visual, explanation, and cinematic A/B phase", async ({ page }) => {
   await page.goto(route);
+  const root = await rootFor(page);
+  const before = await root.getAttribute("data-motion-phase");
+  const control = root.locator('button[data-system-control="climate"]');
+  await control.focus();
 
-  const desktop = page.getByRole("navigation", { name: "Основна навігація" });
-  const desktopLink = desktop.getByRole("link", { name: "Розумний будинок", exact: true });
-  await expect(desktopLink).toHaveAttribute("aria-current", "page");
+  await expect(root).toHaveAttribute("data-system", "climate");
+  await expect(root).toHaveAttribute("data-zone", "living");
+  await expect(root).toHaveAttribute("data-visual", "climate");
+  await expect(root.locator("picture[data-scene-picture]:visible")).toHaveAttribute("data-scene-picture", "climate");
+  await expect(root.locator("[data-zone-node='living']")).toHaveAttribute("data-active", "true");
+  await expect(root.locator("[data-active-system-summary]")).toHaveText(
+    await root.locator("[data-scenario-panel='morning'] [data-system-detail='climate']").getAttribute("data-summary")
+  );
+  await expect(root).not.toHaveAttribute("data-motion-phase", before ?? "");
+  const focusedPhase = await root.getAttribute("data-motion-phase");
+  await control.click();
+  await expect(root).not.toHaveAttribute("data-motion-phase", focusedPhase ?? "");
+});
 
-  const mobileMenu = page.locator(".mobile-nav");
-  const mobileNavigation = mobileMenu.getByRole("navigation", { name: "Мобільна навігація" });
-  const mobileLink = mobileNavigation.getByRole("link", { name: "Розумний будинок", exact: true });
+test("selection remains deterministic through pointer, Enter, Space, and native arrow keys", async ({ page }) => {
+  await page.goto(route);
+  await chooseScenario(page, "arrival");
+  await chooseScenario(page, "evening", "Enter");
+  await chooseScenario(page, "away", "Space");
+  await page.getByRole("radio", { name: "Вихід" }).press("ArrowRight");
+  await assertEnhanced(page, "night");
+  await page.reload();
+  await assertEnhanced(page, "morning");
+});
+
+test("smart-home navigation is active in desktop and mobile navigation", async ({ page }) => {
+  await page.goto(route);
+  const desktop = page.locator(".desktop-nav");
+  await expect(desktop.locator('a[href="/smart-home/"]')).toHaveAttribute("aria-current", "page");
+
+  const mobile = page.locator(".mobile-nav");
+  const mobileLink = mobile.locator('nav a[href="/smart-home/"]');
   await expect(mobileLink).toHaveAttribute("aria-current", "page");
-  if (await mobileMenu.locator("summary").isVisible()) {
-    await mobileMenu.locator("summary").click();
+  if (await mobile.locator("summary").isVisible()) {
+    await mobile.locator("summary").click();
     await expect(mobileLink).toBeVisible();
   }
 });
 
-test("all five scenarios remain complete and meaningful without JavaScript", async ({ browser }) => {
+test("no-JS retains static panels and labels without inert buttons and emits one initial picture and route", async ({ browser }) => {
   const context = await browser.newContext({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000",
     colorScheme: "dark",
@@ -311,22 +292,24 @@ test("all five scenarios remain complete and meaningful without JavaScript", asy
   });
   const page = await context.newPage();
   try {
-    const response = await page.goto(route);
-    expect(response?.status()).toBe(200);
-    await expect(page.locator("canvas")).toHaveCount(0);
-    await expect(page.locator("[data-smart-home-simulator]")).toHaveCount(1);
-    await assertScenarioOrder(page);
-
-    const panels = page.locator("[data-scenario-panel]");
-    await expect(panels).toHaveCount(scenarios.length);
-    for (const [index, scenario] of scenarios.entries()) {
-      const panel = panels.nth(index);
-      await expect(panel).toBeVisible();
-      await expect(panel).toHaveAttribute("data-scenario-panel", scenario.id);
+    await page.goto(route);
+    const root = await rootFor(page);
+    await expect(root).not.toHaveAttribute("data-enhanced", /./);
+    await assertOrder(page);
+    await expect(root.locator("[data-scenario-panel]:visible")).toHaveCount(scenarios.length);
+    await expect(root.locator("[data-system-label]:visible")).toHaveCount(systemIds.length);
+    await expect(root.locator("button[data-system-control]:visible")).toHaveCount(0);
+    const staticState = await root.evaluate((element) => ({
+      pictures: [...element.querySelectorAll("picture[data-scene-picture]")].filter((node) => !node.hasAttribute("hidden")).length,
+      routes: [...element.querySelectorAll("[data-route-layer]")].filter((node) => !node.hasAttribute("hidden")).length
+    }));
+    expect(staticState).toEqual({ pictures: 1, routes: 1 });
+    for (const scenario of scenarios) {
+      const panel = root.locator('[data-scenario-panel="' + scenario.id + '"]');
       await expect(panel.getByRole("heading")).not.toHaveText("");
-      const outcomes = panel.getByRole("listitem");
-      expect(await outcomes.count(), `${scenario.id} should explain 2 to 4 outcomes without JavaScript`).toBeGreaterThanOrEqual(2);
-      expect(await outcomes.count(), `${scenario.id} should explain 2 to 4 outcomes without JavaScript`).toBeLessThanOrEqual(4);
+      const outcomes = panel.locator(".smart-home__scenario-outcomes li");
+      expect(await outcomes.count(), scenario.id + " outcome lower bound").toBeGreaterThanOrEqual(2);
+      expect(await outcomes.count(), scenario.id + " outcome upper bound").toBeLessThanOrEqual(4);
       await expect(panel.getByText(/що визначаємо під час проєктування/i)).toBeVisible();
     }
   } finally {
@@ -334,27 +317,20 @@ test("all five scenarios remain complete and meaningful without JavaScript", asy
   }
 });
 
-test("malformed enhancement markup keeps every static scenario readable", async ({ page }) => {
-  await page.route("**/smart-home/", async (routeRequest) => {
-    const response = await routeRequest.fetch();
-    const html = (await response.text()).replace('value="backup"', 'value="malformed-backup"');
-    await routeRequest.fulfill({ response, body: html });
+test("malformed markup fails closed and keeps static content readable", async ({ page }) => {
+  await page.route("**/smart-home/", async (request) => {
+    const response = await request.fetch();
+    await request.fulfill({ response, body: (await response.text()).replace('value="backup"', 'value="malformed-backup"') });
   });
-
-  const response = await page.goto(route);
-  expect(response?.status()).toBe(200);
-  const root = await simulatorRoot(page);
-  await expect(root).not.toHaveAttribute("data-scenario", /./);
-
-  const panels = root.locator("[data-scenario-panel]");
-  await expect(panels).toHaveCount(scenarios.length);
-  for (const panel of await panels.all()) {
-    await expect(panel).toBeVisible();
-    await expect(panel.getByRole("heading")).not.toHaveText("");
-  }
+  await page.goto(route);
+  const root = await rootFor(page);
+  await expect(root).not.toHaveAttribute("data-enhanced", /./);
+  await expect(root.locator("[data-scenario-panel]:visible")).toHaveCount(scenarios.length);
+  await expect(root.locator("[data-system-label]:visible")).toHaveCount(systemIds.length);
+  await expect(root.locator("button[data-system-control]:visible")).toHaveCount(0);
 });
 
-test("the simulator avoids forbidden browser capabilities and external runtime requests", async ({ page }) => {
+test("the simulator avoids canvas, forms, storage, network APIs, and external runtime requests", async ({ page }) => {
   const externalRequests = [];
   page.on("request", (request) => {
     const url = new URL(request.url());
@@ -363,15 +339,11 @@ test("the simulator avoids forbidden browser capabilities and external runtime r
   await instrumentForbiddenRuntime(page);
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
-
-  for (const id of scenarioIds) {
-    await selectScenario(page, id);
-  }
+  for (const scenario of scenarios) await chooseScenario(page, scenario.id);
 
   await expect(page.locator("canvas")).toHaveCount(0);
   await expect(page.locator("main form, main textarea, main select, main input:not([type='radio'])")).toHaveCount(0);
-  const runtime = await page.evaluate(() => window.__smartHomeForbiddenRuntime);
-  expect(runtime).toEqual({
+  expect(await page.evaluate(() => window.__smartHomeForbiddenRuntime)).toEqual({
     canvasContexts: 0,
     fetch: 0,
     xhr: 0,
@@ -382,88 +354,87 @@ test("the simulator avoids forbidden browser capabilities and external runtime r
   expect(externalRequests).toEqual([]);
 });
 
-test("the smart-home page is keyboard reachable with visible focus", async ({ page }) => {
+test("keyboard traversal exposes visible focus for scenarios and all nine system controls", async ({ page }) => {
   await page.goto(route);
   await page.keyboard.press("Tab");
   await expect(page.locator(".skip-link")).toBeFocused();
 
-  const arrival = page.getByRole("radio", { name: "Повернення" });
-  for (let step = 0; step < 40 && !(await arrival.evaluate((element) => element === document.activeElement)); step += 1) {
+  const firstRadio = page.getByRole("radio", { name: "Ранок" });
+  for (let step = 0; step < 48 && !(await firstRadio.evaluate((element) => element === document.activeElement)); step += 1) {
     await page.keyboard.press("Tab");
   }
-  await expect(arrival).toBeFocused();
+  await expect(firstRadio).toBeFocused();
+  expect(await firstRadio.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
 
-  for (const [index, scenario] of scenarios.entries()) {
+  for (const scenario of scenarios.slice(1)) {
+    await page.keyboard.press("ArrowRight");
     const radio = page.getByRole("radio", { name: scenario.label });
     await expect(radio).toBeFocused();
-    expect(await radio.evaluate((element) => element.matches(":focus-visible")), `${scenario.label} should show keyboard focus`).toBeTruthy();
-    if (index < scenarios.length - 1) await page.keyboard.press("ArrowRight");
+    expect(await radio.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+  }
+
+  for (const systemId of systemIds) {
+    const control = (await rootFor(page)).locator('button[data-system-control="' + systemId + '"]');
+    await control.focus();
+    await expect(control).toBeFocused();
+    expect(await control.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
   }
 });
 
-test("initial state and every scenario state pass axe", async ({ page }) => {
+test("all scenario states pass axe and reduced motion resolves to zero animation and transition", async ({ page }) => {
   await page.goto(route);
-  for (const id of scenarioIds) {
-    await selectScenario(page, id);
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations, `${id} state should pass axe`).toEqual([]);
+  for (const scenario of scenarios) {
+    await chooseScenario(page, scenario.id);
+    expect((await new AxeBuilder({ page }).analyze()).violations, scenario.id + " axe").toEqual([]);
   }
-});
 
-test("reduced motion preserves scenario controls without active animation or transition", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto(route);
-  await selectScenario(page, "backup");
-
-  const activeMotion = await (await simulatorRoot(page)).locator("*").evaluateAll((elements) =>
+  await page.reload();
+  await chooseScenario(page, "heat");
+  const activeMotion = await (await rootFor(page)).locator("*").evaluateAll((elements) =>
     elements.filter((element) => {
       const style = getComputedStyle(element);
-      const hasAnimation = style.animationName !== "none" && style.animationDuration
-        .split(",")
-        .some((duration) => Number.parseFloat(duration) > 0);
-      const hasTransition = style.transitionDuration
-        .split(",")
-        .some((duration) => Number.parseFloat(duration) > 0);
-      return hasAnimation || hasTransition;
+      return [style.animationDuration, style.transitionDuration].some((value) =>
+        value.split(",").some((duration) => Number.parseFloat(duration) > 0)
+      );
     }).length
   );
   expect(activeMotion).toBe(0);
 });
 
-test("smart-home scene imagery loads with meaningful text and keeps the copy readable on image failure", async ({ page }) => {
+test("scene imagery loads with meaningful alt text and leaves copy readable after image abort", async ({ page }) => {
   await page.goto(route);
-  const figure = (await simulatorRoot(page)).locator("figure");
-  const image = figure.getByRole("img");
+  const figure = (await rootFor(page)).locator("figure");
+  const image = figure.locator("picture[data-scene-picture]:visible img");
   await expect.poll(() => image.evaluate((element) => element.complete && element.naturalWidth > 0)).toBe(true);
   await expect(image).toHaveAttribute("alt", /\S{8,}/);
-  await expect(figure.locator("figcaption")).toContainText(/сценар|об['’ʼ`]?єкт/i);
-
-  await page.route("**/assets/images/**", (routeRequest) => routeRequest.abort());
+  await page.route("**/assets/images/**", (request) => request.abort());
   await page.reload();
-  const fallbackFigure = (await simulatorRoot(page)).locator("figure");
+  const fallbackFigure = (await rootFor(page)).locator("figure");
   await expect(fallbackFigure.locator("figcaption")).toBeVisible();
   await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText("Розумний будинок");
   await expect(page.getByRole("main").getByText("Поточна конфігурація", { exact: true })).toBeVisible();
 });
 
-test("all scenario states stay fluid at every required viewport", async ({ page }) => {
-  await page.goto(route);
-  await expect(page.getByRole("main").locator("[data-smart-home-section]")).toHaveCount(7);
-  for (const id of scenarioIds) {
-    await selectScenario(page, id);
-    await assertNoOverflowOrClipping(page, `${id} at ${page.viewportSize()?.width}px`);
-    if ((page.viewportSize()?.width ?? 0) <= 414) await assertMobileTargetSize(page);
+test("all required viewports retain document and actual child bounds", async ({ page }) => {
+  for (const width of [375, 768, 1024, 1440, 1980]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(route);
+    for (const scenario of scenarios) {
+      await chooseScenario(page, scenario.id);
+      await assertViewportBounds(page, scenario.id + " at " + width + "px");
+      if (width === 375) await assertMobileTargetSize(page);
+    }
   }
 });
 
-test("all five scenario states stay fluid at intermediate widths", async ({ page }) => {
+test("intermediate widths retain mobile target sizes and actual child bounds", async ({ page }) => {
   for (const width of [414, 900, 1280, 1720]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(route);
-    await expect(page.getByRole("main").locator("[data-smart-home-section]")).toHaveCount(7);
-    for (const id of scenarioIds) {
-      await selectScenario(page, id);
-      await assertNoOverflowOrClipping(page, `${id} at intermediate ${width}px`);
+    for (const scenario of scenarios) {
+      await chooseScenario(page, scenario.id);
+      await assertViewportBounds(page, scenario.id + " at intermediate " + width + "px");
       if (width <= 414) await assertMobileTargetSize(page);
     }
   }

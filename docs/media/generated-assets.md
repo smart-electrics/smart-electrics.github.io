@@ -47,6 +47,60 @@ Materials/textures: true wood grain scale, stone pores, clean glass reflections,
 Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers, logos, brands, watermarks, UI overlays, phones, tablets, visible vendor products, fake awards, impossible floating objects. Architecture must be buildable. Lamps, switches, ceiling lines, furniture, doors and reflections must have correct geometry. No duplicated furniture or repeating textures. No warped straight lines, malformed fixtures, random cables, surreal reflections, over-smoothed CGI surfaces, exaggerated bloom or orange color cast.
 ```
 
+## smart-home-scenario-set
+
+- Дата: 2026-08-23
+- Інструмент: вбудований OpenAI image generation tool
+- Вхідне зображення для art direction: `assets/images/home/control-room-1536.webp`
+- Generated sources:
+  - shading: `exec-69673448-a82d-4191-a739-91b95e08d88e.png`
+  - stairs: `exec-fb3c30ff-f82d-4fbf-9067-67b24aa3593f.png`
+  - exterior: `exec-db40bf84-43af-4eeb-8b43-b8b737be6f11.png`
+  - climate: `exec-fc5b5d7a-b409-4442-b3f3-17772404783d.png`
+- Призначення: узгоджені фотореалістичні сцени для пояснення сонцезахисту,
+  підсвітки сходів, вуличного освітлення та зонального клімату в симуляторі
+  сценаріїв
+- Публічне твердження: демонстрація логіки готових до адаптації конфігурацій,
+  не підтверджені клієнтські кейси й не візуалізація конкретного обладнання
+- Файли: `assets/images/smart-home/{shading,stairs,exterior,climate}-768.webp`
+  та відповідні `-1536.webp`
+- Перетворення: WebP без метаданих, 768×512 px через `cwebp` quality 86 і
+  1536×1024 px через `cwebp` quality 88
+- Незалежний звіт: [`smart-home-scenes-visual-qa.md`](smart-home-scenes-visual-qa.md)
+- Результат: PASS для кожної сцени й набору загалом
+
+### Зафіксована візуальна мова
+
+Усі чотири кадри наслідують master-reference: сучасна приватна резиденція,
+темний горіх, теплий травертин, бронзові деталі, синя година, архітектурне
+світло 2700–3000K, 24-mm rectilinear perspective, стриманий bronze grade,
+темний простір для DOM-інтерфейсу. У кадрах немає людей, брендів, написів,
+екранів або вбудованого UI.
+
+### SHA-256
+
+- climate: `c82eb27443763218280ef32269f5fea5767f15442175369dc026b8837b140667`
+  (768), `56b8ac0156326b80170f725fe791dbf6d252e4f40a32d1cb6f36ff8dcadcec80`
+  (1536)
+- exterior: `fd10554c0093ccde83c50055b1bd8af619c0348586f6a1ab3dc85a234d277d6f`
+  (768), `2e10c613fa1522b5d964e85957ef72979811336fdfc443fce20ec98ab7c2dbdc`
+  (1536)
+- shading: `ad998c83e10f7101bab501d45a20ab114db14cd8513042502a5155c3bba6757c`
+  (768), `f1c024bcc5bbb8c3e4e53262c82bce88dc7e98526da7451131eadf45778b1661`
+  (1536)
+- stairs: `6eb9cabca2e823246667be5198b0794e1f5f1c6b76aba5c60a5d15f257b70d07`
+  (768), `2e22c9ae3c4e4eec2e3ad9b6a2f030f19f55bc8005764a41ec695de9d461392d`
+  (1536)
+
+### Prompt contract
+
+Кожна генерація вимагала той самий матеріальний, оптичний і колірний стиль,
+фізично правдоподібну інсталяцію та окремий предмет сцени: три шари
+сонцезахисту; маршрутне світло сходів; зоноване світло фасаду, доріжки й
+входу; приховані дифузори та підлоговий конвектор. Заборонені люди, текст,
+логотипи, UI, vendor-specific products, warped geometry, duplicated fixtures,
+random cables, exaggerated bloom і fantasy technology.
+
 ## apartment-comfort
 
 - Дата: 2026-08-23

@@ -18,5 +18,8 @@
     {% if page.url == '/' %}
       <script src="{{ '/assets/js/home-hero.js' | relative_url }}" defer></script>
     {% endif %}
+    {% if page.url == '/smart-home/' %}
+      <script type="module" src="{{ '/assets/js/smart-home-simulator.js' | relative_url }}"></script>
+    {% endif %}
   </body>
 </html>
