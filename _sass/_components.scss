@@ -141,6 +141,14 @@
   transform: translateY(1px);
 }
 
+.header-cta[aria-disabled="true"],
+.mobile-nav__cta[aria-disabled="true"],
+.button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+  pointer-events: none;
+}
+
 .mobile-nav {
   display: none;
   position: relative;
@@ -760,6 +768,12 @@
 
 .button--primary:hover {
   background: var(--amber-light);
+}
+
+.button--primary[aria-disabled="true"] {
+  background: rgba(175, 93, 56, 0.22);
+  border-color: var(--line-strong);
+  color: var(--text-soft);
 }
 
 .button--quiet {

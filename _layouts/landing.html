@@ -14,17 +14,21 @@ layout: default
       <p class="home-hero__lede">{{ site.data.site.hero_body }}</p>
 
       <div class="home-hero__actions">
-        <a class="button button--primary" href="{{ '/contact/' | relative_url }}">{{ site.data.site.hero_primary_cta }}</a>
+        {% if site.data.site.contact_cta.enabled %}
+          <a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
+        {% else %}
+          <span class="button button--primary" aria-disabled="true">{{ site.data.site.contact_cta.label }}</span>
+        {% endif %}
         <a class="button button--quiet" href="{{ '/smart-home/' | relative_url }}">{{ site.data.site.hero_secondary_cta }}</a>
       </div>
-      <p class="home-hero__prelaunch">{{ site.data.site.hero_prelaunch }}</p>
+      <p class="home-hero__prelaunch">{{ site.data.site.contact_cta.status }}</p>
     </div>
 
     <div class="home-hero__visual">
       <picture class="home-hero__poster">
         <source media="(max-width: 767px)" srcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }}" width="768" height="512">
         <source srcset="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024">
-        <img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 64vw" alt="Вітальня сучасного будинку з багаторівневим електричним освітленням і керованими системами комфорту" loading="eager" fetchpriority="high">
+        <img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 64vw" alt="{{ site.data.site.hero_visual_alt }}" loading="eager" fetchpriority="high">
       </picture>
       <canvas class="home-hero__canvas" data-home-canvas aria-hidden="true"></canvas>
       <div class="home-hero__labels" aria-hidden="true">
@@ -32,7 +36,7 @@ layout: default
       </div>
     </div>
 
-    <div class="home-hero__controls" aria-label="Демонстраційні системи об’єкта">
+    <div class="home-hero__controls" role="group" aria-label="{{ site.data.site.hero_controls_aria_label }}">
       {% for control in site.data.site.hero_controls %}
         <button type="button" data-scene-control data-scene="{{ control.id }}" data-scene-description="{{ control.description }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ control.label }}</button>
       {% endfor %}
@@ -46,8 +50,8 @@ layout: default
 
 <section class="audience-paths shell" aria-labelledby="audience-title">
   <div class="audience-paths__intro">
-    <p class="section-kicker">Почнімо з вашого контексту</p>
-    <h2 id="audience-title">Система починається з потреб об’єкта</h2>
+    <p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p>
+    <h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2>
   </div>
   <div class="audience-paths__grid">
     {% for path in site.data.site.audience_paths %}

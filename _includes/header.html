@@ -13,7 +13,11 @@
       {% endfor %}
     </nav>
 
-    <a class="header-cta" href="{{ '/contact/' | relative_url }}">Обговорити об’єкт</a>
+    {% if site.data.site.contact_cta.enabled %}
+      <a class="header-cta" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
+    {% else %}
+      <span class="header-cta" aria-disabled="true">{{ site.data.site.contact_cta.label }}</span>
+    {% endif %}
 
     <details class="mobile-nav">
       <summary aria-label="Відкрити меню">
@@ -27,7 +31,11 @@
           {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
           <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
         {% endfor %}
-        <a class="mobile-nav__cta" href="{{ '/contact/' | relative_url }}">Обговорити об’єкт</a>
+        {% if site.data.site.contact_cta.enabled %}
+          <a class="mobile-nav__cta" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
+        {% else %}
+          <span class="mobile-nav__cta" aria-disabled="true">{{ site.data.site.contact_cta.label }}</span>
+        {% endif %}
       </nav>
     </details>
   </div>

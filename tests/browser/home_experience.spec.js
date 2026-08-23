@@ -43,6 +43,11 @@ test("hero explains the full electrical journey and exposes live scene controls"
   expect(visibleCopy).toMatch(/чорнового монтажу/i);
   expect(visibleCopy).toMatch(/розумного будинку/i);
 
+  const primaryCta = main.locator(".button--primary");
+  await expect(primaryCta).toHaveText("Обговорити об’єкт");
+  await expect(primaryCta).toHaveAttribute("aria-disabled", "true");
+  expect(await primaryCta.getAttribute("href")).toBeNull();
+
   for (const label of ["Освітлення", "Клімат", "Безпека", "Живлення"]) {
     const control = main.getByRole("button", { name: new RegExp(label, "i") });
     await expect(control).toHaveCount(1);
@@ -60,7 +65,7 @@ test("hero explains the full electrical journey and exposes live scene controls"
     "aria-pressed",
     "false"
   );
-  await expect(liveRegions.first()).toContainText("датчиків і контролю доступу");
+  await expect(liveRegions.first()).toContainText("контролю датчиків і доступу");
 });
 
 test("hero secondary CTA reaches smart home and its visual has meaningful Ukrainian alt", async ({ page }) => {
@@ -100,5 +105,75 @@ test("static poster and scene explanation remain usable without WebGL", async ({
   const main = page.getByRole("main");
   await expect(main.getByRole("img").first()).toBeVisible();
   await main.getByRole("button", { name: "Живлення", exact: true }).click();
-  await expect(main.locator('[aria-live]:visible').first()).toContainText("резервного контуру");
+  await expect(main.locator('[aria-live]:visible').first()).toContainText("резервного живлення");
+});
+
+test("reduced motion bypasses WebGL while preserving the complete hero", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.__heroWebglRequested = false;
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function trackWebGL(type, ...args) {
+      if (type === "webgl" || type === "webgl2") window.__heroWebglRequested = true;
+      return getContext.call(this, type, ...args);
+    };
+  });
+  await page.goto("/");
+
+  await expect(page.locator("[data-home-scene]")).toHaveAttribute("data-webgl", "fallback");
+  expect(await page.evaluate(() => window.__heroWebglRequested)).toBe(false);
+  await expect(page.getByRole("img").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Освітлення", exact: true })).toBeVisible();
+});
+
+test("WebGL context loss returns the scene to its poster fallback", async ({ page }) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function provideDeterministicWebGL(type, ...args) {
+      if (type !== "webgl") return getContext.call(this, type, ...args);
+
+      return {
+        VERTEX_SHADER: 1,
+        FRAGMENT_SHADER: 2,
+        COMPILE_STATUS: 3,
+        LINK_STATUS: 4,
+        ARRAY_BUFFER: 5,
+        STATIC_DRAW: 6,
+        FLOAT: 7,
+        COLOR_BUFFER_BIT: 8,
+        TRIANGLE_STRIP: 9,
+        createShader: () => ({}),
+        shaderSource: () => {},
+        compileShader: () => {},
+        getShaderParameter: () => true,
+        deleteShader: () => {},
+        createProgram: () => ({}),
+        attachShader: () => {},
+        linkProgram: () => {},
+        getProgramParameter: () => true,
+        getAttribLocation: () => 0,
+        getUniformLocation: () => ({}),
+        createBuffer: () => ({}),
+        bindBuffer: () => {},
+        bufferData: () => {},
+        useProgram: () => {},
+        enableVertexAttribArray: () => {},
+        vertexAttribPointer: () => {},
+        viewport: () => {},
+        clearColor: () => {},
+        clear: () => {},
+        uniform2f: () => {},
+        uniform1f: () => {},
+        drawArrays: () => {}
+      };
+    };
+  });
+  await page.goto("/");
+
+  const scene = page.locator("[data-home-scene]");
+  const canvas = page.locator("[data-home-canvas]");
+  await expect(scene).toHaveAttribute("data-webgl", "ready");
+  await canvas.dispatchEvent("webglcontextlost");
+  await expect(scene).toHaveAttribute("data-webgl", "fallback");
+  await expect(page.getByRole("img").first()).toBeVisible();
 });
