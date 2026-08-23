@@ -34,7 +34,7 @@ test("homepage states the verified offer without pretending contacts are active"
     page.getByRole("banner").getByRole("link", { name: "Smart Electrics, головна" })
   ).toBeVisible();
   await expect(page.getByText("Львів та область", { exact: true })).toBeVisible();
-  await expect(page.getByText("Форма запиту готується.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Контактна форма готується.", { exact: true })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 });
 
