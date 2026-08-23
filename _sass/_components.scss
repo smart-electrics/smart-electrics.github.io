@@ -645,10 +645,6 @@
 }
 
 @media (max-width: 54rem) {
-  :root {
-    --shell: min(100% - 1.5rem, 46rem);
-  }
-
   .hero {
     grid-template-columns: 1fr;
     padding-top: 4rem;

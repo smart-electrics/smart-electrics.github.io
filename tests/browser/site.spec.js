@@ -50,6 +50,49 @@ test("every planned route renders, remains noindex, and fits the viewport", asyn
   }
 });
 
+test("outer composition remains fluid instead of freezing at a desktop max-width", async ({ page }) => {
+  await page.goto("/");
+
+  const viewport = page.viewportSize();
+  const shell = await page.locator(".site-header__inner").evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return { left: bounds.left, right: bounds.right, width: bounds.width };
+  });
+
+  expect(viewport).not.toBeNull();
+  expect(shell.width).toBeGreaterThan(viewport.width * 0.9);
+  expect(Math.abs(shell.left - (viewport.width - shell.right))).toBeLessThanOrEqual(1);
+});
+
+test("composition also scales at intermediate widths between the viewport matrix", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-1980", "One Chromium project samples the in-between widths.");
+
+  let previousShellWidth = 0;
+
+  for (const width of [414, 900, 1280, 1720]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/");
+
+    const measurements = await page.locator(".site-header__inner").evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return {
+        overflow: Math.max(
+          0,
+          document.documentElement.scrollWidth - document.documentElement.clientWidth
+        ),
+        shellWidth: bounds.width
+      };
+    });
+
+    expect(measurements.overflow, `${width}px should not scroll horizontally`).toBe(0);
+    expect(measurements.shellWidth, `${width}px should retain a fluid outer composition`).toBeGreaterThan(
+      width * 0.9
+    );
+    expect(measurements.shellWidth).toBeGreaterThan(previousShellWidth);
+    previousShellWidth = measurements.shellWidth;
+  }
+});
+
 test("navigation exposes the agreed Ukrainian labels", async ({ page }) => {
   await page.goto("/");
 
@@ -62,9 +105,11 @@ test("navigation exposes the agreed Ukrainian labels", async ({ page }) => {
     await page.locator(".mobile-nav summary").click();
   }
 
-  for (const label of ["Послуги", "Розумний будинок", "Проєкти", "Процес", "Про нас", "Контакти"]) {
+  for (const label of ["Послуги", "Розумний будинок", "Процес", "Про нас", "Контакти"]) {
     await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
+
+  await expect(navigation.getByRole("link", { name: "Проєкти", exact: true })).toHaveCount(0);
 });
 
 test("service details keep the Services section active in both navigation variants", async ({ page }) => {

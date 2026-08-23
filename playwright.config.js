@@ -26,7 +26,8 @@ export default defineConfig({
     { name: "mobile-375", use: { viewport: { width: 375, height: 812 } } },
     { name: "tablet-768", use: { viewport: { width: 768, height: 1024 } } },
     { name: "desktop-1024", use: { viewport: { width: 1024, height: 768 } } },
-    { name: "desktop-1440", use: { viewport: { width: 1440, height: 1000 } } }
+    { name: "desktop-1440", use: { viewport: { width: 1440, height: 1000 } } },
+    { name: "desktop-1980", use: { viewport: { width: 1980, height: 1200 } } }
   ],
   webServer: {
     command: "bundle exec jekyll serve --host 127.0.0.1 --port 4000 --trace",
