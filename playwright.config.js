@@ -7,7 +7,8 @@ export default defineConfig({
   outputDir: "artifacts/playwright-results",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // A failed attempt is a failed quality gate; flakes must remain visible.
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ["list"],
@@ -30,7 +31,7 @@ export default defineConfig({
     { name: "desktop-1980", use: { viewport: { width: 1980, height: 1200 } } }
   ],
   webServer: {
-    command: "bundle exec jekyll serve --host 127.0.0.1 --port 4000 --trace",
+    command: "bundle exec jekyll serve --no-watch --host 127.0.0.1 --port 4000 --trace",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000

@@ -6,6 +6,7 @@
 - Спершу прочитай `CONTEXT.md`; перед роботою з Issue — `docs/agents/issue-tracker.md` і `docs/agents/triage-labels.md`; перед зміною архітектури — релевантні ADR у `docs/adr/`.
 - Веди роботу через GitHub Issue → гілка → PR після bootstrap. Не переписуй історію: без force-push. Незалежний reviewer має схвалити кожен PR до злиття.
 - Незакріплені зміни інших людей не чіпай. Перевірки й команди виводь із поточних файлів проєкту, а не з цього документа.
+- Quality gate працює fail-closed: перший failed або flaky тест робить build червоним; Playwright retries завжди `0`.
 
 ## Agent skills
 
