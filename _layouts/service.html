@@ -1,16 +1,87 @@
 ---
 layout: default
 ---
-<article class="placeholder-page service-page shell">
-  <header class="placeholder-page__header">
-    <p class="section-kicker">Послуга · детальна сторінка готується</p>
-    <p class="service-page__number" aria-hidden="true">{{ page.order | prepend: '0' | slice: -2, 2 }}</p>
-    <h1>{{ page.title }}</h1>
-    <p class="placeholder-page__lede">{{ page.description }}</p>
+<article class="service-detail">
+  <header class="service-detail__hero">
+    <div class="service-detail__hero-inner shell">
+      <p class="service-detail__number" aria-hidden="true">{{ page.order | prepend: '0' | slice: -2, 2 }}</p>
+      <div class="service-detail__hero-copy">
+        <p class="section-kicker">{{ page.kicker }}</p>
+        <h1>{{ page.title }}</h1>
+        <p class="service-detail__lede">{{ page.description }}</p>
+      </div>
+      <p class="service-detail__index" aria-hidden="true"><span>Напрям</span> {{ page.order | prepend: '0' | slice: -2, 2 }} / 08</p>
+    </div>
   </header>
-  <div class="placeholder-page__content">
-    {{ content }}
-    <p><a class="text-link" href="{{ '/services/' | relative_url }}">До всіх послуг <span aria-hidden="true">←</span></a></p>
+
+  <div class="service-detail__body shell">
+    <div class="service-detail__context">
+      <section class="service-detail__panel service-detail__panel--role" aria-labelledby="service-role-title">
+        <p class="section-kicker">Контекст</p>
+        <h2 id="service-role-title">Роль у системі</h2>
+        <p>{{ page.role }}</p>
+      </section>
+
+      <section class="service-detail__panel service-detail__panel--when" aria-labelledby="service-when-title">
+        <p class="section-kicker">Етап</p>
+        <h2 id="service-when-title">Коли залучати</h2>
+        <p>{{ page.when_to_involve }}</p>
+      </section>
+    </div>
+
+    <div class="service-detail__details">
+      <section class="service-detail__section" aria-labelledby="service-scope-title">
+        <div class="service-detail__section-heading">
+          <p class="section-kicker">01</p>
+          <h2 id="service-scope-title">Що охоплює</h2>
+        </div>
+        <ul class="service-detail__list">
+          {% for item in page.scope %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="service-detail__section" aria-labelledby="service-inputs-title">
+        <div class="service-detail__section-heading">
+          <p class="section-kicker">02</p>
+          <h2 id="service-inputs-title">Що варто уточнити щодо об’єкта</h2>
+        </div>
+        <ul class="service-detail__list service-detail__list--inputs">
+          {% for item in page.inputs %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <section class="service-detail__related" aria-labelledby="related-services-title">
+      <div class="service-detail__related-heading">
+        <p class="section-kicker">03</p>
+        <h2 id="related-services-title">Пов’язані напрями</h2>
+      </div>
+      <ul class="service-detail__related-list">
+        {% for related_slug in page.related_services %}
+          {% assign related_service = site.services | where: "slug", related_slug | first %}
+          {% if related_service %}
+            <li>
+              <a class="service-detail__related-link" href="{{ related_service.url | relative_url }}" aria-label="{{ related_service.title }}, переглянути напрям">
+                <span class="service-detail__related-number" aria-hidden="true">{{ related_service.order | prepend: '0' | slice: -2, 2 }}</span>
+                <span>
+                  <span class="service-detail__related-title">{{ related_service.title }}</span>
+                  <span class="service-detail__related-role">{{ related_service.role }}</span>
+                </span>
+                <span class="service-detail__related-arrow" aria-hidden="true">↗</span>
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </section>
+
+    <div class="service-detail__closing">
+      <a class="text-link service-detail__back-link" href="{{ '/services/' | relative_url }}"><span aria-hidden="true">←</span> До всіх послуг</a>
+      {% include estimate-status.html %}
+    </div>
   </div>
-  {% include estimate-status.html %}
 </article>

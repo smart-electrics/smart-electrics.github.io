@@ -1,7 +1,7 @@
 ---
 layout: default
 ---
-<article class="placeholder-page shell">
+<article class="placeholder-page{% if page.services_catalogue %} placeholder-page--services{% endif %} shell">
   <header class="placeholder-page__header">
     <p class="section-kicker">{{ page.kicker | default: 'Розділ готується' }}</p>
     <h1>{{ page.title }}</h1>
