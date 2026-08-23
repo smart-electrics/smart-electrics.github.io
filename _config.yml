@@ -19,6 +19,9 @@ collections:
   services:
     output: true
     permalink: /services/:name/
+  solutions:
+    output: true
+    permalink: /solutions/:name/
 
 defaults:
   - scope:
@@ -35,6 +38,12 @@ defaults:
       type: services
     values:
       layout: service
+      sitemap: false
+  - scope:
+      path: ""
+      type: solutions
+    values:
+      layout: solution
       sitemap: false
 
 launch:

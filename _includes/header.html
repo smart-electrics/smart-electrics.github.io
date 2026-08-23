@@ -9,6 +9,7 @@
         {% assign current_item = false %}
         {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
         {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
+        {% if item.url == '/solutions/' and page.collection == 'solutions' %}{% assign current_item = true %}{% endif %}
         <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
       {% endfor %}
     </nav>
@@ -29,6 +30,7 @@
           {% assign current_item = false %}
           {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
           {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
+          {% if item.url == '/solutions/' and page.collection == 'solutions' %}{% assign current_item = true %}{% endif %}
           <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
         {% endfor %}
         {% if site.data.site.contact_cta.enabled %}
