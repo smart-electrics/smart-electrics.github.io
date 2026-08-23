@@ -72,7 +72,7 @@ test("hero secondary CTA reaches smart home and its visual has meaningful Ukrain
   await page.goto("/");
 
   const main = page.getByRole("main");
-  const smartHomeCta = main.getByRole("link", { name: "Переглянути сценарії", exact: true });
+  const smartHomeCta = main.getByRole("link", { name: "Переглянути приклади сценаріїв", exact: true });
   await expect(smartHomeCta).toHaveCount(1);
   await expect(smartHomeCta).toBeVisible();
   await expect(smartHomeCta).toHaveAttribute("href", /\/smart-home\/$/);
@@ -80,6 +80,20 @@ test("hero secondary CTA reaches smart home and its visual has meaningful Ukrain
   const heroVisual = main.getByRole("img").first();
   await expect(heroVisual).toBeVisible();
   await expect(heroVisual).toHaveAccessibleName(/(електр|систем|будинок|освіт|клімат|безпек|живлен)/i);
+});
+
+test("audience paths lead to useful private and partner destinations", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByRole("link", { name: /Для квартири або будинку/ })).toHaveAttribute(
+    "href",
+    /\/services\/$/
+  );
+  const partnerPath = page.getByRole("link", { name: /Для архітекторів і дизайнерів/ });
+  await expect(partnerPath).toHaveAttribute("href", /\/about\/#partners$/);
+  await partnerPath.click();
+  await expect(page).toHaveURL(/\/about\/#partners$/);
+  await expect(page.getByRole("heading", { name: "Для архітекторів і дизайнерів" })).toBeVisible();
 });
 
 test("homepage remains noindex and contains no fake review or rating metrics", async ({ page }) => {
