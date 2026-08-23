@@ -18,7 +18,9 @@
 }
 
 .brand {
+  align-items: center;
   display: inline-flex;
+  min-height: 2.75rem;
   text-decoration: none;
   transition: opacity 160ms ease, transform 160ms ease;
 }
@@ -1014,6 +1016,12 @@
   grid-column: 1 / -1;
   justify-content: space-between;
   padding-top: 1.5rem;
+}
+
+.site-footer__meta a {
+  align-items: center;
+  display: inline-flex;
+  min-height: 2.75rem;
 }
 
 .site-footer__meta a:hover {

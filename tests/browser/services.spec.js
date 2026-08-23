@@ -248,3 +248,26 @@ test("contact remains a disabled prelaunch action on the services surfaces", asy
     }
   }
 });
+
+test("mobile services chrome links provide 44px touch targets", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375", "Touch-target matrix assertion belongs to mobile-375.");
+
+  await page.goto("/services/");
+  const chromeLinks = [
+    ...(await page.getByRole("banner").getByRole("link").all()),
+    ...(await page.getByRole("contentinfo").getByRole("link").all())
+  ];
+  const undersized = [];
+
+  for (const link of chromeLinks) {
+    if (!(await link.isVisible())) continue;
+
+    const box = await link.boundingBox();
+    const name = await link.getAttribute("aria-label") || (await link.innerText()).trim();
+    if (!box || box.width < 44 || box.height < 44) {
+      undersized.push({ name, width: box?.width ?? null, height: box?.height ?? null });
+    }
+  }
+
+  expect(undersized, "every visible header/footer link should have a 44px touch target").toEqual([]);
+});
