@@ -1,0 +1,113 @@
+---
+layout: default
+---
+{% assign ordered_solutions = site.solutions | sort: "order" %}
+<article class="solution-detail">
+  <header class="solution-detail__hero">
+    <div class="solution-detail__hero-inner shell">
+      <picture class="solution-detail__hero-media">
+        <source media="(max-width: 767px)" srcset="{{ page.image_768 | relative_url }}" width="768" height="512">
+        <source srcset="{{ page.image_1536 | relative_url }}" width="1536" height="1024">
+        <img src="{{ page.image_1536 | relative_url }}" width="1536" height="1024" sizes="100vw" alt="{{ page.image_alt }}" loading="eager" decoding="async" fetchpriority="high"{% if page.image_focus %} style="object-position: {{ page.image_focus }}"{% endif %}>
+      </picture>
+      <span class="solution-detail__hero-fallback" aria-hidden="true"></span>
+      <div class="solution-detail__hero-copy">
+        <p class="section-kicker">Готове рішення {{ page.order | prepend: "0" | slice: -2, 2 }} / 06</p>
+        <h1>{{ page.title }}</h1>
+        <p>{{ page.description }}</p>
+      </div>
+      <p class="solution-detail__hero-index" aria-hidden="true">{{ page.order | prepend: "0" | slice: -2, 2 }}</p>
+    </div>
+  </header>
+
+  <div class="solution-detail__body shell">
+    <section class="solution-detail__focus" aria-labelledby="solution-focus-title">
+      <div>
+        <p class="section-kicker">Для кого</p>
+        <h2 id="solution-focus-title">Фокус конфігурації</h2>
+        <p class="solution-detail__audience">{{ page.audience }}</p>
+      </div>
+      <p>{{ page.focus }}</p>
+    </section>
+
+    <section class="solution-detail__section" aria-labelledby="solution-systems-title">
+      <div class="solution-detail__section-heading">
+        <p class="section-kicker">01</p>
+        <h2 id="solution-systems-title">Що поєднується в системі</h2>
+      </div>
+      <ul class="solution-detail__system-list">
+        {% for system in page.systems %}<li>{{ system }}</li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="solution-detail__section" aria-labelledby="solution-scenarios-title">
+      <div class="solution-detail__section-heading">
+        <p class="section-kicker">02</p>
+        <h2 id="solution-scenarios-title">Приклади сценаріїв</h2>
+      </div>
+      <div class="solution-detail__scenario-content">
+        <p class="solution-detail__scenario-intro">Наведені приклади показують можливий зв’язок між подією, реакцією системи та користю після адаптації конфігурації.</p>
+        <ol class="solution-detail__scenario-list">
+          {% for scenario in page.scenarios %}
+            <li>
+              <h3>{{ scenario.title }}</h3>
+              <dl>
+                <div><dt>Подія</dt><dd>{{ scenario.trigger }}</dd></div>
+                <div><dt>Реакція системи</dt><dd>{{ scenario.response }}</dd></div>
+                <div><dt>Користь</dt><dd>{{ scenario.benefit }}</dd></div>
+              </dl>
+            </li>
+          {% endfor %}
+        </ol>
+      </div>
+    </section>
+
+    <section class="solution-detail__section" aria-labelledby="solution-inputs-title">
+      <div class="solution-detail__section-heading">
+        <p class="section-kicker">03</p>
+        <h2 id="solution-inputs-title">Що уточнити щодо об’єкта</h2>
+      </div>
+      <ul class="solution-detail__input-list">
+        {% for input in page.inputs %}<li>{{ input }}</li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="solution-detail__related" aria-labelledby="solution-related-services-title">
+      <div class="solution-detail__section-heading">
+        <p class="section-kicker">04</p>
+        <h2 id="solution-related-services-title">Пов’язані послуги</h2>
+      </div>
+      <ul>
+        {% for related_slug in page.related_services %}
+          {% assign related_service = site.services | where: "slug", related_slug | first %}
+          {% if related_service %}
+            <li><a href="{{ related_service.url | relative_url }}"><span aria-hidden="true">{{ related_service.order | prepend: "0" | slice: -2, 2 }}</span>{{ related_service.title }} <span aria-hidden="true">↗</span></a></li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="solution-detail__related" aria-labelledby="solution-related-solutions-title">
+      <div class="solution-detail__section-heading">
+        <p class="section-kicker">05</p>
+        <h2 id="solution-related-solutions-title">Пов’язані готові рішення</h2>
+      </div>
+      <ul>
+        {% for related_slug in page.related_solutions %}
+          {% assign related_solution = site.solutions | where: "slug", related_slug | first %}
+          {% if related_solution %}
+            <li><a href="{{ related_solution.url | relative_url }}"><span aria-hidden="true">{{ related_solution.order | prepend: "0" | slice: -2, 2 }}</span>{{ related_solution.title }} <span aria-hidden="true">↗</span></a></li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    </section>
+
+    <div class="solution-detail__closing">
+      <a class="text-link" href="{{ '/solutions/' | relative_url }}"><span aria-hidden="true">←</span> До всіх готових рішень</a>
+      <div>
+        <button class="button button--primary" type="button" disabled aria-describedby="solution-contact-status">Обговорити об’єкт</button>
+        <p class="solution-detail__prelaunch" id="solution-contact-status">{{ site.data.site.contact_cta.status }}</p>
+      </div>
+    </div>
+  </div>
+</article>
