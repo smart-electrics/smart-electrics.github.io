@@ -17,7 +17,8 @@
   --shadow: 0 30px 90px rgba(0, 0, 0, 0.36);
   --font-display: Georgia, "Times New Roman", serif;
   --font-sans: "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif;
-  --shell: min(100% - 2rem, 86rem);
+  --page-gutter: clamp(0.75rem, 2.2vw, 3rem);
+  --shell: calc(100% - (2 * var(--page-gutter)));
   --radius-sm: 0.75rem;
   --radius-md: 1.25rem;
   --radius-lg: 2rem;

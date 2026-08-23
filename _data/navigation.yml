@@ -2,8 +2,6 @@
   url: /services/
 - label: Розумний будинок
   url: /smart-home/
-- label: Проєкти
-  url: /projects/
 - label: Процес
   url: /process/
 - label: Про нас
