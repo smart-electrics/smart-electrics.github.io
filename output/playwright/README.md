@@ -13,12 +13,12 @@ below.
 - `services-375.png`, `services-768.png`, `services-1024.png`,
   `services-1440.png`, `services-1980.png` — the complete services catalogue
   at the same Chromium matrix; captured on 2026-08-23 from source commit
-  `8850cf8`.
+  `10ee964`.
 - `service-smart-home-375.png`, `service-smart-home-768.png`,
   `service-smart-home-1024.png`, `service-smart-home-1440.png`,
   `service-smart-home-1980.png` — the representative longest service detail
   at the same Chromium matrix; captured on 2026-08-23 from source commit
-  `8850cf8`.
+  `10ee964`.
 
 Regenerate website screenshots from a clean build with the Jekyll server in
 `--no-watch` mode and record the source commit in the related pull request. Do
