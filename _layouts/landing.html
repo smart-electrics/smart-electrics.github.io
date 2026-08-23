@@ -17,11 +17,11 @@ layout: default
         {% if site.data.site.contact_cta.enabled %}
           <a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
         {% else %}
-          <span class="button button--primary" aria-disabled="true">{{ site.data.site.contact_cta.label }}</span>
+          <button class="button button--primary" type="button" disabled aria-describedby="hero-contact-status">{{ site.data.site.contact_cta.label }}</button>
         {% endif %}
         <a class="button button--quiet" href="{{ '/smart-home/' | relative_url }}">{{ site.data.site.hero_secondary_cta }}</a>
       </div>
-      <p class="home-hero__prelaunch">{{ site.data.site.contact_cta.status }}</p>
+      <p class="home-hero__prelaunch" id="hero-contact-status">{{ site.data.site.contact_cta.status }}</p>
     </div>
 
     <div class="home-hero__visual">

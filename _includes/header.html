@@ -16,7 +16,7 @@
     {% if site.data.site.contact_cta.enabled %}
       <a class="header-cta" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
     {% else %}
-      <span class="header-cta" aria-disabled="true">{{ site.data.site.contact_cta.label }}</span>
+      <button class="header-cta" type="button" disabled aria-label="{{ site.data.site.contact_cta.label }}. {{ site.data.site.contact_cta.status }}">{{ site.data.site.contact_cta.label }}</button>
     {% endif %}
 
     <details class="mobile-nav">
@@ -34,7 +34,7 @@
         {% if site.data.site.contact_cta.enabled %}
           <a class="mobile-nav__cta" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
         {% else %}
-          <span class="mobile-nav__cta" aria-disabled="true">{{ site.data.site.contact_cta.label }}</span>
+          <button class="mobile-nav__cta" type="button" disabled aria-label="{{ site.data.site.contact_cta.label }}. {{ site.data.site.contact_cta.status }}">{{ site.data.site.contact_cta.label }}</button>
         {% endif %}
       </nav>
     </details>

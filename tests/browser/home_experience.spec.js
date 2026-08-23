@@ -45,7 +45,7 @@ test("hero explains the full electrical journey and exposes live scene controls"
 
   const primaryCta = main.locator(".button--primary");
   await expect(primaryCta).toHaveText("Обговорити об’єкт");
-  await expect(primaryCta).toHaveAttribute("aria-disabled", "true");
+  await expect(primaryCta).toBeDisabled();
   expect(await primaryCta.getAttribute("href")).toBeNull();
 
   for (const label of ["Освітлення", "Клімат", "Безпека", "Живлення"]) {
