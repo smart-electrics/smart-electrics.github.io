@@ -33,6 +33,18 @@ for (const scriptName of ["test", "test:browser"]) {
   }
 }
 
+const webServerCommands = Array.isArray(playwrightConfig.webServer)
+  ? playwrightConfig.webServer.map(({ command }) => command)
+  : [playwrightConfig.webServer?.command];
+
+for (const command of webServerCommands) {
+  if (typeof command !== "string" || !command.includes("--no-watch")) {
+    failures.push(
+      "Playwright Jekyll servers must use --no-watch so test artifacts cannot trigger partial rebuilds."
+    );
+  }
+}
+
 if (failures.length > 0) {
   for (const failure of failures) {
     console.error(failure);

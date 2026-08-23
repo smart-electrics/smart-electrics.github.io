@@ -31,7 +31,7 @@ export default defineConfig({
     { name: "desktop-1980", use: { viewport: { width: 1980, height: 1200 } } }
   ],
   webServer: {
-    command: "bundle exec jekyll serve --host 127.0.0.1 --port 4000 --trace",
+    command: "bundle exec jekyll serve --no-watch --host 127.0.0.1 --port 4000 --trace",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000
