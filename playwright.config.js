@@ -7,7 +7,8 @@ export default defineConfig({
   outputDir: "artifacts/playwright-results",
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 1 : 0,
+  // A failed attempt is a failed quality gate; flakes must remain visible.
+  retries: 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ["list"],

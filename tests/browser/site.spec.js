@@ -175,7 +175,12 @@ test("analytics and lead submission remain disabled until their activation gate 
 
 test("key surfaces have no automatically detectable accessibility violations", async ({ page }) => {
   for (const route of ["/", "/services/electrical-installation/", "/privacy/"]) {
-    await page.goto(route);
+    const response = await page.goto(route);
+    expect(response?.ok(), `${route} should return a successful response before axe`).toBeTruthy();
+    await expect(page.locator("main"), `${route} should render its main landmark before axe`).toBeVisible();
+    await expect(page, `${route} should render the Smart Electrics document before axe`).toHaveTitle(
+      /Smart Electrics/
+    );
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations, `${route} should pass axe`).toEqual([]);
   }
