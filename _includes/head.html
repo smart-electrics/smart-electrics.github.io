@@ -1,12 +1,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0b0908">
+<meta name="theme-color" content="#040201">
 {% seo %}
 {% unless site.launch.indexing %}
   <meta name="robots" content="noindex, nofollow, noarchive">
 {% endunless %}
 <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
+{% if page.url == '/' %}
+  <link rel="preload" as="image" href="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" imagesrcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }} 768w, {{ '/assets/images/home/control-room-1536.webp' | relative_url }} 1536w" imagesizes="(max-width: 767px) 100vw, 64vw">
+{% endif %}
 <link rel="icon" href="{{ '/assets/brand/favicon.svg' | relative_url }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ '/assets/brand/apple-touch-icon.png' | relative_url }}">
 <link rel="manifest" href="{{ '/site.webmanifest' | relative_url }}">

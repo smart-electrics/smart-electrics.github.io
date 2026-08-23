@@ -59,3 +59,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Manrope
+
+- Source: <https://github.com/sharanda/manrope>
+- Webfont distribution: <https://fonts.google.com/specimen/Manrope>
+- Included files: `assets/fonts/manrope-cyrillic.woff2`,
+  `assets/fonts/manrope-latin.woff2`
+- License: SIL Open Font License 1.1
+- Copyright: 2018 The Manrope Project Authors
+
+The full license text is included in `assets/fonts/OFL-Manrope.txt`.

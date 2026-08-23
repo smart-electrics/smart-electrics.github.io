@@ -1,5 +1,7 @@
 - label: Послуги
   url: /services/
+- label: Готові рішення
+  url: /solutions/
 - label: Розумний будинок
   url: /smart-home/
 - label: Процес

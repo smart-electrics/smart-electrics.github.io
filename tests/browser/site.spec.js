@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 const routes = [
   "/",
   "/services/",
+  "/solutions/",
   "/smart-home/",
   "/projects/",
   "/process/",
@@ -21,19 +22,19 @@ const routes = [
   "/404.html"
 ];
 
-test("coming-soon page states the verified offer without pretending to be launched", async ({ page }) => {
+test("homepage states the verified offer without pretending contacts are active", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle(/Smart Electrics/);
   await expect(page.locator("html")).toHaveAttribute("lang", "uk");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Від електромережі до розумного будинку"
+    /Електрика/i
   );
   await expect(
-    page.getByRole("banner").getByRole("link", { name: "Smart Electrics — головна" })
+    page.getByRole("banner").getByRole("link", { name: "Smart Electrics, головна" })
   ).toBeVisible();
   await expect(page.getByText("Львів та область", { exact: true })).toBeVisible();
-  await expect(page.getByText("Розрахунок вартості — незабаром", { exact: true })).toBeVisible();
+  await expect(page.getByText("Контактна форма готується.", { exact: true })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 });
 
@@ -105,7 +106,7 @@ test("navigation exposes the agreed Ukrainian labels", async ({ page }) => {
     await page.locator(".mobile-nav summary").click();
   }
 
-  for (const label of ["Послуги", "Розумний будинок", "Процес", "Про нас", "Контакти"]) {
+  for (const label of ["Послуги", "Готові рішення", "Розумний будинок", "Процес", "Про нас", "Контакти"]) {
     await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
 
