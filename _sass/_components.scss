@@ -3100,8 +3100,7 @@
 }
 
 .smart-home__scene-label {
-  backdrop-filter: blur(12px);
-  background: rgba(13, 11, 10, 0.56);
+  background: #16120f;
   inset: auto;
   max-width: min(21rem, 64%);
   position: relative;
@@ -3155,15 +3154,13 @@
   z-index: 4;
 }
 
-.smart-home__control-glass {
+.smart-home__control-spine {
   align-items: center;
-  backdrop-filter: blur(15px) saturate(1.08);
-  background:
-    linear-gradient(155deg, rgba(255, 244, 231, 0.12), transparent 30%),
-    linear-gradient(180deg, rgba(14, 11, 10, 0.52), rgba(6, 5, 5, 0.84));
-  border: 1px solid rgba(255, 231, 205, 0.42);
-  border-radius: clamp(1.45rem, 2.6vw, 2.8rem);
-  box-shadow: 0 2.2rem 6rem rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  background: #16120f;
+  border: 1px solid #9a6d50;
+  border-radius: 0;
+  box-shadow: 0 2.2rem 5rem #000;
+  clip-path: polygon(0 1.25rem, 1.25rem 0, calc(100% - 1.25rem) 0, 100% 1.25rem, 100% calc(100% - 1.25rem), calc(100% - 1.25rem) 100%, 1.25rem 100%, 0 calc(100% - 1.25rem));
   display: flex;
   flex-direction: column;
   gap: clamp(0.5rem, 1vw, 0.95rem);
@@ -3175,9 +3172,9 @@
   width: clamp(13rem, 24vw, 22rem);
 }
 
-.smart-home__control-glass::before {
-  background: rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+.smart-home__control-spine::before {
+  background: #c58861;
+  border-radius: 0;
   content: "";
   height: 0.22rem;
   position: absolute;
@@ -3193,22 +3190,22 @@
   text-transform: uppercase;
 }
 
-.smart-home__control-glass > strong {
+.smart-home__control-spine > strong {
   color: #fff4e8;
   font-size: clamp(0.9rem, 1.25vw, 1.3rem);
   line-height: 1.15;
   text-align: center;
 }
 
-.smart-home__control-glass > span[data-active-zone-label] {
-  border: 1px solid rgba(255, 219, 182, 0.27);
-  border-radius: 999px;
+.smart-home__control-spine > span[data-active-zone-label] {
+  border: 1px solid #805c46;
+  border-radius: 0;
   color: var(--amber-light);
   font-size: clamp(0.58rem, 0.68vw, 0.72rem);
   padding: 0.42rem 0.65rem;
 }
 
-.smart-home__control-glass > p {
+.smart-home__control-spine > p {
   color: var(--text-soft);
   font-size: clamp(0.62rem, 0.72vw, 0.78rem);
   line-height: 1.45;
@@ -3370,6 +3367,40 @@
 }
 .smart-home__logic-chain > span[aria-hidden] { color: var(--copper); font-size: 1rem; }
 
+.smart-home__outgoing-snapshot {
+  animation: smart-home-disassemble 920ms cubic-bezier(.45, 0, .75, .25) both;
+  aspect-ratio: 1.52 / 1;
+  background-color: #16120f;
+  background-position: 61% center;
+  background-size: cover;
+  border: 1px solid rgba(255, 211, 171, 0.28);
+  border-radius: clamp(1rem, 2vw, 1.8rem);
+  box-shadow: 0 2rem 4rem rgba(0, 0, 0, 0.58);
+  inset: 0 auto auto 0;
+  isolation: isolate;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+  z-index: 5;
+}
+
+.smart-home__outgoing-snapshot::before,
+.smart-home__outgoing-snapshot::after {
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+
+.smart-home__outgoing-snapshot::before {
+  background: linear-gradient(112deg, rgba(2, 3, 5, 0.74), transparent 62%);
+  mix-blend-mode: multiply;
+}
+
+.smart-home__outgoing-snapshot::after {
+  background: linear-gradient(90deg, transparent 0 24%, rgba(255, 205, 151, 0.48) 35%, transparent 46%);
+  mix-blend-mode: screen;
+}
+
 .smart-home__systems-list li { grid-template-columns: minmax(0, 1fr) 2.75rem; }
 .smart-home__formation-list li { grid-template-columns: minmax(0, 1fr); }
 .smart-home__related-list a { grid-template-columns: minmax(0, 1fr) 2.75rem; }
@@ -3390,24 +3421,37 @@
 @keyframes smart-home-zoom-b { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 @keyframes smart-home-lens-a { from { opacity: 0; transform: translate3d(0, 38%, 0) scale(.96); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes smart-home-lens-b { from { opacity: 0; transform: translate3d(0, 46%, 0) scale(1.025); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes smart-home-disassemble {
+  0% { clip-path: inset(0); filter: brightness(1) contrast(1); opacity: 0.98; transform: translate3d(0, 0, 0) scale(1); }
+  48% { clip-path: polygon(0 0, 100% 0, 100% 64%, 75% 76%, 31% 67%, 0 84%); filter: brightness(1.18) contrast(1.08); opacity: 0.82; transform: translate3d(0, -0.5rem, 0) scale(1.025); }
+  100% { clip-path: inset(18% 0 36% 100%); filter: brightness(0.68) contrast(1.22); opacity: 0; transform: translate3d(2.4rem, -1.25rem, 0) scale(1.09); }
+}
 
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="background"] { animation: smart-home-zoom-a 1100ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="light"] { animation: smart-home-assemble-a 840ms 90ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="mask"] { animation: smart-home-mask-a 960ms 120ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="nodes"] { animation: smart-home-assemble-a 880ms 260ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="core"] { animation: smart-home-lens-a 920ms 170ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] .smart-home__route { animation: smart-home-route-a 980ms 280ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="background"] { animation: smart-home-zoom-b 1100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="background"] { animation: smart-home-zoom-a 1000ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="light"] { animation: smart-home-assemble-a 760ms 80ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="mask"] { animation: smart-home-mask-a 860ms 100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="nodes"] { animation: smart-home-assemble-a 800ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="core"] { animation: smart-home-lens-a 800ms 150ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] .smart-home__route { animation: smart-home-route-a 820ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="type"] { animation: smart-home-mask-a 840ms 140ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="callout"] { animation: smart-home-assemble-a 760ms 220ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="background"] { animation: smart-home-zoom-a 1000ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="light"] { animation: smart-home-assemble-a 760ms 80ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="mask"] { animation: smart-home-mask-a 860ms 100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="nodes"] { animation: smart-home-assemble-a 800ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="core"] { animation: smart-home-lens-a 800ms 150ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] .smart-home__route { animation: smart-home-route-a 820ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="background"] { animation: smart-home-zoom-b 1000ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="light"],
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="nodes"] { animation: smart-home-assemble-b 900ms 100ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="core"] { animation: smart-home-lens-b 820ms 280ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="mask"] { animation: smart-home-mask-b 970ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] .smart-home__route { animation: smart-home-route-b 980ms 200ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="nodes"] { animation: smart-home-assemble-b 800ms 100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="core"] { animation: smart-home-lens-b 780ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="mask"] { animation: smart-home-mask-b 860ms 100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] .smart-home__route { animation: smart-home-route-b 820ms 140ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator] .smart-home__zone-node { animation: none; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="type"] { animation: smart-home-mask-a 980ms 170ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="type"] { animation: smart-home-mask-b 980ms 170ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="callout"] { animation: smart-home-assemble-a 760ms 320ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="callout"] { animation: smart-home-assemble-b 760ms 320ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="type"] { animation: smart-home-mask-a 840ms 140ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="type"] { animation: smart-home-mask-b 840ms 140ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="callout"] { animation: smart-home-assemble-a 760ms 220ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="callout"] { animation: smart-home-assemble-b 760ms 220ms cubic-bezier(.2,.75,.2,1) both; }
 
 [data-smart-home-simulator][data-enhanced] .smart-home__zone-node { opacity: 0.08; }
 [data-smart-home-simulator][data-enhanced] .smart-home__zone-node[data-route="true"] { opacity: 0.62; }
@@ -3478,7 +3522,7 @@
   }
   .smart-home__system-control::after { display: none; }
   .smart-home__stage-copy { max-width: 47%; }
-  .smart-home__control-glass { height: 76%; width: clamp(11rem, 34vw, 17rem); }
+  .smart-home__control-spine { height: 76%; width: clamp(11rem, 34vw, 17rem); }
   .smart-home__system-control:is([data-system-control="shading"], [data-system-label="shading"]) { grid-column: 1 / -1; }
   .smart-home__scenario-panel { grid-template-columns: minmax(0, 1fr); }
   .smart-home__scenario-outcomes,
@@ -3498,8 +3542,9 @@
     justify-content: flex-end;
     padding: 0.75rem;
   }
-  .smart-home__control-glass { height: 62%; padding: 0.7rem; width: 46%; }
-  .smart-home__control-glass > p { display: none; }
+  .smart-home__control-spine { height: 62%; padding: 0.7rem; width: 46%; }
+  .smart-home__control-spine > p { display: none; }
+  .smart-home__outgoing-snapshot { aspect-ratio: 1.02 / 1; }
   .smart-home__scene figcaption { max-width: 52%; padding: 0.75rem; }
 }
 

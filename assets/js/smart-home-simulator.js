@@ -80,6 +80,7 @@ function validateMarkup(root) {
   const logicChain = singleElement(root, "[data-logic-chain]");
   const live = singleElement(root, '[data-scenario-live][aria-live="polite"]');
   const stage = singleElement(root, "[data-spatial-stage][data-selected-system-prefix]");
+  const scene = singleElement(root, "[data-scenario-scene]");
   const panelById = new Map(panels.map((panel) => [panel.dataset.scenarioPanel, panel]));
   const primaryByScenario = Object.fromEntries(panels.map((panel) => [panel.dataset.scenarioPanel, panel.dataset.primarySystem]));
 
@@ -144,7 +145,8 @@ function validateMarkup(root) {
       activeZoneLabel,
       activeSystemSummary,
       logicChain,
-      live
+      live,
+      scene
     ].every(hasStaticText)
   ) {
     return null;
@@ -171,6 +173,7 @@ function validateMarkup(root) {
     activeSystemSummary,
     logicChain,
     live,
+    scene,
     selectedSystemPrefix: stage.dataset.selectedSystemPrefix
   };
 }
@@ -193,7 +196,29 @@ function enhanceSimulator(root) {
       (detail) => detail.dataset.systemDetail === state.systemId
     );
 
-  const synchronize = ({ announce = false, replay = false, scenarioChanged = false } = {}) => {
+  const removeOutgoingSnapshot = () => {
+    root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => snapshot.remove());
+  };
+
+  const createOutgoingSnapshot = () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const image = markup.scene.querySelector("picture[data-scene-picture]:not([hidden]) img");
+    if (!image) return;
+
+    removeOutgoingSnapshot();
+    const snapshot = document.createElement("div");
+    snapshot.className = "smart-home__outgoing-snapshot";
+    snapshot.dataset.outgoingSnapshot = "true";
+    snapshot.setAttribute("aria-hidden", "true");
+    snapshot.style.backgroundImage = `url("${image.currentSrc || image.src}")`;
+    snapshot.addEventListener("animationend", (event) => {
+      if (event.animationName === "smart-home-disassemble") snapshot.remove();
+    });
+    markup.scene.after(snapshot);
+  };
+
+  const synchronize = ({ announce = false, replay = false, scenarioChanged = false, initialEntry = false } = {}) => {
     const panel = selectedPanel();
     const detail = selectedDetail();
     const source = scenarioSource(panel);
@@ -205,7 +230,8 @@ function enhanceSimulator(root) {
       [...panel.querySelectorAll("[data-route-zone]")].map((item) => item.dataset.routeZone)
     );
 
-    if (replay || scenarioChanged) motionPhase = motionPhase === "a" ? "b" : "a";
+    if (initialEntry) motionPhase = "initial";
+    else if (replay || scenarioChanged) motionPhase = motionPhase === "a" ? "b" : "a";
 
     markup.systemLabels.forEach((label) => {
       label.hidden = true;
@@ -254,11 +280,12 @@ function enhanceSimulator(root) {
   };
 
   // Attributes that trigger enhanced styling are written only after complete validation.
-  synchronize();
+  synchronize({ initialEntry: true });
 
   const selectScenario = (scenarioId) => {
     const nextState = machine.transition(state, { type: "select-scenario", scenarioId });
     const scenarioChanged = nextState.scenarioId !== state.scenarioId;
+    if (scenarioChanged) createOutgoingSnapshot();
     state = nextState;
     if (scenarioChanged) synchronize({ scenarioChanged, replay: true });
   };
@@ -266,6 +293,7 @@ function enhanceSimulator(root) {
   const focusSystem = (systemId, announce = false, forceReplay = false) => {
     const nextState = machine.transition(state, { type: "focus-system", systemId });
     const changed = nextState.systemId !== state.systemId;
+    if (changed || forceReplay) createOutgoingSnapshot();
     state = nextState;
     if (changed || forceReplay) synchronize({ announce, replay: true });
   };

@@ -181,4 +181,33 @@ class SmartHomeContractTest < Minitest::Test
       assert_includes stderr, "smart_home.yml: must contain valid YAML"
     end
   end
+
+  def test_simulator_source_requires_one_shot_motion_and_an_opaque_architectural_control_spine
+    layout = File.read(File.join(project_root, "_layouts/smart-home.html"))
+    script = File.read(File.join(project_root, "assets/js/smart-home-simulator.js"))
+    styles = File.read(File.join(project_root, "_sass/_components.scss"))
+    spine = styles.match(/\.smart-home__control-spine\s*\{(?<rules>.*?)^\}/m)
+    motion_styles = styles[styles.index("@keyframes smart-home-assemble-a")..]
+    motion_declarations = styles.scan(/\banimation:\s*smart-home-[^;]+;/)
+
+    assert_includes layout, "smart-home__control-spine"
+    refute_includes layout, "smart-home__control-glass"
+    assert_includes script, "data-outgoing-snapshot"
+    assert_includes script, "animationend"
+    refute_match(/(?:setTimeout|setInterval|requestAnimationFrame)\s*\(/, script)
+    assert_includes styles, '@keyframes smart-home-disassemble'
+    refute_match(/infinite/, motion_styles)
+    refute_empty motion_declarations
+    motion_declarations.each do |declaration|
+      duration = declaration.scan(/(\d+)ms/).flatten.map(&:to_i).sum
+      assert_operator duration, :>=, 760, declaration
+      assert_operator duration, :<=, 1100, declaration
+    end
+    refute_nil spine, "the simulator needs a central architectural control spine"
+    assert_match(/background:\s*#[0-9a-f]{3,8}/i, spine[:rules])
+    assert_match(/clip-path:/, spine[:rules])
+    assert_match(/border-radius:\s*0;/, spine[:rules])
+    refute_match(/(?:backdrop-filter|gradient|rgba)/i, spine[:rules])
+    refute_match(/backdrop-filter/, styles[/\.smart-home__scene-label\s*\{.*?^\}/m])
+  end
 end

@@ -29,6 +29,7 @@ const forbiddenCopy = [
 
 function assertTruthfulCopy(text) {
   expect(text, "smart-home page should not expose placeholder copy").not.toMatch(placeholderCopy);
+  expect(text, "smart-home route should not claim that anything is being prepared").not.toMatch(/готується/i);
   for (const phrase of forbiddenCopy) {
     expect(text, "smart-home page should not expose unsupported marketing or vendor copy").not.toMatch(phrase);
   }
@@ -198,6 +199,26 @@ test("delivers the canonical seven-scenario nine-system model with morning shadi
   await assertRouteGeometry(page, "morning");
 });
 
+test("plays one cinematic initial assemble without changing the declared morning scenario or looping", async ({ page }) => {
+  await page.goto(route);
+  const root = await rootFor(page);
+  await expect(root).toHaveAttribute("data-motion-phase", "initial");
+  await expect(root).toHaveAttribute("data-scenario", "morning");
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
+
+  const initialMotion = await root.locator("[data-motion-layer]").evaluateAll((elements) =>
+    elements.some((element) => {
+      const style = getComputedStyle(element);
+      return style.animationName !== "none" && style.animationIterationCount === "1";
+    })
+  );
+  expect(initialMotion).toBe(true);
+
+  await page.waitForTimeout(1200);
+  await assertEnhanced(page, "morning");
+  await expect(page.getByRole("radio", { name: "Ранок" })).toBeChecked();
+});
+
 test("keeps the complete semantic page baseline, truthful copy, and disabled contact CTA", async ({ page }) => {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
@@ -227,6 +248,7 @@ test("keeps the complete semantic page baseline, truthful copy, and disabled con
   expect(await related.getByRole("link").count()).toBeGreaterThanOrEqual(3);
   await expect(main.getByRole("button", { name: "Обговорити об’єкт", exact: true })).toBeDisabled();
   assertTruthfulCopy(await main.innerText());
+  expect(await page.content(), "smart-home HTML must not retain a preparing-status copy in header, CTA, or body").not.toMatch(/готується/i);
 });
 
 test("every scenario preserves one panel, picture, route, and valid route geometry", async ({ page }) => {
@@ -256,6 +278,38 @@ test("system focus changes the actual zone, visual, explanation, and cinematic A
   const focusedPhase = await root.getAttribute("data-motion-phase");
   await control.click();
   await expect(root).not.toHaveAttribute("data-motion-phase", focusedPhase ?? "");
+});
+
+test("each explicit scenario or system selection immediately updates state and disassembles one aria-hidden outgoing snapshot", async ({ page }) => {
+  await page.goto(route);
+  const root = await rootFor(page);
+
+  await page.getByRole("radio", { name: "Повернення" }).check();
+  await assertEnhanced(page, "arrival");
+  const outgoingScenario = root.locator("[data-outgoing-snapshot]");
+  await expect(outgoingScenario).toHaveCount(1);
+  await expect(outgoingScenario).toHaveAttribute("aria-hidden", "true");
+  await expect(outgoingScenario).toHaveCSS("animation-name", "smart-home-disassemble");
+  await expect(outgoingScenario).toHaveCount(0, { timeout: 1300 });
+
+  await root.locator('button[data-system-control="climate"]').click();
+  await expect(root).toHaveAttribute("data-scenario", "arrival");
+  await expect(root).toHaveAttribute("data-system", "climate");
+  const outgoingSystem = root.locator("[data-outgoing-snapshot]");
+  await expect(outgoingSystem).toHaveCount(1);
+  await expect(outgoingSystem).toHaveAttribute("aria-hidden", "true");
+  await expect(outgoingSystem).toHaveCount(0, { timeout: 1300 });
+});
+
+test("the central simulator plate is opaque architectural geometry, not a glass widget", async ({ page }) => {
+  await page.goto(route);
+  const root = await rootFor(page);
+  await expect(root.locator(".smart-home__control-glass")).toHaveCount(0);
+  const spine = root.locator(".smart-home__control-spine");
+  await expect(spine).toHaveCount(1);
+  await expect(spine).toHaveCSS("backdrop-filter", "none");
+  await expect(spine).toHaveCSS("border-radius", "0px");
+  expect(await spine.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
 });
 
 test("selection remains deterministic through pointer, Enter, Space, and native arrow keys", async ({ page }) => {
@@ -391,6 +445,7 @@ test("all scenario states pass axe and reduced motion resolves to zero animation
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.reload();
   await chooseScenario(page, "heat");
+  await expect((await rootFor(page)).locator("[data-outgoing-snapshot]")).toHaveCount(0);
   const activeMotion = await (await rootFor(page)).locator("*").evaluateAll((elements) =>
     elements.filter((element) => {
       const style = getComputedStyle(element);
