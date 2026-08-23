@@ -290,6 +290,16 @@ test("each explicit scenario or system selection immediately updates state and d
   await expect(outgoingScenario).toHaveCount(1);
   await expect(outgoingScenario).toHaveAttribute("aria-hidden", "true");
   await expect(outgoingScenario).toHaveCSS("animation-name", "smart-home-disassemble");
+  const transitionalCalloutOpacity = await root.locator('button[data-system-control="climate"]').evaluate((button) => {
+    const animation = button.getAnimations().find((candidate) => candidate.animationName.startsWith("smart-home-"));
+    if (!animation) return getComputedStyle(button).opacity;
+    animation.pause();
+    animation.currentTime = 290;
+    const opacity = getComputedStyle(button).opacity;
+    animation.finish();
+    return opacity;
+  });
+  expect(transitionalCalloutOpacity, "interactive callout text must remain fully opaque during its masked reveal").toBe("1");
   await expect(outgoingScenario).toHaveCount(0, { timeout: 1300 });
 
   await root.locator('button[data-system-control="climate"]').click();
