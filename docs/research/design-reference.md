@@ -5,20 +5,25 @@ Primary reference supplied by the owner:
 
 ## What is intentionally carried forward
 
-- a dark, calm interface with warm copper/amber emphasis;
-- navigation that exposes the product model instead of hiding it;
-- automation explained as understandable controls and scenarios;
-- high information clarity inside a restrained premium visual system.
+- one fluid, framed stage on a deep OLED-like background;
+- very large, light-weight typography that shares space with one dominant
+  photorealistic object;
+- warm translucent labels that explain the system without hiding the scene;
+- navigation that exposes the service model instead of hiding it;
+- automation explained through understandable controls and scenario states;
+- layered depth, warm light and deliberate overlap as part of a maximalist
+  luxury composition.
 
-The initial palette is an original Smart Electrics interpretation: near-black,
-deep warm brown, copper, amber, ivory, and warm gray. Values in `_sass/_tokens.scss`
-were chosen for this project and were not sampled from the reference.
+The public Dribbble page identifies this palette: `#040201`, `#59372A`,
+`#F6A45F`, `#F3E6E4`, `#AF5D38`, `#817D83`, and `#D0B49C`. Smart Electrics
+uses those values as a starting point for its own electrical-engineering
+interface, with independent layouts, components and media.
 
 ## What is not copied
 
-No source code, imagery, logo, typography asset, UI asset, screen arrangement,
-or branded wording from the Dribbble work is included. The linked page was
-partially protected against automated inspection during research, so this
-document records only the owner’s stated preference and characteristics that
-could be verified from the public description. Future visual work must compare
-its own rendered pages, not reconstruct the reference pixel-for-pixel.
+No source code, imagery, logo, typography asset, screen arrangement or branded
+wording from the Dribbble work is included. Smart Electrics does not copy its
+phone mockup, AI positioning, review counter, dashboard claims or control UI.
+The site replaces them with an architectural scene, verified business scope
+and vendor-neutral explanations. Visual review compares hierarchy, depth and
+clarity rather than reconstructing the reference pixel for pixel.

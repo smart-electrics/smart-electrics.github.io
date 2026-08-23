@@ -4,6 +4,7 @@ import { expect, test } from "@playwright/test";
 const routes = [
   "/",
   "/services/",
+  "/solutions/",
   "/smart-home/",
   "/projects/",
   "/process/",
@@ -21,19 +22,19 @@ const routes = [
   "/404.html"
 ];
 
-test("coming-soon page states the verified offer without pretending to be launched", async ({ page }) => {
+test("homepage states the verified offer without pretending contacts are active", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle(/Smart Electrics/);
   await expect(page.locator("html")).toHaveAttribute("lang", "uk");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Від електромережі до розумного будинку"
+    /Електрика/i
   );
   await expect(
-    page.getByRole("banner").getByRole("link", { name: "Smart Electrics — головна" })
+    page.getByRole("banner").getByRole("link", { name: "Smart Electrics, головна" })
   ).toBeVisible();
   await expect(page.getByText("Львів та область", { exact: true })).toBeVisible();
-  await expect(page.getByText("Розрахунок вартості — незабаром", { exact: true })).toBeVisible();
+  await expect(page.getByText("Форма запиту готується.", { exact: true })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
 });
 
@@ -105,7 +106,7 @@ test("navigation exposes the agreed Ukrainian labels", async ({ page }) => {
     await page.locator(".mobile-nav summary").click();
   }
 
-  for (const label of ["Послуги", "Розумний будинок", "Процес", "Про нас", "Контакти"]) {
+  for (const label of ["Послуги", "Готові рішення", "Розумний будинок", "Процес", "Про нас", "Контакти"]) {
     await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
 
@@ -175,7 +176,12 @@ test("analytics and lead submission remain disabled until their activation gate 
 
 test("key surfaces have no automatically detectable accessibility violations", async ({ page }) => {
   for (const route of ["/", "/services/electrical-installation/", "/privacy/"]) {
-    await page.goto(route);
+    const response = await page.goto(route);
+    expect(response?.ok(), `${route} should return a successful response before axe`).toBeTruthy();
+    await expect(page.locator("main"), `${route} should render its main landmark before axe`).toBeVisible();
+    await expect(page, `${route} should render the Smart Electrics document before axe`).toHaveTitle(
+      /Smart Electrics/
+    );
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations, `${route} should pass axe`).toEqual([]);
   }

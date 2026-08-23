@@ -1,6 +1,6 @@
 <header class="site-header">
   <div class="site-header__inner shell">
-    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics — головна">
+    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics, головна">
       {% include brand-logo.html %}
     </a>
 
@@ -13,7 +13,7 @@
       {% endfor %}
     </nav>
 
-    <a class="header-cta" href="{{ '/contact/' | relative_url }}">Форма запиту готується</a>
+    <a class="header-cta" href="{{ '/contact/' | relative_url }}">Обговорити об’єкт</a>
 
     <details class="mobile-nav">
       <summary aria-label="Відкрити меню">
@@ -27,7 +27,7 @@
           {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
           <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
         {% endfor %}
-        <a class="mobile-nav__cta" href="{{ '/contact/' | relative_url }}">Форма запиту готується</a>
+        <a class="mobile-nav__cta" href="{{ '/contact/' | relative_url }}">Обговорити об’єкт</a>
       </nav>
     </details>
   </div>
