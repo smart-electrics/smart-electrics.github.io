@@ -19,6 +19,17 @@ below.
   `service-smart-home-1980.png` — the representative longest service detail
   at the same Chromium matrix; captured on 2026-08-23 from source commit
   `10ee964`.
+- `solutions-375.png`, `solutions-768.png`, `solutions-1024.png`,
+  `solutions-1440.png`, `solutions-1980.png` — the complete ready-solutions
+  atlas at the same Chromium matrix; captured on 2026-08-23 from source commit
+  `8edf73e263f5bac559483655aeecd1b61291ee30` after every lazy image was decoded
+  and painted.
+- `solution-private-house-375.png`, `solution-private-house-768.png`,
+  `solution-private-house-1024.png`, `solution-private-house-1440.png`,
+  `solution-private-house-1980.png` — the representative longest solution
+  detail at the same Chromium matrix; captured on 2026-08-23 from source commit
+  `8edf73e263f5bac559483655aeecd1b61291ee30` after its responsive hero was
+  decoded and painted.
 
 Regenerate website screenshots from a clean build with the Jekyll server in
 `--no-watch` mode and record the source commit in the related pull request. Do
