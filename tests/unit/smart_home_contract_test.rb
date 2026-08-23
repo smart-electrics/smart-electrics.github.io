@@ -194,6 +194,8 @@ class SmartHomeContractTest < Minitest::Test
     refute_includes layout, "smart-home__control-glass"
     assert_includes script, "data-outgoing-snapshot"
     assert_includes script, "animationend"
+    assert_includes script, "animationcancel"
+    assert_includes script, 'motionPreference.addEventListener("change", removeForReducedMotion)'
     refute_match(/(?:setTimeout|setInterval|requestAnimationFrame)\s*\(/, script)
     assert_includes styles, '@keyframes smart-home-disassemble'
     refute_match(/infinite/, motion_styles)

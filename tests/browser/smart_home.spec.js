@@ -298,7 +298,8 @@ test("each explicit scenario or system selection immediately updates state and d
   const outgoingSystem = root.locator("[data-outgoing-snapshot]");
   await expect(outgoingSystem).toHaveCount(1);
   await expect(outgoingSystem).toHaveAttribute("aria-hidden", "true");
-  await expect(outgoingSystem).toHaveCount(0, { timeout: 1300 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(outgoingSystem, "animationcancel must remove a snapshot when reduced motion changes mid-transition").toHaveCount(0);
 });
 
 test("the central simulator plate is opaque architectural geometry, not a glass widget", async ({ page }) => {

@@ -197,11 +197,14 @@ function enhanceSimulator(root) {
     );
 
   const removeOutgoingSnapshot = () => {
-    root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => snapshot.remove());
+    root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => {
+      snapshot.dispatchEvent(new Event("smart-home:snapshot-remove"));
+    });
   };
 
   const createOutgoingSnapshot = () => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motionPreference.matches) return;
 
     const image = markup.scene.querySelector("picture[data-scene-picture]:not([hidden]) img");
     if (!image) return;
@@ -212,9 +215,21 @@ function enhanceSimulator(root) {
     snapshot.dataset.outgoingSnapshot = "true";
     snapshot.setAttribute("aria-hidden", "true");
     snapshot.style.backgroundImage = `url("${image.currentSrc || image.src}")`;
-    snapshot.addEventListener("animationend", (event) => {
-      if (event.animationName === "smart-home-disassemble") snapshot.remove();
-    });
+    const removeAfterMotion = (event) => {
+      if (event.type === "animationend" && event.animationName !== "smart-home-disassemble") return;
+      snapshot.removeEventListener("animationend", removeAfterMotion);
+      snapshot.removeEventListener("animationcancel", removeAfterMotion);
+      snapshot.removeEventListener("smart-home:snapshot-remove", removeAfterMotion);
+      motionPreference.removeEventListener("change", removeForReducedMotion);
+      snapshot.remove();
+    };
+    const removeForReducedMotion = (event) => {
+      if (event.matches) removeAfterMotion(event);
+    };
+    snapshot.addEventListener("animationend", removeAfterMotion);
+    snapshot.addEventListener("animationcancel", removeAfterMotion);
+    snapshot.addEventListener("smart-home:snapshot-remove", removeAfterMotion);
+    motionPreference.addEventListener("change", removeForReducedMotion);
     markup.scene.after(snapshot);
   };
 
