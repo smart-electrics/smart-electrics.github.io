@@ -8,7 +8,8 @@
     "test": "playwright test",
     "test:browser": "playwright test",
     "test:browser:headed": "playwright test --headed",
-    "test:browser:update": "playwright test --update-snapshots"
+    "test:browser:update": "playwright test --update-snapshots",
+    "validate:quality-policy": "node scripts/validate_quality_policy.js"
   },
   "engines": {
     "node": "24.x",

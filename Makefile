@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-browser verify-skills validate html check clean
+.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-browser verify-skills validate validate-quality-policy html check clean
 
 help: ## Показати доступні команди
 	@awk 'BEGIN {FS = ":.*## "; printf "Smart Electrics\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -37,10 +37,13 @@ verify-skills: ## Перевірити склад і контрольні сум
 validate: ## Перевірити, що зовнішні інтеграції безпечно вимкнені або повністю налаштовані
 	bundle exec ruby scripts/validate_integrations.rb
 
+validate-quality-policy: ## Перевірити fail-closed налаштування тестів
+	npm run validate:quality-policy
+
 html: build ## Перевірити згенерований HTML і внутрішні посилання
 	bundle exec htmlproofer ./_site --disable-external --no-enforce-https
 
-check: verify-skills test-unit html test-browser ## Повний локальний quality gate
+check: verify-skills test-unit validate-quality-policy html test-browser ## Повний локальний quality gate
 
 clean: ## Прибрати лише згенеровані артефакти Jekyll
 	bundle exec jekyll clean
