@@ -1,9 +1,8 @@
 name: Quality
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Owner opt-in only; local make check remains the acceptance gate.
+  workflow_dispatch:
 
 permissions:
   contents: read

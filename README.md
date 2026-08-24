@@ -57,8 +57,9 @@ Measurement ID і та сама фінальна політика. `make validat
 ## Робочий процес
 
 Bootstrap є єдиним прямим комітом у `main`. Подальші зміни проходять GitHub
-Issue → гілка → PR → незалежний review → required check `quality`. Почніть з
-`AGENTS.md`, а деталі знайдіть у `docs/agents/`.
+Issue → гілка → PR → незалежний review. Режим локального acceptance, GitHub
+workflows і merge gate визначає `docs/agents/workflow.md`; почніть з
+`AGENTS.md`.
 
 Project-local skills, точні upstream revisions і процедура оновлення описані в
 `.agents/README.md`. Ліцензії сторонніх skills наведені в
