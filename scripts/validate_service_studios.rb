@@ -6,10 +6,17 @@ require "yaml"
 module ServiceStudioContract
   module_function
 
-  TARGET_SLUGS = %w[electrical-design electrical-installation panels-and-protection].freeze
+  SINGLE_RELATION_STUDIOS = %w[electrical-design electrical-installation panels-and-protection].freeze
+  OWNED_RELATIONS = {
+    "lighting" => %w[lighting--stair-lighting lighting--outdoor-lighting],
+    "low-voltage" => %w[low-voltage--cctv low-voltage--audio]
+  }.freeze
+  TARGET_SLUGS = (SINGLE_RELATION_STUDIOS + OWNED_RELATIONS.keys).freeze
   STUDIO_FIELDS = %w[direction_id relation_id states].freeze
+  MULTI_RELATION_STUDIO_FIELDS = %w[direction_id relation_ids states].freeze
   STATE_IDS = %w[assembled focus reassembled].freeze
   STATE_FIELDS = %w[label title summary].freeze
+  FORBIDDEN_WORDING = /(?:live[\s-]*video|жив(?:е|ого)\s+відео|прям(?:е|ого)\s+відео|\bportal\b|портал|\bvendor\b|вендор|запис(?:у|ом|и)?|recording|відстеж(?:ення|увати|ує)|tracking|гарант(?:ія|ує|ований)?|guarantee)/i
 
   def parse_yaml(path)
     source = File.read(path)
@@ -46,24 +53,60 @@ module ServiceStudioContract
         errors << "#{prefix} must be a mapping"
         next
       end
-      errors << "#{prefix}: fields must be exactly #{STUDIO_FIELDS.join(', ')}" unless studio.keys.sort == STUDIO_FIELDS.sort
+      expected_fields = OWNED_RELATIONS.key?(slug) ? MULTI_RELATION_STUDIO_FIELDS : STUDIO_FIELDS
+      errors << "#{prefix}: fields must be exactly #{expected_fields.join(', ')}" unless studio.keys.sort == expected_fields.sort
       unless studio["direction_id"] == slug && direction_ids.include?(studio["direction_id"])
         errors << "#{prefix}: direction_id must reference this service in the canonical cinematic graph"
       end
-      unless relation_ids.include?(studio["relation_id"])
-        errors << "#{prefix}: relation_id must reference the canonical cinematic graph"
-      end
+      validate_relations(errors, prefix, slug, studio, relation_ids, graph.fetch("relations", []))
       validate_states(errors, prefix, studio["states"])
+      validate_forbidden_wording(errors, prefix, studio["states"]) if OWNED_RELATIONS.key?(slug)
     end
 
     records.each do |slug, service|
       next if TARGET_SLUGS.include?(slug) || !service.is_a?(Hash)
 
-      errors << "#{slug}.md: service_studio is reserved for the three declared studio routes" if service.key?("service_studio")
+      errors << "#{slug}.md: service_studio is reserved for the declared studio routes" if service.key?("service_studio")
     end
     errors
   rescue Errno::ENOENT, Psych::Exception
     ["cinematic_system.yml: must contain a canonical graph"]
+  end
+
+  def validate_forbidden_wording(errors, prefix, states)
+    return unless states.is_a?(Hash)
+
+    wording = STATE_IDS.filter_map do |state_id|
+      state = states[state_id]
+      next unless state.is_a?(Hash)
+
+      STATE_FIELDS.filter_map { |field| state[field] if non_empty_string?(state[field]) }
+    end.join(" ")
+    if wording.match?(FORBIDDEN_WORDING)
+      errors << "#{prefix}: states must not contain forbidden live-video, vendor, portal, recording, tracking, or guarantee wording"
+    end
+  end
+
+  def validate_relations(errors, prefix, slug, studio, relation_ids, relations)
+    if OWNED_RELATIONS.key?(slug)
+      values = studio["relation_ids"]
+      unless values.is_a?(Array) && values.all? { |value| non_empty_string?(value) }
+        errors << "#{prefix}: relation_ids must be a non-empty list"
+        return
+      end
+      errors << "#{prefix}: relation_ids must not contain duplicates" unless values.uniq.length == values.length
+      errors << "#{prefix}: relation_ids must declare the canonical owned relations" unless values == OWNED_RELATIONS.fetch(slug)
+      values.each do |relation_id|
+        relation = relations.find { |candidate| candidate.is_a?(Hash) && candidate["id"] == relation_id }
+        errors << "#{prefix}: relation_ids must reference the canonical cinematic graph" unless relation_ids.include?(relation_id)
+        errors << "#{prefix}: relation_ids must be owned by #{slug}" unless relation.is_a?(Hash) && relation["direction_id"] == slug
+      end
+      return
+    end
+
+    unless relation_ids.include?(studio["relation_id"])
+      errors << "#{prefix}: relation_id must reference the canonical cinematic graph"
+    end
   end
 
   def validate_states(errors, prefix, states)

@@ -19,4 +19,22 @@ related_services:
   - electrical-design
   - electrical-installation
   - smart-home-integration
+service_studio:
+  direction_id: lighting
+  relation_ids:
+    - lighting--stair-lighting
+    - lighting--outdoor-lighting
+  states:
+    assembled:
+      label: Групи світла
+      title: Групи та точки
+      summary: Групи світла поєднують точки освітлення з логікою електромонтажного проєкту.
+    focus:
+      label: Маршрут
+      title: Світло вздовж маршруту
+      summary: Для вибраного маршруту узгоджують точки світла, керування та суміжні системи.
+    reassembled:
+      label: Зв’язок
+      title: Зв’язок із системою
+      summary: Обраний тип освітлення розглядають у зв’язці з плануванням, монтажем або автоматизацією.
 ---
