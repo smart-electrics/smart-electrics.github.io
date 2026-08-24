@@ -45,6 +45,29 @@ class CinematicSolutionsContractTest < Minitest::Test
     end
   end
 
+  def assert_solution_copy_rejected(replacement)
+    copy_solutions do |solutions|
+      path = File.join(solutions, "energy-autonomy.md")
+      source = File.read(path)
+      File.write(path, source.sub("Для власника об’єкта", replacement))
+      _stdout, stderr, status = validate(File.join(ROOT, "_data", "cinematic_solutions.yml"), solutions)
+
+      refute_predicate status, :success?
+      assert_includes stderr, "energy-autonomy.md: must not contain forbidden claims"
+    end
+  end
+
+  def assert_solution_copy_accepted(replacement)
+    copy_solutions do |solutions|
+      path = File.join(solutions, "energy-autonomy.md")
+      source = File.read(path)
+      File.write(path, source.sub("Для власника об’єкта", replacement))
+      _stdout, stderr, status = validate(File.join(ROOT, "_data", "cinematic_solutions.yml"), solutions)
+
+      assert_predicate status, :success?, stderr
+    end
+  end
+
   def assert_rejected(mapping, expected_error)
     with_mapping(mapping) do |path|
       _stdout, stderr, status = validate(path)
@@ -135,15 +158,35 @@ class CinematicSolutionsContractTest < Minitest::Test
     end
   end
 
-  def test_rejects_forbidden_claims_without_rejecting_neutral_planning_copy
-    copy_solutions do |solutions|
-      path = File.join(solutions, "energy-autonomy.md")
-      File.write(path, File.read(path).sub("Для власника об’єкта", "Ціна реалізованого проєкту для власника об’єкта"))
-      _stdout, stderr, status = validate(File.join(ROOT, "_data", "cinematic_solutions.yml"), solutions)
+  def test_rejects_solution_specific_claims_without_rejecting_neutral_planning_copy
+    [
+      "Відгук клієнта для власника об’єкта",
+      "Рейтинг рішення для власника об’єкта",
+      "Testimonial клієнта для власника об’єкта",
+      "Кейс клієнта з результатом для власника об’єкта",
+      "Клієнт отримав результат для власника об’єкта",
+      "Систему встановлено для власника об’єкта",
+      "Щит змонтовано для власника об’єкта",
+      "Реалізовано керування освітленням для власника об’єкта",
+      "Сумісний з протоколом виробника для власника об’єкта",
+      "Compatible with a vendor protocol для власника об’єкта",
+      "Підтримує протокол KNX для власника об’єкта",
+      "Площа 120 м² для власника об’єкта",
+      "12 шт. груп для власника об’єкта",
+      "24 точки для власника об’єкта",
+      "3 зони для власника об’єкта",
+      "1 день для власника об’єкта",
+      "24 години для власника об’єкта",
+      "5 кВт для власника об’єкта",
+      "5 Вт для власника об’єкта",
+      "80% для власника об’єкта",
+      "Ціна реалізованого проєкту для власника об’єкта"
+    ].each { |replacement| assert_solution_copy_rejected(replacement) }
 
-      refute_predicate status, :success?
-      assert_includes stderr, "energy-autonomy.md: must not contain forbidden claims"
-    end
+    [
+      "Встановлення точок планують для власника об’єкта",
+      "Сумісне планування етапів для власника об’єкта"
+    ].each { |replacement| assert_solution_copy_accepted(replacement) }
 
     _stdout, stderr, status = validate
     assert_predicate status, :success?, stderr

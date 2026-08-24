@@ -12,6 +12,21 @@ module CinematicSolutionsContract
   CANONICAL_MAPPING_FINGERPRINT = "6c46d53a"
   ENTRY_FIELDS = %w[direction_ids relation_id].freeze
   TOPOLOGY_FIELDS = %w[cinematic_solution cinematic_solutions cinematic_solution_relation_id direction_ids relation_id].freeze
+  COPY_FIELDS = %w[title kicker description audience focus image_alt systems inputs scenarios].freeze
+  SOLUTION_FORBIDDEN_WORDING = %r{
+    (?:
+      (?<![[:alpha:]])(?:відгук[[:alpha:]]*|рейтинг[[:alpha:]]*|testimonial[[:alpha:]]*|reviews?|ratings?)(?![[:alpha:]])
+      |(?<![[:alpha:]])(?:кейс\s+клієнт[[:alpha:]]*|case\s+(?:study|client[[:alpha:]]*))(?![[:alpha:]])
+      |(?<![[:alpha:]])(?:результат|results?)[[:alpha:]]*\s+(?:для\s+)?(?:клієнт[[:alpha:]]*|clients?)(?![[:alpha:]])
+      |(?<![[:alpha:]])(?:клієнт[[:alpha:]]*|clients?)(?![[:alpha:]])[^\n]{0,48}(?<![[:alpha:]])(?:результат[[:alpha:]]*|results?|досягнен[[:alpha:]]*)(?![[:alpha:]])
+      |(?<![[:alpha:]])(?:(?:встановлен|змонтован)(?:о|ий|а|е|і|ого|ому|их|ими|у)|(?:installed|mounted|deployed|implemented)\s+(?:system|control|automation|capabilit(?:y|ies)|equipment))(?![[:alpha:]])
+      |(?<![[:alpha:]])реалізован(?:о|ий|а|е|і|ого|ому|их|ими|у)\s+(?:систем[[:alpha:]]*|керуван[[:alpha:]]*|функц[[:alpha:]]*|автоматизац[[:alpha:]]*|обладнан[[:alpha:]]*)(?![[:alpha:]])
+      |(?<![[:alpha:]])(?:сумісн[[:alpha:]]*|compatible)(?![[:alpha:]])\s+(?:з|із|with)\s+(?:[[:alnum:]-]+\s+){0,3}(?:протокол[[:alpha:]]*|protocol|vendor|вендор|бренд)(?![[:alpha:]])
+      |(?<![[:alpha:]])(?:підтримує|підтримано|supports?)(?![[:alpha:]])\s+(?:[[:alnum:]-]+\s+){0,2}(?:протокол[[:alpha:]]*|protocol|knx|dali|modbus|bacnet|zigbee|z-wave|matter|thread)(?![[:alpha:]])
+      |(?:(?:vendor|вендор|бренд|protocol|протокол)[[:alpha:]]*\s+(?:[[:alpha:]-]+\s+){0,2}(?:сумісн[[:alpha:]]*|compatib[[:alpha:]]*))
+      |\d+(?:[.,]\d+)?\s*(?:м(?:²|2)|кв\.?\s*м|sq(?:uare)?\.?\s*(?:m|meters?|metres?)|шт\.?|одиниц[[:alpha:]]*|точ[[:alpha:]]*|груп[[:alpha:]]*|зон[[:alpha:]]*|д(?:ень|ні|нів|оба|іб)|дн(?:ів|і)?|годин[[:alpha:]]*|тижн[[:alpha:]]*|хв[[:alpha:]]*|місяц[[:alpha:]]*|days?|hours?|weeks?|(?:[км]?вт|(?:k|m)?w)|ват[[:alpha:]]*|%|percent(?:age)?)
+    )
+  }ix
 
   def parse_yaml(path)
     YAML.safe_load(File.read(path), permitted_classes: [], aliases: false)
@@ -128,7 +143,7 @@ module CinematicSolutionsContract
       unless conflicting_fields.empty?
         errors << "#{slug}.md: cinematic topology must live only in _data/cinematic_solutions.yml"
       end
-      validate_forbidden_claims(errors, slug, path)
+      validate_forbidden_claims(errors, slug, solution)
     end
   end
 
@@ -146,13 +161,26 @@ module CinematicSolutionsContract
     format("%08x", hash)
   end
 
-  def validate_forbidden_claims(errors, slug, path)
-    source = File.read(path)
-    return unless source.match?(ServiceStudioContract::FORBIDDEN_WORDING)
+  def validate_forbidden_claims(errors, slug, solution)
+    wording = solution_copy_text(solution)
+    return unless wording.match?(ServiceStudioContract::FORBIDDEN_WORDING) || wording.match?(SOLUTION_FORBIDDEN_WORDING)
 
     errors << "#{slug}.md: must not contain forbidden claims"
-  rescue Errno::ENOENT
-    errors << "#{slug}.md: must contain valid solution front matter"
+  end
+
+  def solution_copy_text(solution)
+    return "" unless solution.is_a?(Hash)
+
+    COPY_FIELDS.flat_map { |field| collect_copy_strings(solution[field]) }.join(" ")
+  end
+
+  def collect_copy_strings(value)
+    case value
+    when String then [value]
+    when Array then value.flat_map { |item| collect_copy_strings(item) }
+    when Hash then value.values.flat_map { |item| collect_copy_strings(item) }
+    else []
+    end
   end
 end
 

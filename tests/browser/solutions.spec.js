@@ -7,6 +7,11 @@ const ACTION_BY_STATE = {
   focus: "select-focus",
   reassembled: "select-reassembled"
 };
+const PANEL_LABEL_BY_STATE = {
+  assembled: "Склад конфігурації",
+  focus: "У фокусі",
+  reassembled: "Як системи пов’язані"
+};
 const solutions = [
   {
     slug: "apartment-comfort-and-control",
@@ -101,6 +106,7 @@ async function assertState(page, root, stage, solution, stateId) {
   await expect(stage.locator("[data-cinematic-solutions-scene]:visible")).toHaveCount(1);
   await expect(stage.locator("[data-cinematic-solutions-panel]:visible")).toHaveCount(1);
   await expect(stage.locator("[data-cinematic-solutions-panel]:visible [data-cinematic-solutions-summary]")).not.toHaveText("");
+  await expect(stage.locator("[data-cinematic-solutions-panel]:visible .cinematic-solutions__panel-kicker")).toHaveText(PANEL_LABEL_BY_STATE[stateId]);
   await expect(stage.locator(`button[data-cinematic-solutions-action="${ACTION_BY_STATE[stateId]}"]`)).toHaveAttribute("aria-pressed", "true");
   const expectedLinks = stateId === "assembled"
     ? solution.relatedSolutions.map((slug) => `/solutions/${slug}/`)
@@ -120,6 +126,21 @@ async function assertState(page, root, stage, solution, stateId) {
     overlayOpacity: getComputedStyle(scene, "::before").opacity
   }));
 }
+
+test("the atlas uses concrete wording and gives its mobile selector a visible scroll cue", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(atlasRoute);
+  const { stage } = await studioFor(page);
+  await expect(stage.locator(".cinematic-solutions__heading > div > p:last-child")).toHaveText("Оберіть конфігурацію, щоб побачити її системи та ключовий зв’язок між системами.");
+  const selector = stage.locator(".cinematic-solutions__selector");
+  expect(await selector.evaluate((element) => ({
+    maskImage: getComputedStyle(element).maskImage,
+    scrollable: element.scrollWidth > element.clientWidth
+  }))).toEqual({
+    maskImage: expect.stringContaining("linear-gradient"),
+    scrollable: true
+  });
+});
 
 async function assertNoOverflow(page, route) {
   expect(

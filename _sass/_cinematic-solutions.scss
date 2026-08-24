@@ -185,6 +185,13 @@
   max-width: 16rem;
 }
 
+@media (max-width: 47.999rem) {
+  .cinematic-solutions__selector {
+    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2rem), transparent 100%);
+    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2rem), transparent 100%);
+  }
+}
+
 .cinematic-solutions__selector button[aria-pressed="true"],
 .cinematic-solutions__rail button[aria-pressed="true"] {
   background: rgba(175, 93, 56, 0.14);

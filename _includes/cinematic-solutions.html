@@ -39,7 +39,7 @@
         {% else %}
           <h1 id="cinematic-solution-stage-title">{{ page.title }}</h1>
         {% endif %}
-        <p>{% if cinematic_solutions_mode == "atlas" %}Оберіть конфігурацію, щоб побачити її системи та зв’язок із канонічним графом послуг.{% else %}Три стани показують склад конфігурації, її напрямки та один зв’язок у системі.{% endif %}</p>
+        <p>{% if cinematic_solutions_mode == "atlas" %}Оберіть конфігурацію, щоб побачити її системи та ключовий зв’язок між системами.{% else %}Розгляньте склад конфігурації, ключові напрями та взаємозв’язок систем.{% endif %}</p>
       </div>
       {% if cinematic_solutions_mode == "atlas" %}
         <nav class="cinematic-solutions__selector" aria-label="Готові рішення">
@@ -96,8 +96,8 @@
                 {% assign state_label = "У фокусі" %}
                 {% assign state_summary = solution.focus %}
               {% when "reassembled" %}
-                {% assign state_label = "Зв’язок у системі" %}
-                {% capture state_summary %}{{ relation.child.label }}: {{ relation.child.description }}{% endcapture %}
+                {% assign state_label = "Як системи пов’язані" %}
+                {% assign state_summary = relation.child.description %}
             {% endcase %}
             <article class="cinematic-solutions__panel" data-cinematic-solutions-panel="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ solution_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ solution_config.direction_ids | join: '|' }}"{% unless forloop.parentloop.first and forloop.first %} hidden{% endunless %}>
               <p class="cinematic-solutions__panel-kicker">{{ state_label }}</p>
