@@ -98,32 +98,21 @@
           </figure>
 
           {% for direction in cinematic.directions %}
-            {% assign owned_relations = cinematic.relations | where: "direction_id", direction.id %}
-            {% assign focus_relation = owned_relations | first %}
-            {% if owned_relations.size == 0 %}
-              {% for candidate in cinematic.relations %}
-                {% if candidate.related_direction_ids contains direction.id %}
-                  {% assign focus_relation = candidate %}
-                  {% break %}
-                {% endif %}
-              {% endfor %}
-            {% endif %}
-            {% if focus_relation %}
-              <figure
-                class="residence-spine__scene"
-                data-cinematic-scene
-                data-cinematic-focus-scene="{{ direction.id }}"
-                data-cinematic-scene-key="focus:{{ direction.id }}"
-                data-cinematic-scene-family="{{ focus_relation.scene_family }}"
-                data-cinematic-scene-image="url('{{ '/assets/images/smart-home/' | append: focus_relation.scene_family | append: '-1536.webp' | relative_url }}')"
-                hidden
-              >
-                <picture>
-                  <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: focus_relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
-                  <img src="{{ '/assets/images/smart-home/' | append: focus_relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="Візуальна концепція: {{ focus_relation.child.label }} у зв’язці з {{ direction.label }}" loading="lazy">
-                </picture>
-              </figure>
-            {% endif %}
+            {% assign focus_scene_family = direction.focus_scene_family %}
+            <figure
+              class="residence-spine__scene"
+              data-cinematic-scene
+              data-cinematic-focus-scene="{{ direction.id }}"
+              data-cinematic-scene-key="focus:{{ direction.id }}"
+              data-cinematic-scene-family="{{ focus_scene_family }}"
+              data-cinematic-scene-image="url('{{ '/assets/images/smart-home/' | append: focus_scene_family | append: '-1536.webp' | relative_url }}')"
+              hidden
+            >
+              <picture>
+                <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: focus_scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
+                <img src="{{ '/assets/images/smart-home/' | append: focus_scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="Візуальна концепція: {{ direction.label }} у складі електромонтажного проєкту" loading="lazy">
+              </picture>
+            </figure>
           {% endfor %}
 
           {% for relation in cinematic.relations %}
