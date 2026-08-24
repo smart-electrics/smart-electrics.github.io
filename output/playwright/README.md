@@ -37,6 +37,16 @@ below.
   detail at the same Chromium matrix; captured on 2026-08-23 from source commit
   `8edf73e263f5bac559483655aeecd1b61291ee30` after its responsive hero was
   decoded and painted.
+- `smart-home-375.png`, `smart-home-768.png`, `smart-home-1024.png`,
+  `smart-home-1440.png`, `smart-home-1980.png` — the cinematic smart-home
+  simulator at the full `375–1980` Chromium matrix; captured on 2026-08-23
+  from source commit `2025ba2` after the active scene image was decoded and
+  the initial assemble motion had settled.
+- `smart-home-backup-1440.png` — a second causal state of the same simulator,
+  showing that selecting the reserve-power scenario changes the route, active
+  system, central composition, explanation, and configuration together;
+  captured on 2026-08-23 from source commit `2025ba2` after the outgoing
+  disassemble layer had completed.
 
 Regenerate website screenshots from a clean build with the Jekyll server in
 `--no-watch` mode and record the source commit in the related pull request. Do

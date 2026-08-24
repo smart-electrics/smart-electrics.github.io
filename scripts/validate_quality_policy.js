@@ -1,10 +1,22 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import playwrightConfig from "../playwright.config.js";
 
 const failures = [];
+const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
 );
+
+function collectPlaywrightSourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = join(directory, entry.name);
+
+    if (entry.isDirectory()) return collectPlaywrightSourceFiles(entryPath);
+    return /\.[cm]?[jt]s$/u.test(entry.name) ? [entryPath] : [];
+  });
+}
 
 if (playwrightConfig.retries !== 0) {
   failures.push(
@@ -29,6 +41,19 @@ for (const scriptName of ["test", "test:browser"]) {
   if (retryOverride && Number(retryOverride[1]) !== 0) {
     failures.push(
       `npm script ${scriptName} overrides Playwright with ${retryOverride[1]} retries.`
+    );
+  }
+}
+
+for (const filePath of collectPlaywrightSourceFiles(join(repositoryRoot, "tests/browser"))) {
+  const source = readFileSync(filePath, "utf8");
+  const forbiddenAnnotation = /\b(?:test|testInfo)\s*(?:\.\s*describe\s*)?\.\s*(?:skip|fixme)\s*\(/gu;
+
+  for (const match of source.matchAll(forbiddenAnnotation)) {
+    const line = source.slice(0, match.index).split("\n").length;
+    failures.push(
+      `${relative(repositoryRoot, filePath)}:${line} uses ${match[0].replace(/\s+/gu, "")} ` +
+      "so the test suite can report a non-executed check instead of the real quality state."
     );
   }
 }
