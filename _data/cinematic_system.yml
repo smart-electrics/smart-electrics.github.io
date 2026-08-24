@@ -1,0 +1,106 @@
+directions:
+  - id: electrical-design
+    service_slug: electrical-design
+    label: Електромонтажне проєктування
+    description: Логіка системи починається з узгодженого плану електромонтажних робіт.
+  - id: electrical-installation
+    service_slug: electrical-installation
+    label: Електромонтажні роботи
+    description: Траси й точки поєднують робочі частини електромонтажного проєкту.
+  - id: panels-and-protection
+    service_slug: panels-and-protection
+    label: Щити й захист
+    description: Щит об’єднує групи живлення та захист для визначених рішень.
+  - id: lighting
+    service_slug: lighting
+    label: Освітлення
+    description: Групи світла формують повсякденні й маршрутні сценарії простору.
+  - id: low-voltage
+    service_slug: low-voltage
+    label: Слабкострумові системи
+    description: Сигнальні та мультимедійні лінії підтримують зв’язки між зонами.
+  - id: backup-power
+    service_slug: backup-power
+    label: Резервне живлення
+    description: Пріоритети живлення визначають у зв’язці зі щитом і потрібними групами.
+  - id: smart-home-integration
+    service_slug: smart-home-integration
+    label: Розумний будинок
+    description: Керування об’єднує узгоджені сценарії світла, комфорту й сонцезахисту.
+  - id: diagnostics-and-service
+    service_slug: diagnostics-and-service
+    label: Діагностика й сервіс
+    description: Стан системи перевіряють у контексті наявних рішень об’єкта.
+relations:
+  - id: panels-and-protection--panel-assembly
+    direction_id: panels-and-protection
+    scene_family: panel
+    child:
+      id: panel-assembly
+      label: Збірка щита
+      description: Групи живлення та захист узгоджують із рештою електромонтажного проєкту.
+    related_direction_ids: [electrical-installation, backup-power]
+  - id: lighting--stair-lighting
+    direction_id: lighting
+    scene_family: stairs
+    child:
+      id: stair-lighting
+      label: Освітлення сходів
+      description: Маршрутне світло для сходів розглядають разом із групами освітлення.
+    related_direction_ids: [electrical-design, smart-home-integration]
+  - id: lighting--outdoor-lighting
+    direction_id: lighting
+    scene_family: exterior
+    child:
+      id: outdoor-lighting
+      label: Зовнішнє освітлення
+      description: Зовнішні групи світла пов’язують із маршрутом входу та планом об’єкта.
+    related_direction_ids: [electrical-installation, low-voltage]
+  - id: low-voltage--cctv
+    direction_id: low-voltage
+    scene_family: surveillance
+    child:
+      id: cctv
+      label: Відеоконтроль
+      description: Точки відеоконтролю узгоджують із доступом, трасами та потрібними зонами.
+    related_direction_ids: [electrical-installation, diagnostics-and-service]
+  - id: low-voltage--audio
+    direction_id: low-voltage
+    scene_family: audio
+    child:
+      id: audio
+      label: Аудіо
+      description: Аудіоточкам потрібні узгоджені лінії та сценарії для конкретних зон.
+    related_direction_ids: [electrical-design, smart-home-integration]
+  - id: backup-power--backup
+    direction_id: backup-power
+    scene_family: backup
+    child:
+      id: backup
+      label: Резерв
+      description: Резервні групи визначають разом із щитом, захистом і пріоритетами об’єкта.
+    related_direction_ids: [panels-and-protection, diagnostics-and-service]
+  - id: smart-home-integration--climate
+    direction_id: smart-home-integration
+    scene_family: climate
+    child:
+      id: climate
+      label: Клімат
+      description: Комфорт у зонах пов’язують із керуванням, живленням і ручним коригуванням.
+    related_direction_ids: [panels-and-protection, low-voltage]
+  - id: smart-home-integration--curtains-tulle-roller-shutters
+    direction_id: smart-home-integration
+    scene_family: shading
+    child:
+      id: curtains-tulle-roller-shutters
+      label: Штори, тюль і ролети
+      description: Сонцезахист узгоджують зі світлом, кліматом і логікою конкретного простору.
+    related_direction_ids: [lighting, low-voltage]
+  - id: diagnostics-and-service--diagnostics
+    direction_id: diagnostics-and-service
+    scene_family: diagnostics
+    child:
+      id: diagnostics
+      label: Діагностика
+      description: Перевірку виконують із урахуванням зв’язків системи та фактичного стану об’єкта.
+    related_direction_ids: [panels-and-protection, low-voltage]
