@@ -6,17 +6,25 @@ require "yaml"
 module ServiceStudioContract
   module_function
 
-  SINGLE_RELATION_STUDIOS = %w[electrical-design electrical-installation panels-and-protection].freeze
+  SINGLE_RELATIONS = {
+    "electrical-design" => "panels-and-protection--panel-assembly",
+    "electrical-installation" => "panels-and-protection--panel-assembly",
+    "panels-and-protection" => "panels-and-protection--panel-assembly",
+    "backup-power" => "backup-power--backup",
+    "diagnostics-and-service" => "diagnostics-and-service--diagnostics"
+  }.freeze
+  SINGLE_RELATION_STUDIOS = SINGLE_RELATIONS.keys.freeze
   OWNED_RELATIONS = {
     "lighting" => %w[lighting--stair-lighting lighting--outdoor-lighting],
-    "low-voltage" => %w[low-voltage--cctv low-voltage--audio]
+    "low-voltage" => %w[low-voltage--cctv low-voltage--audio],
+    "smart-home-integration" => %w[smart-home-integration--climate smart-home-integration--curtains-tulle-roller-shutters]
   }.freeze
   TARGET_SLUGS = (SINGLE_RELATION_STUDIOS + OWNED_RELATIONS.keys).freeze
   STUDIO_FIELDS = %w[direction_id relation_id states].freeze
   MULTI_RELATION_STUDIO_FIELDS = %w[direction_id relation_ids states].freeze
   STATE_IDS = %w[assembled focus reassembled].freeze
   STATE_FIELDS = %w[label title summary].freeze
-  FORBIDDEN_WORDING = /(?:live[\s-]*video|жив(?:е|ого)\s+відео|прям(?:е|ого)\s+відео|\bportal\b|портал|\bvendor\b|вендор|запис(?:у|ом|и)?|recording|відстеж(?:ення|увати|ує)|tracking|гарант(?:ія|ує|ований)?|guarantee)/i
+  FORBIDDEN_WORDING = /(?:live[\s-]*video|жив(?:е|ого)\s+відео|прям(?:е|ого)\s+відео|\bportal\b|портал|\bvendor\b|вендор|запис(?:у|ом|и)?|recording|відстеж(?:ення|увати|ує)|tracking|гарант(?:ія|ує|ований)?|guarantee|поточн[[:alpha:]]*\s+(?:стан|живл)|runtime|час\s+роботи|автоматично\s+(?:працює|керує|виконує)|без\s+участі|виявлен[[:alpha:]]*\s+(?:несправ|авар|помил)|завершен[[:alpha:]]*\s+діагност|тривог[[:alpha:]]*|вимір[[:alpha:]]*\s*\d)/i
 
   def parse_yaml(path)
     source = File.read(path)
@@ -60,7 +68,7 @@ module ServiceStudioContract
       end
       validate_relations(errors, prefix, slug, studio, relation_ids, graph.fetch("relations", []))
       validate_states(errors, prefix, studio["states"])
-      validate_forbidden_wording(errors, prefix, studio["states"]) if OWNED_RELATIONS.key?(slug)
+      validate_forbidden_wording(errors, prefix, studio["states"])
     end
 
     records.each do |slug, service|
@@ -83,7 +91,7 @@ module ServiceStudioContract
       STATE_FIELDS.filter_map { |field| state[field] if non_empty_string?(state[field]) }
     end.join(" ")
     if wording.match?(FORBIDDEN_WORDING)
-      errors << "#{prefix}: states must not contain forbidden live-video, vendor, portal, recording, tracking, or guarantee wording"
+      errors << "#{prefix}: states must not contain forbidden live-video, vendor, portal, recording, tracking, or guarantee wording; nor fabricated status, automatic-operation, or diagnosis claims"
     end
   end
 
@@ -104,9 +112,12 @@ module ServiceStudioContract
       return
     end
 
-    unless relation_ids.include?(studio["relation_id"])
+    relation_id = studio["relation_id"]
+    unless non_empty_string?(relation_id) && relation_ids.include?(relation_id)
       errors << "#{prefix}: relation_id must reference the canonical cinematic graph"
+      return
     end
+    errors << "#{prefix}: relation_id must declare the canonical relation for #{slug}" unless relation_id == SINGLE_RELATIONS.fetch(slug)
   end
 
   def validate_states(errors, prefix, states)

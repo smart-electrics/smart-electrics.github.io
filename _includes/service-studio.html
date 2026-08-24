@@ -91,7 +91,7 @@
               <p class="service-studio__panel-kicker">{{ state.label }}</p>
               <h3>{{ state.title }}</h3>
               <p data-service-studio-summary>{{ state.summary }}</p>
-              <p class="service-studio__relation-label">{{ studio_relation.child.label }} — {{ studio_relation.child.description }}</p>
+              <p class="service-studio__relation-label">{{ studio_relation.child.label }}: {{ studio_relation.child.description }}</p>
               <ul data-service-studio-related>
                 {% if state_id == 'assembled' %}
                   {% for related_slug in page.related_services %}

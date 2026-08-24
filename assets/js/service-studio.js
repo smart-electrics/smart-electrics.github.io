@@ -108,7 +108,8 @@ function enhance(root) {
     if (announce) {
       const relationship = panel.querySelector(".service-studio__relation-label")?.textContent.trim() || "";
       const summary = panel.querySelector("[data-service-studio-summary]")?.textContent.trim() || "";
-      live.textContent = relationship ? `${relationship}. ${summary}` : summary;
+      const separator = /[.!?…]$/u.test(relationship) ? " " : ". ";
+      live.textContent = relationship && summary ? `${relationship}${separator}${summary}` : relationship || summary;
     }
   };
 
