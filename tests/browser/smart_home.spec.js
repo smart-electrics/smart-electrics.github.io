@@ -51,6 +51,19 @@ async function assertViewport(page, width) {
   if (width === 1980) expect(bounds.sceneWidth, "1980px stage width").toBeGreaterThanOrEqual(1400);
 }
 
+async function readPresetPreview(root) {
+  return root.evaluate((simulatorRoot) => {
+    const preview = simulatorRoot.querySelector("[data-scene-preview]");
+    return {
+      background: getComputedStyle(preview).backgroundImage,
+      pixels: getComputedStyle(preview).getPropertyValue("--smart-home-preview-control-1").trim(),
+      signature: simulatorRoot.dataset.previewSignature,
+      topology: simulatorRoot.querySelector("[data-topology-result]").textContent.trim(),
+      explanation: simulatorRoot.querySelector("[data-phone-signature]").textContent.trim()
+    };
+  });
+}
+
 test("upgrades the complete nine-system, seven-preset configuration into one interactive phone", async ({ page }) => {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
@@ -87,31 +100,13 @@ test("every preset atomically changes the configuration and returns from manual 
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await expect(root).toHaveAttribute("data-manual", "true");
-    const manualPreview = await root.evaluate((simulatorRoot) => {
-      const preview = simulatorRoot.querySelector("[data-scene-preview]");
-      return {
-        background: getComputedStyle(preview).backgroundImage,
-        pixels: getComputedStyle(preview).getPropertyValue("--smart-home-preview-control-1").trim(),
-        signature: simulatorRoot.dataset.previewSignature,
-        topology: simulatorRoot.querySelector("[data-topology-result]").textContent.trim(),
-        explanation: simulatorRoot.querySelector("[data-phone-signature]").textContent.trim()
-      };
-    });
+    const manualPreview = await readPresetPreview(root);
     await root.getByRole("radio", { name: label }).click();
     await expect(root).toHaveAttribute("data-preset", presetIds[index]);
     await expect(root).toHaveAttribute("data-manual", "false");
     await expect(root.locator("[data-phone-live]")).toContainText(label);
     await expect(root.locator(`[data-preset-panel="${presetIds[index]}"]`)).toBeVisible();
-    const presetPreview = await root.evaluate((simulatorRoot) => {
-      const preview = simulatorRoot.querySelector("[data-scene-preview]");
-      return {
-        background: getComputedStyle(preview).backgroundImage,
-        pixels: getComputedStyle(preview).getPropertyValue("--smart-home-preview-control-1").trim(),
-        signature: simulatorRoot.dataset.previewSignature,
-        topology: simulatorRoot.querySelector("[data-topology-result]").textContent.trim(),
-        explanation: simulatorRoot.querySelector("[data-phone-signature]").textContent.trim()
-      };
-    });
+    const presetPreview = await readPresetPreview(root);
     expect(presetPreview.background, `${label} computed scene background`).not.toBe(manualPreview.background);
     expect(presetPreview.pixels, `${label} computed scene pixels`).not.toBe(manualPreview.pixels);
     expect(presetPreview.signature, `${label} preview signature`).not.toBe(manualPreview.signature);
