@@ -1,0 +1,124 @@
+lighting:
+  - id: "off"
+    label: Вимкнено
+  - id: route
+    label: Маршрут
+  - id: evening
+    label: Вечір
+  - id: full
+    label: Повне
+window_treatments:
+  - id: open
+    label: Відкрито
+  - id: tulle
+    label: Тюль
+  - id: blinds
+    label: Жалюзі
+  - id: blackout
+    label: Ролети blackout
+  - id: curtains
+    label: Штори
+initial_state:
+  lighting_id: evening
+  window_treatment_id: open
+scenes:
+  - lighting_id: "off"
+    window_treatment_id: open
+    src_768: /assets/images/cinematic/residence/room-off-open-768.webp
+    src_1536: /assets/images/cinematic/residence/room-off-open-1536.webp
+    alt: "Візуальна концепція: резиденція без увімкненого освітлення й з відкритим видом крізь скління"
+  - lighting_id: "off"
+    window_treatment_id: tulle
+    src_768: /assets/images/cinematic/residence/room-off-tulle-768.webp
+    src_1536: /assets/images/cinematic/residence/room-off-tulle-1536.webp
+    alt: "Візуальна концепція: резиденція без увімкненого освітлення та з тюлем"
+  - lighting_id: "off"
+    window_treatment_id: blinds
+    src_768: /assets/images/cinematic/residence/room-off-blinds-768.webp
+    src_1536: /assets/images/cinematic/residence/room-off-blinds-1536.webp
+    alt: "Візуальна концепція: резиденція без увімкненого освітлення та з жалюзі"
+  - lighting_id: "off"
+    window_treatment_id: blackout
+    src_768: /assets/images/cinematic/residence/room-off-blackout-768.webp
+    src_1536: /assets/images/cinematic/residence/room-off-blackout-1536.webp
+    alt: "Візуальна концепція: резиденція без увімкненого освітлення та з blackout-ролетами"
+  - lighting_id: "off"
+    window_treatment_id: curtains
+    src_768: /assets/images/cinematic/residence/room-off-curtains-768.webp
+    src_1536: /assets/images/cinematic/residence/room-off-curtains-1536.webp
+    alt: "Візуальна концепція: резиденція без увімкненого освітлення та зі шторами"
+  - lighting_id: route
+    window_treatment_id: open
+    src_768: /assets/images/cinematic/residence/room-route-open-768.webp
+    src_1536: /assets/images/cinematic/residence/room-route-open-1536.webp
+    alt: "Візуальна концепція: маршрутне освітлення резиденції й відкритий вид крізь скління"
+  - lighting_id: route
+    window_treatment_id: tulle
+    src_768: /assets/images/cinematic/residence/room-route-tulle-768.webp
+    src_1536: /assets/images/cinematic/residence/room-route-tulle-1536.webp
+    alt: "Візуальна концепція: маршрутне освітлення резиденції та тюль"
+  - lighting_id: route
+    window_treatment_id: blinds
+    src_768: /assets/images/cinematic/residence/room-route-blinds-768.webp
+    src_1536: /assets/images/cinematic/residence/room-route-blinds-1536.webp
+    alt: "Візуальна концепція: маршрутне освітлення резиденції та жалюзі"
+  - lighting_id: route
+    window_treatment_id: blackout
+    src_768: /assets/images/cinematic/residence/room-route-blackout-768.webp
+    src_1536: /assets/images/cinematic/residence/room-route-blackout-1536.webp
+    alt: "Візуальна концепція: маршрутне освітлення резиденції та blackout-ролети"
+  - lighting_id: route
+    window_treatment_id: curtains
+    src_768: /assets/images/cinematic/residence/room-route-curtains-768.webp
+    src_1536: /assets/images/cinematic/residence/room-route-curtains-1536.webp
+    alt: "Візуальна концепція: маршрутне освітлення резиденції та штори"
+  - lighting_id: evening
+    window_treatment_id: open
+    src_768: /assets/images/cinematic/residence/room-evening-open-768.webp
+    src_1536: /assets/images/cinematic/residence/room-evening-open-1536.webp
+    alt: "Візуальна концепція: вечірнє освітлення резиденції й відкритий вид крізь скління"
+  - lighting_id: evening
+    window_treatment_id: tulle
+    src_768: /assets/images/cinematic/residence/room-evening-tulle-768.webp
+    src_1536: /assets/images/cinematic/residence/room-evening-tulle-1536.webp
+    alt: "Візуальна концепція: вечірнє освітлення резиденції та тюль"
+  - lighting_id: evening
+    window_treatment_id: blinds
+    src_768: /assets/images/cinematic/residence/room-evening-blinds-768.webp
+    src_1536: /assets/images/cinematic/residence/room-evening-blinds-1536.webp
+    alt: "Візуальна концепція: вечірнє освітлення резиденції та жалюзі"
+  - lighting_id: evening
+    window_treatment_id: blackout
+    src_768: /assets/images/cinematic/residence/room-evening-blackout-768.webp
+    src_1536: /assets/images/cinematic/residence/room-evening-blackout-1536.webp
+    alt: "Візуальна концепція: вечірнє освітлення резиденції та blackout-ролети"
+  - lighting_id: evening
+    window_treatment_id: curtains
+    src_768: /assets/images/cinematic/residence/room-evening-curtains-768.webp
+    src_1536: /assets/images/cinematic/residence/room-evening-curtains-1536.webp
+    alt: "Візуальна концепція: вечірнє освітлення резиденції та штори"
+  - lighting_id: full
+    window_treatment_id: open
+    src_768: /assets/images/cinematic/residence/room-full-open-768.webp
+    src_1536: /assets/images/cinematic/residence/room-full-open-1536.webp
+    alt: "Візуальна концепція: повне освітлення резиденції й відкритий вид крізь скління"
+  - lighting_id: full
+    window_treatment_id: tulle
+    src_768: /assets/images/cinematic/residence/room-full-tulle-768.webp
+    src_1536: /assets/images/cinematic/residence/room-full-tulle-1536.webp
+    alt: "Візуальна концепція: повне освітлення резиденції та тюль"
+  - lighting_id: full
+    window_treatment_id: blinds
+    src_768: /assets/images/cinematic/residence/room-full-blinds-768.webp
+    src_1536: /assets/images/cinematic/residence/room-full-blinds-1536.webp
+    alt: "Візуальна концепція: повне освітлення резиденції та жалюзі"
+  - lighting_id: full
+    window_treatment_id: blackout
+    src_768: /assets/images/cinematic/residence/room-full-blackout-768.webp
+    src_1536: /assets/images/cinematic/residence/room-full-blackout-1536.webp
+    alt: "Візуальна концепція: повне освітлення резиденції та blackout-ролети"
+  - lighting_id: full
+    window_treatment_id: curtains
+    src_768: /assets/images/cinematic/residence/room-full-curtains-768.webp
+    src_1536: /assets/images/cinematic/residence/room-full-curtains-1536.webp
+    alt: "Візуальна концепція: повне освітлення резиденції та штори"

@@ -1,8 +1,12 @@
 {% assign cinematic = site.data.cinematic_system %}
+{% assign physical = site.data.physical_scene_states %}
 {% assign ordered_services = site.services | sort: "order" %}
+{% assign lighting_service = ordered_services | where: "slug", "lighting" | first %}
+{% assign smart_home_service = ordered_services | where: "slug", "smart-home-integration" | first %}
+{% assign initial_physical_by_lighting = physical.scenes | where: "lighting_id", physical.initial_state.lighting_id %}
+{% assign initial_physical_scene = initial_physical_by_lighting | where: "window_treatment_id", physical.initial_state.window_treatment_id | first %}
 {% assign stage_variant = include.variant | default: "services" %}
 {% assign stage_id = "cinematic-" | append: stage_variant %}
-{% assign assembled_alt = include.assembled_alt | default: "Візуальна концепція цілісної електричної системи приватної резиденції" %}
 
 <div class="residence-spine residence-spine--{{ stage_variant }}" data-cinematic-root data-cinematic-state="assembled">
   <section class="residence-spine__fallback" data-cinematic-fallback aria-labelledby="{{ stage_id }}-fallback-title">
@@ -11,6 +15,10 @@
       <h2 id="{{ stage_id }}-fallback-title">{{ include.title }}</h2>
       <p>{{ include.description }}</p>
     </header>
+
+    <aside data-cinematic-physical-fallback>
+      <p>У цій кімнаті можна перемикати вимкнене, маршрутне, вечірнє й повне світло, а також відкривати тюль, жалюзі, blackout-ролети та штори. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}">Розумний будинок</a>.</p>
+    </aside>
 
     <ol class="residence-spine__fallback-directions" data-cinematic-fallback-directions>
       {% for direction in cinematic.directions %}
@@ -81,11 +89,11 @@
             data-cinematic-scene-state="assembled"
             data-cinematic-scene-key="assembled"
             data-cinematic-scene-family="control-room"
-            data-cinematic-scene-image="url('{{ '/assets/images/home/control-room-1536.webp' | relative_url }}')"
+            data-cinematic-scene-image="url('{{ initial_physical_scene.src_1536 | relative_url }}')"
           >
             <picture>
-              <source media="(max-width: 767px)" srcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }}" width="768" height="512">
-              <img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ assembled_alt }}" loading="{% if stage_variant == 'home' %}eager{% else %}lazy{% endif %}"{% if stage_variant == 'home' %} fetchpriority="high"{% endif %}>
+              <source media="(max-width: 767px)" srcset="{{ initial_physical_scene.src_768 | relative_url }}" width="768" height="512">
+              <img src="{{ initial_physical_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="{% if stage_variant == 'home' %}eager{% else %}lazy{% endif %}"{% if stage_variant == 'home' %} fetchpriority="high"{% endif %}>
             </picture>
           </figure>
 
@@ -136,6 +144,14 @@
           {% endfor %}
 
           <div class="residence-spine__outgoing-snapshot" data-cinematic-outgoing-snapshot aria-hidden="true" hidden></div>
+
+          <div class="residence-spine__physical-layer" data-cinematic-physical-layer hidden aria-hidden="true">
+            <picture class="residence-spine__physical-picture" data-cinematic-physical-picture="{{ physical.initial_state.lighting_id }}:{{ physical.initial_state.window_treatment_id }}">
+              <source data-cinematic-physical-source media="(max-width: 767px)" srcset="{{ initial_physical_scene.src_768 | relative_url }}" width="768" height="512">
+              <img data-cinematic-physical-image src="{{ initial_physical_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy">
+            </picture>
+            <span class="residence-spine__physical-snapshot" data-cinematic-physical-snapshot aria-hidden="true" hidden></span>
+          </div>
         </div>
 
         <div class="residence-spine__panels" data-cinematic-panels>
@@ -143,6 +159,24 @@
             <p class="residence-spine__panel-kicker">Повна система</p>
             <h3>Усі напрями працюють як одна система.</h3>
             <p data-cinematic-summary>Оберіть напрям. Сцена покаже його місце в системі та пов’язані роботи.</p>
+            <div class="residence-spine__physical-controls" data-cinematic-physical-controls hidden>
+              <fieldset>
+                <legend>Освітлення</legend>
+                <div>
+                  {% for lighting in physical.lighting %}
+                    <button type="button" data-cinematic-physical-action="select-lighting" data-lighting-id="{{ lighting.id }}" aria-pressed="{% if lighting.id == physical.initial_state.lighting_id %}true{% else %}false{% endif %}">{{ lighting.label }}</button>
+                  {% endfor %}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend>Сонцезахист</legend>
+                <div>
+                  {% for window_treatment in physical.window_treatments %}
+                    <button type="button" data-cinematic-physical-action="select-window-treatment" data-window-treatment-id="{{ window_treatment.id }}" aria-pressed="{% if window_treatment.id == physical.initial_state.window_treatment_id %}true{% else %}false{% endif %}">{{ window_treatment.label }}</button>
+                  {% endfor %}
+                </div>
+              </fieldset>
+            </div>
           </article>
 
           {% for direction in cinematic.directions %}
@@ -191,4 +225,5 @@
   </section>
 
   <script type="application/json" data-cinematic-graph>{{ cinematic | jsonify }}</script>
+  <script type="application/json" data-cinematic-physical-states>{{ physical | jsonify }}</script>
 </div>
