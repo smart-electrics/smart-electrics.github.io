@@ -88,6 +88,48 @@ test("upgrades the complete nine-system, seven-preset configuration into one int
   expect(await page.getByRole("main").innerText()).not.toMatch(forbiddenCopy);
 });
 
+test("physical stair and exterior scenes are subordinate to the canonical phone and swap exact media", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  const physical = root.locator("[data-smart-home-physical]");
+  await expect(physical).toHaveAttribute("data-smart-home-physical-enhanced", "true");
+  await expect(root.locator("button[data-phone-system]")).toHaveCount(systems.length);
+  const picture = physical.locator("[data-smart-home-physical-picture]");
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=off");
+  await physical.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=route");
+  await expect(picture.locator("img")).toHaveAttribute("src", /stairs-route-1536\.webp$/);
+  await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
+  await physical.getByRole("button", { name: "Нічне зниження", exact: true }).click();
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "exterior:exterior_lighting=reduced-night");
+  await expect(picture.locator("img")).toHaveAttribute("src", /exterior-reduced-night-1536\.webp$/);
+});
+
+test("malformed subordinate physical picker, control, or initial media fails closed", async ({ page }) => {
+  await page.addInitScript(() => {
+    const observer = new MutationObserver((records) => {
+      for (const record of records) for (const node of record.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        const physical = node.matches("[data-smart-home-physical]") ? node : node.querySelector("[data-smart-home-physical]");
+        if (!physical) continue;
+        physical.querySelector("button[data-smart-home-physical-system='stairs']").dataset.smartHomePhysicalSystem = "unknown";
+        physical.querySelector("button[data-smart-home-physical-action]").dataset.physicalValueId = "unknown";
+        physical.querySelector("[data-smart-home-physical-source]").setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp");
+        observer.disconnect();
+        return;
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  await page.goto(route);
+  const root = await simulator(page);
+  const physical = root.locator("[data-smart-home-physical]");
+  await expect(physical).not.toHaveAttribute("data-smart-home-physical-enhanced", "true");
+  await expect(physical.locator("[data-smart-home-physical-fallback]")).toBeVisible();
+  await expect(physical.locator("[data-smart-home-physical-stage]")).toBeHidden();
+  await expect(root.locator("button[data-phone-system]")).toHaveCount(systems.length);
+});
+
 test("every preset atomically changes the configuration and returns from manual mode", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);

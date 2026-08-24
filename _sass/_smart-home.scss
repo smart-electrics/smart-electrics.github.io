@@ -1003,6 +1003,32 @@
   }
 }
 
+.smart-home__physical {
+  border-top: 1px solid var(--phone-line);
+  display: grid;
+  gap: 1rem;
+  margin-top: clamp(1.5rem, 3vw, 3rem);
+  padding-top: clamp(1.5rem, 3vw, 3rem);
+}
+
+.smart-home__physical h3 { color: #fff0dd; font-family: var(--font-display); font-size: clamp(1.7rem, 3vw, 2.7rem); font-weight: 400; margin: 0; }
+.smart-home__physical p { color: var(--phone-muted); margin: 0.5rem 0 0; max-width: 65ch; }
+.smart-home__physical-stage { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.8fr); }
+.smart-home__physical-media { aspect-ratio: 3 / 2; background: #100b08; margin: 0; min-height: 0; overflow: hidden; position: relative; }
+.smart-home__physical-media picture, .smart-home__physical-media img { height: 100%; inset: 0; position: absolute; width: 100%; }
+.smart-home__physical-media img { display: block; object-fit: cover; }
+.smart-home__physical-media figcaption { background: linear-gradient(0deg, rgba(4, 2, 1, 0.86), transparent); bottom: 0; color: #f3e6e4; font-size: 0.75rem; left: 0; padding: 2rem 0.75rem 0.75rem; position: absolute; right: 0; }
+.smart-home__physical-controls { display: grid; gap: 0.65rem; align-content: start; }
+.smart-home__physical-controls [role="group"], .smart-home__physical-controls fieldset > div { display: grid; gap: 0.35rem; grid-template-columns: repeat(var(--physical-control-count, 2), minmax(0, 1fr)); }
+.smart-home__physical-controls fieldset { border: 0; margin: 0; min-inline-size: 0; padding: 0; }
+.smart-home__physical-controls legend { color: var(--phone-copper); font-size: 0.72rem; font-weight: 750; letter-spacing: 0.08em; padding-bottom: 0.35rem; text-transform: uppercase; }
+.smart-home__physical-controls button { background: #211812; border: 1px solid #74503a; color: #f5dfc8; cursor: pointer; font: inherit; font-size: 0.78rem; font-weight: 700; min-height: 2.75rem; padding: 0.35rem; }
+.smart-home__physical-controls button:hover, .smart-home__physical-controls button[aria-pressed="true"] { background: #382418; border-color: var(--amber-light); color: #fff3e4; }
+
+@media (max-width: 48rem) {
+  .smart-home__physical-stage { grid-template-columns: minmax(0, 1fr); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .smart-home [data-motion-layer],
   .smart-home .smart-home__outgoing-snapshot,

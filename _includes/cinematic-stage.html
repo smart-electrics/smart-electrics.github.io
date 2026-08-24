@@ -3,8 +3,13 @@
 {% assign ordered_services = site.services | sort: "order" %}
 {% assign lighting_service = ordered_services | where: "slug", "lighting" | first %}
 {% assign smart_home_service = ordered_services | where: "slug", "smart-home-integration" | first %}
-{% assign initial_physical_by_lighting = physical.scenes | where: "lighting_id", physical.initial_state.lighting_id %}
-{% assign initial_physical_scene = initial_physical_by_lighting | where: "window_treatment_id", physical.initial_state.window_treatment_id | first %}
+{% assign room_physical = physical.systems | where: "id", "room" | first %}
+{% assign initial_physical_scene = nil %}
+{% for scene in room_physical.scenes %}
+  {% if scene.state.lighting == room_physical.initial_state.lighting and scene.state.window_treatment == room_physical.initial_state.window_treatment %}
+    {% assign initial_physical_scene = scene %}
+  {% endif %}
+{% endfor %}
 {% assign stage_variant = include.variant | default: "services" %}
 {% assign stage_id = "cinematic-" | append: stage_variant %}
 
@@ -17,7 +22,7 @@
     </header>
 
     <aside data-cinematic-physical-fallback>
-      <p>У цій кімнаті можна перемикати вимкнене, маршрутне, вечірнє й повне світло, а також відкривати тюль, жалюзі, blackout-ролети та штори. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}">Розумний будинок</a>.</p>
+      <p>У демонстраційній конфігурації можна перемикати світло й сонцезахист кімнати, маршрут і повну циркуляцію сходів, а також підхід, вечірній ландшафт і знижене нічне зовнішнє освітлення. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}">Розумний будинок</a>.</p>
     </aside>
 
     <ol class="residence-spine__fallback-directions" data-cinematic-fallback-directions>
@@ -135,7 +140,7 @@
           <div class="residence-spine__outgoing-snapshot" data-cinematic-outgoing-snapshot aria-hidden="true" hidden></div>
 
           <div class="residence-spine__physical-layer" data-cinematic-physical-layer hidden aria-hidden="true">
-            <picture class="residence-spine__physical-picture" data-cinematic-physical-picture="{{ physical.initial_state.lighting_id }}:{{ physical.initial_state.window_treatment_id }}">
+            <picture class="residence-spine__physical-picture" data-cinematic-physical-picture="room">
               <source data-cinematic-physical-source media="(max-width: 767px)" srcset="{{ initial_physical_scene.src_768 | relative_url }}" width="768" height="512">
               <img data-cinematic-physical-image src="{{ initial_physical_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy">
             </picture>
@@ -148,23 +153,17 @@
             <p class="residence-spine__panel-kicker">Повна система</p>
             <h3>Усі напрями працюють як одна система.</h3>
             <p data-cinematic-summary>Оберіть напрям. Сцена покаже його місце в системі та пов’язані роботи.</p>
-            <div class="residence-spine__physical-controls" data-cinematic-physical-controls hidden>
-              <fieldset>
-                <legend>Освітлення</legend>
-                <div>
-                  {% for lighting in physical.lighting %}
-                    <button type="button" data-cinematic-physical-action="select-lighting" data-lighting-id="{{ lighting.id }}" aria-pressed="{% if lighting.id == physical.initial_state.lighting_id %}true{% else %}false{% endif %}">{{ lighting.label }}</button>
-                  {% endfor %}
-                </div>
-              </fieldset>
-              <fieldset>
-                <legend>Сонцезахист</legend>
-                <div>
-                  {% for window_treatment in physical.window_treatments %}
-                    <button type="button" data-cinematic-physical-action="select-window-treatment" data-window-treatment-id="{{ window_treatment.id }}" aria-pressed="{% if window_treatment.id == physical.initial_state.window_treatment_id %}true{% else %}false{% endif %}">{{ window_treatment.label }}</button>
-                  {% endfor %}
-                </div>
-              </fieldset>
+            <div class="residence-spine__physical-controls" data-cinematic-physical-controls="{{ room_physical.id }}" hidden>
+              {% for control in room_physical.controls %}
+                <fieldset>
+                  <legend>{{ control.label }}</legend>
+                  <div style="--physical-control-count: {{ control.choices.size }}">
+                    {% for choice in control.choices %}
+                      <button type="button" data-cinematic-physical-action="select-control" data-physical-control-id="{{ control.id }}" data-physical-value-id="{{ choice.id }}" aria-pressed="{% if choice.id == room_physical.initial_state[control.id] %}true{% else %}false{% endif %}">{{ choice.label }}</button>
+                    {% endfor %}
+                  </div>
+                </fieldset>
+              {% endfor %}
             </div>
           </article>
 
@@ -192,11 +191,27 @@
           {% for relation in cinematic.relations %}
             {% assign owner = cinematic.directions | where: "id", relation.direction_id | first %}
             {% assign owner_service = ordered_services | where: "slug", owner.service_slug | first %}
+            {% assign relation_scene_key = "relation:" | append: relation.id %}
+            {% assign relation_physical = physical.systems | where: "scene_key", relation_scene_key | first %}
             <article class="residence-spine__panel" data-cinematic-panel="reassembled" data-cinematic-reassembled-panel="{{ relation.id }}" hidden>
               <p class="residence-spine__panel-kicker">{{ owner.label }}</p>
               <h3>{{ relation.child.label }}</h3>
               <p data-cinematic-summary>{{ relation.child.description }}</p>
               <a class="residence-spine__destination" data-cinematic-reassembled-destination="{{ relation.id }}" href="{{ owner_service.url | relative_url }}">Відкрити напрям «{{ owner.label }}» <span aria-hidden="true">↗</span></a>
+              {% if relation_physical %}
+                <div class="residence-spine__physical-controls" data-cinematic-physical-controls="{{ relation_physical.id }}" hidden>
+                  {% for control in relation_physical.controls %}
+                    <fieldset>
+                      <legend>{{ control.label }}</legend>
+                      <div style="--physical-control-count: {{ control.choices.size }}">
+                        {% for choice in control.choices %}
+                          <button type="button" data-cinematic-physical-action="select-control" data-physical-control-id="{{ control.id }}" data-physical-value-id="{{ choice.id }}" aria-pressed="{% if choice.id == relation_physical.initial_state[control.id] %}true{% else %}false{% endif %}">{{ choice.label }}</button>
+                        {% endfor %}
+                      </div>
+                    </fieldset>
+                  {% endfor %}
+                </div>
+              {% endif %}
               <ul class="residence-spine__related" data-cinematic-related="{{ relation.id }}">
                 {% for related_id in relation.related_direction_ids %}
                   {% assign related_direction = cinematic.directions | where: "id", related_id | first %}

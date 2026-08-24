@@ -5,6 +5,11 @@ layout: default
 {% assign spatial = smart_home.spatial %}
 {% assign initial_preset = smart_home.presets.first %}
 {% assign initial_system = spatial.systems.first %}
+{% assign physical = site.data.physical_scene_states %}
+{% assign stairs_physical = physical.systems | where: "id", "stairs" | first %}
+{% assign exterior_physical = physical.systems | where: "id", "exterior" | first %}
+{% assign initial_stairs_scene = stairs_physical.scenes.first %}
+{% assign lighting_service = site.services | where: "slug", "lighting" | first %}
 
 <article class="smart-home">
   <section class="smart-home__hero shell" data-smart-home-section aria-labelledby="smart-home-title">
@@ -122,6 +127,43 @@ layout: default
         <p class="smart-home__phone-live" data-phone-live aria-live="polite">{{ initial_preset.live_summary }}</p>
       </section>
     </div>
+
+    <section class="smart-home__physical" data-smart-home-physical aria-labelledby="physical-lighting-title">
+      <aside data-smart-home-physical-fallback>
+        <h3 id="physical-lighting-title">Фізичні сцени освітлення</h3>
+        <p>Демонстраційна конфігурація пояснює окремі стани світла на сходах і зовні; остаточні групи визначають для конкретного об’єкта. Докладніше — у напрямі <a href="{{ lighting_service.url | relative_url }}">Освітлення</a>.</p>
+      </aside>
+      <div class="smart-home__physical-stage" data-smart-home-physical-stage hidden>
+        <figure class="smart-home__physical-media">
+          <picture data-smart-home-physical-picture="stairs">
+            <source data-smart-home-physical-source media="(max-width: 767px)" srcset="{{ initial_stairs_scene.src_768 | relative_url }}" width="768" height="512">
+            <img data-smart-home-physical-image src="{{ initial_stairs_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ initial_stairs_scene.alt }}" loading="lazy">
+          </picture>
+          <figcaption>Візуальна концепція готової до адаптації конфігурації, не керування обладнанням.</figcaption>
+        </figure>
+        <div class="smart-home__physical-controls">
+          <div role="group" aria-label="Простір фізичної сцени">
+            <button type="button" data-smart-home-physical-system="stairs" aria-pressed="true">Сходи</button>
+            <button type="button" data-smart-home-physical-system="exterior" aria-pressed="false">Зовнішнє освітлення</button>
+          </div>
+          {% for system in physical.systems %}
+            {% unless system.id == 'room' %}
+              <fieldset data-smart-home-physical-controls="{{ system.id }}"{% unless system.id == 'stairs' %} hidden{% endunless %}>
+                {% for control in system.controls %}
+                  <legend>{{ control.label }}</legend>
+                  <div style="--physical-control-count: {{ control.choices.size }}">
+                    {% for choice in control.choices %}
+                      <button type="button" data-smart-home-physical-action="select-control" data-physical-control-id="{{ control.id }}" data-physical-value-id="{{ choice.id }}" aria-pressed="{% if choice.id == system.initial_state[control.id] %}true{% else %}false{% endif %}">{{ choice.label }}</button>
+                    {% endfor %}
+                  </div>
+                {% endfor %}
+              </fieldset>
+            {% endunless %}
+          {% endfor %}
+        </div>
+      </div>
+      <script type="application/json" data-smart-home-physical-states>{{ physical | jsonify }}</script>
+    </section>
 
     <section class="smart-home__preset-explanations" data-preset-explanations aria-labelledby="configuration-title">
       <div class="smart-home__configuration-heading"><p class="section-kicker">{{ smart_home.simulator.logic_kicker }}</p><h2 id="configuration-title">{{ smart_home.configuration.title }}</h2></div>
