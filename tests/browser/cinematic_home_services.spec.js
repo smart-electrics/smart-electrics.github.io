@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 const surfaceRoutes = ["/", "/services/"];
 const directions = [
   ["electrical-design", "Електромонтажне проєктування", 0, "stairs"],
-  ["electrical-installation", "Електромонтажні роботи", 0, "panel"],
+  ["electrical-installation", "Електромонтажні роботи", 0, "electrical-installation"],
   ["panels-and-protection", "Щити й захист", 1, "panel"],
   ["lighting", "Освітлення", 2, "stairs"],
   ["low-voltage", "Слабкострумові системи", 2, "surveillance"],
@@ -47,6 +47,34 @@ async function physicalSignature(stage) {
     for (const channel of pixels) hash = ((hash << 5) - hash + channel) | 0;
     return { src: image.currentSrc || image.src, hash, width: image.naturalWidth, height: image.naturalHeight };
   });
+}
+
+async function focusSceneSignature(stage) {
+  return stage.locator("[data-cinematic-focus-scene]:visible img").evaluate(async (image) => {
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 24;
+    canvas.height = 16;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let hash = 0;
+    for (const channel of pixels) hash = ((hash << 5) - hash + channel) | 0;
+    return { src: image.currentSrc || image.src, hash };
+  });
+}
+
+async function mediaAnchorGeometry(stage) {
+  const [media, anchor] = await Promise.all([
+    stage.locator("[data-cinematic-media]").boundingBox(),
+    stage.locator("[data-cinematic-view]").boundingBox()
+  ]);
+  return {
+    width: media?.width,
+    height: media?.height,
+    left: media && anchor ? media.x - anchor.x : undefined,
+    top: media && anchor ? media.y - anchor.y : undefined
+  };
 }
 
 test("the enhanced residence spine shows one scene beside an eight-control rail", async ({ page }) => {
@@ -262,6 +290,27 @@ test("each direction focuses exactly one pre-rendered panel and exposes relation
     await expect(stage.locator("[data-cinematic-scene]:visible")).toHaveAttribute("data-cinematic-scene-family", sceneFamily);
     await expect(stage.locator(`[data-cinematic-focus-panel='${id}']:visible`)).toHaveCount(1);
     await expect(stage.locator("[data-cinematic-relation-switcher]:visible button")).toHaveCount(relationCount);
+  }
+});
+
+test("electrical installation and panels use distinct focus images without moving the media anchor", async ({ page }) => {
+  for (const route of surfaceRoutes) {
+    await page.goto(route);
+    const { stage } = await stageFor(page);
+
+    await chooseDirection(stage, "Електромонтажні роботи");
+    const installation = await focusSceneSignature(stage);
+    const installationGeometry = await mediaAnchorGeometry(stage);
+
+    await chooseDirection(stage, "Щити й захист");
+    const panels = await focusSceneSignature(stage);
+    const panelsGeometry = await mediaAnchorGeometry(stage);
+
+    expect(installation.src).toMatch(/\/smart-home\/electrical-installation-(768|1536)\.webp$/);
+    expect(panels.src).toMatch(/\/smart-home\/panel-(768|1536)\.webp$/);
+    expect(panels.src).not.toBe(installation.src);
+    expect(panels.hash).not.toBe(installation.hash);
+    expect(panelsGeometry).toEqual(installationGeometry);
   }
 });
 

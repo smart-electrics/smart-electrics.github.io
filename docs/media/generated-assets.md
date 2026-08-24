@@ -168,14 +168,16 @@ random cables, exaggerated bloom і fantasy technology.
   - audio: `exec-663684e2-72c4-46cf-8de3-862bd19f364a.png` ->
     `exec-0fb05b21-9ae2-4e0b-8ebe-4f1af7c3de6d.png`
   - diagnostics: `exec-ca981297-9931-43b4-95f4-18e13868c7d6.png`
+  - electrical-installation: `exec-63a3ebd9-24cf-4590-93b9-98497fddf831.png`
 - Призначення: доповнити спільний кінематографічний граф окремими
-  фотореалістичними сценами щита, резервного живлення, слабкострумової мережі
-  й відеоспостереження, мультирум-аудіо та електричної діагностики
+  фотореалістичними сценами чорнового електромонтажу, щита, резервного
+  живлення, слабкострумової мережі й відеоспостереження, мультирум-аудіо та
+  електричної діагностики
 - Публічне твердження: візуальна демонстрація логіки готових до адаптації
   конфігурацій; не підтверджені клієнтські кейси, не конкретні моделі
   обладнання й не твердження про vendor compatibility
 - Файли:
-  `assets/images/smart-home/{panel,backup,surveillance,audio,diagnostics}-768.webp`
+  `assets/images/smart-home/{electrical-installation,panel,backup,surveillance,audio,diagnostics}-768.webp`
   та відповідні `-1536.webp`
 - Перетворення: WebP без метаданих, 768x512 px через `cwebp` quality 80 і
   1536x1024 px через `cwebp` quality 84
@@ -185,7 +187,7 @@ random cables, exaggerated bloom і fantasy technology.
 
 ### Зафіксована візуальна мова
 
-П'ять нових кадрів продовжують ту саму резиденцію й camera language:
+Шість нових кадрів продовжують ту саму резиденцію й camera language:
 темний горіх, графітовий камінь, стримана бронза, 2700K amber, синя година,
 прямі вертикалі, глибокі OLED-friendly тіні та реалістичні сервісні зазори.
 Кадри не містять людей, логотипів, читабельних написів або накладеного UI.
@@ -193,6 +195,10 @@ random cables, exaggerated bloom і fantasy technology.
 
 ### SHA-256
 
+- electrical-installation:
+  `cb66feea2e8cca879a0365796df6cc9fe0150a5dedf5c012410aece8af8ecb79`
+  (768), `919923c8b99ca012b52c5cecb4b0b22087f0077427bedb3525d786fc8eb69e4e`
+  (1536)
 - panel: `1c559ec878174984be3cf8f75b45f90ae5e24d6ee59c6287b17340aff66263ae`
   (768), `e385b37ff17692c80a95da05ff0981e9db68dc34b7b8b37e7a4ef01ae2c95401`
   (1536)
@@ -213,7 +219,10 @@ random cables, exaggerated bloom і fantasy technology.
 
 Усі генерації вимагали ту саму сучасну приватну резиденцію, матеріали,
 оптику, освітлення й колірний grade. Предмети сцен мали бути фізично
-змонтованими та інженерно зрозумілими: DIN-rail і кабельна ієрархія щита;
+змонтованими та інженерно зрозумілими: прямі траси, підрозетники, кабельні
+випуски й підготовлені точки чорнового електромонтажу поруч із уже
+встановленими поверхнями з темного горіха, графітового каменю та бронзи;
+DIN-rail і кабельна ієрархія щита;
 батареї, inverter і transfer/protection cabinet; камера, вхід і low-voltage
 niche; приховані ceiling/in-wall speakers та audio matrix; щит, тестер,
 thermal camera й безпечні probes. Окремі редагування surveillance та audio

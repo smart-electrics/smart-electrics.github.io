@@ -4,15 +4,16 @@ require "minitest/autorun"
 require "open3"
 require "tmpdir"
 require "yaml"
+require "fileutils"
 
 class CinematicContractTest < Minitest::Test
   def project_root
     File.expand_path("../..", __dir__)
   end
 
-  def validate(path = File.join(project_root, "_data/cinematic_system.yml"))
+  def validate(path = File.join(project_root, "_data/cinematic_system.yml"), repository_root = project_root)
     Open3.capture3(
-      "bundle", "exec", "ruby", "scripts/validate_cinematic_system.rb", path, project_root,
+      "bundle", "exec", "ruby", "scripts/validate_cinematic_system.rb", path, repository_root,
       chdir: project_root
     )
   end
@@ -38,6 +39,21 @@ class CinematicContractTest < Minitest::Test
       path = File.join(directory, "cinematic_system.yml")
       File.write(path, contents)
       yield path
+    end
+  end
+
+  def with_repository_missing_scene_asset(family, width)
+    Dir.mktmpdir("smart-electrics-cinematic-repository") do |directory|
+      FileUtils.cp_r(File.join(project_root, "_services"), directory)
+      assets_directory = File.join(directory, "assets", "images", "smart-home")
+      FileUtils.mkdir_p(assets_directory)
+      omitted = "#{family}-#{width}.webp"
+      Dir.glob(File.join(project_root, "assets", "images", "smart-home", "*.webp")).each do |source|
+        next if File.basename(source) == omitted
+
+        FileUtils.cp(source, assets_directory)
+      end
+      yield directory
     end
   end
 
@@ -76,7 +92,7 @@ class CinematicContractTest < Minitest::Test
     graph = canonical_graph
     graph.fetch("directions").first["extra"] = "not part of the graph contract"
 
-    assert_rejected(graph, "direction 1: fields must be exactly id, service_slug, label, description")
+    assert_rejected(graph, "direction 1: fields must be exactly id, focus_scene_family, service_slug, label, description")
   end
 
   def test_rejects_duplicate_or_blank_direction_ids
@@ -87,6 +103,32 @@ class CinematicContractTest < Minitest::Test
     graph = canonical_graph
     graph.fetch("directions").first["id"] = " "
     assert_rejected(graph, "direction 1: id must be a non-empty scalar")
+  end
+
+  def test_rejects_missing_unknown_or_duplicate_focus_scene_mappings
+    graph = canonical_graph
+    graph.fetch("directions").first.delete("focus_scene_family")
+    assert_rejected(graph, "direction 1: focus_scene_family must be a non-empty scalar")
+
+    graph = canonical_graph
+    graph.fetch("directions").first["focus_scene_family"] = "unknown"
+    assert_rejected(graph, "direction 1: focus_scene_family must belong to the declared family set")
+
+    graph = canonical_graph
+    graph.fetch("directions").find { |direction| direction.fetch("id") == "electrical-installation" }["focus_scene_family"] = "panel"
+    assert_rejected(graph, "focus scene mappings must keep electrical-installation distinct from panels-and-protection")
+  end
+
+  def test_rejects_a_missing_responsive_focus_scene_asset
+    graph = canonical_graph
+    with_graph(graph) do |path|
+      with_repository_missing_scene_asset("electrical-installation", 768) do |repository_root|
+        _stdout, stderr, status = validate(path, repository_root)
+
+        refute_predicate status, :success?
+        assert_includes stderr, "scene family electrical-installation: missing 768px asset"
+      end
+    end
   end
 
   def test_rejects_relation_ids_that_do_not_match_their_owner_and_child

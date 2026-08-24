@@ -10,7 +10,7 @@ module CinematicSystemContract
     cctv climate audio curtains-tulle-roller-shutters stair-lighting outdoor-lighting
     panel-assembly backup diagnostics
   ].freeze
-  SCENE_FAMILY_BY_CHILD_ID = {
+  RELATION_SCENE_FAMILY_BY_CHILD_ID = {
     "panel-assembly" => "panel",
     "stair-lighting" => "stairs",
     "outdoor-lighting" => "exterior",
@@ -21,8 +21,19 @@ module CinematicSystemContract
     "curtains-tulle-roller-shutters" => "shading",
     "diagnostics" => "diagnostics"
   }.freeze
-  SCENE_FAMILIES = SCENE_FAMILY_BY_CHILD_ID.values.freeze
-  REQUIRED_DIRECTION_FIELDS = %w[id service_slug label description].freeze
+  FOCUS_SCENE_FAMILY_BY_DIRECTION_ID = {
+    "electrical-design" => "stairs",
+    "electrical-installation" => "electrical-installation",
+    "panels-and-protection" => "panel",
+    "lighting" => "stairs",
+    "low-voltage" => "surveillance",
+    "backup-power" => "backup",
+    "smart-home-integration" => "climate",
+    "diagnostics-and-service" => "diagnostics"
+  }.freeze
+  SCENE_FAMILIES = (RELATION_SCENE_FAMILY_BY_CHILD_ID.values + FOCUS_SCENE_FAMILY_BY_DIRECTION_ID.values).uniq.freeze
+  DISTINCT_FOCUS_SCENE_PAIRS = [%w[electrical-installation panels-and-protection]].freeze
+  REQUIRED_DIRECTION_FIELDS = %w[id focus_scene_family service_slug label description].freeze
   REQUIRED_RELATION_FIELDS = %w[id direction_id scene_family child related_direction_ids].freeze
   REQUIRED_CHILD_FIELDS = %w[id label description].freeze
 
@@ -34,8 +45,10 @@ module CinematicSystemContract
     return ["_services: must contain a parseable ordered service collection"] unless service_slugs
 
     errors = []
-    direction_ids = validate_directions(errors, graph["directions"], service_slugs)
+    directions = graph["directions"]
+    direction_ids = validate_directions(errors, directions, service_slugs)
     validate_relations(errors, graph["relations"], direction_ids)
+    validate_scene_assets(errors, directions, graph["relations"], repository_root)
     errors
   end
 
@@ -76,6 +89,7 @@ module CinematicSystemContract
     end
 
     ids = []
+    focus_scene_families = {}
     directions.each_with_index do |direction, index|
       prefix = "direction #{index + 1}"
       unless direction.is_a?(Hash)
@@ -92,10 +106,13 @@ module CinematicSystemContract
       if non_empty_string?(direction["id"]) && non_empty_string?(direction["service_slug"]) && direction["id"] != direction["service_slug"]
         errors << "#{prefix}: id must match service_slug"
       end
+      validate_focus_scene_family(errors, prefix, direction)
       ids << direction["id"] if non_empty_string?(direction["id"])
+      focus_scene_families[direction["id"]] = direction["focus_scene_family"] if non_empty_string?(direction["id"]) && non_empty_string?(direction["focus_scene_family"])
     end
 
     errors << "directions must not contain duplicate IDs" unless ids.uniq.length == ids.length
+    validate_distinct_focus_scene_pairs(errors, focus_scene_families)
     ids
   end
 
@@ -179,8 +196,43 @@ module CinematicSystemContract
       return
     end
     errors << "#{prefix}: scene_family must belong to the declared family set" unless SCENE_FAMILIES.include?(scene_family)
-    if child_id && SCENE_FAMILY_BY_CHILD_ID[child_id] != scene_family
+    if child_id && RELATION_SCENE_FAMILY_BY_CHILD_ID[child_id] != scene_family
       errors << "#{prefix}: scene_family must match the canonical child mapping"
+    end
+  end
+
+  def validate_focus_scene_family(errors, prefix, direction)
+    scene_family = direction["focus_scene_family"]
+    unless non_empty_string?(scene_family)
+      errors << "#{prefix}: focus_scene_family must be a non-empty scalar"
+      return
+    end
+    errors << "#{prefix}: focus_scene_family must belong to the declared family set" unless SCENE_FAMILIES.include?(scene_family)
+    direction_id = direction["id"]
+    if non_empty_string?(direction_id) && FOCUS_SCENE_FAMILY_BY_DIRECTION_ID[direction_id] != scene_family
+      errors << "#{prefix}: focus_scene_family must match the canonical direction mapping"
+    end
+  end
+
+  def validate_distinct_focus_scene_pairs(errors, focus_scene_families)
+    DISTINCT_FOCUS_SCENE_PAIRS.each do |left_id, right_id|
+      next unless focus_scene_families[left_id] && focus_scene_families[right_id]
+      next unless focus_scene_families[left_id] == focus_scene_families[right_id]
+
+      errors << "focus scene mappings must keep #{left_id} distinct from #{right_id}"
+    end
+  end
+
+  def validate_scene_assets(errors, directions, relations, repository_root)
+    scene_families = []
+    scene_families.concat(directions.filter_map { |direction| direction.is_a?(Hash) ? direction["focus_scene_family"] : nil }) if directions.is_a?(Array)
+    scene_families.concat(relations.filter_map { |relation| relation.is_a?(Hash) ? relation["scene_family"] : nil }) if relations.is_a?(Array)
+
+    scene_families.select { |family| non_empty_string?(family) && SCENE_FAMILIES.include?(family) }.uniq.each do |family|
+      [768, 1536].each do |width|
+        path = File.join(repository_root, "assets", "images", "smart-home", "#{family}-#{width}.webp")
+        errors << "scene family #{family}: missing #{width}px asset" unless File.file?(path)
+      end
     end
   end
 

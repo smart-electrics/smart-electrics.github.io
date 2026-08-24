@@ -1,33 +1,41 @@
 directions:
   - id: electrical-design
+    focus_scene_family: stairs
     service_slug: electrical-design
     label: Електромонтажне проєктування
     description: Логіка системи починається з узгодженого плану електромонтажних робіт.
   - id: electrical-installation
+    focus_scene_family: electrical-installation
     service_slug: electrical-installation
     label: Електромонтажні роботи
     description: Траси й точки поєднують робочі частини електромонтажного проєкту.
   - id: panels-and-protection
+    focus_scene_family: panel
     service_slug: panels-and-protection
     label: Щити й захист
     description: Щит об’єднує групи живлення та захист для визначених рішень.
   - id: lighting
+    focus_scene_family: stairs
     service_slug: lighting
     label: Освітлення
     description: Групи світла формують повсякденні й маршрутні сценарії простору.
   - id: low-voltage
+    focus_scene_family: surveillance
     service_slug: low-voltage
     label: Слабкострумові системи
     description: Сигнальні та мультимедійні лінії підтримують зв’язки між зонами.
   - id: backup-power
+    focus_scene_family: backup
     service_slug: backup-power
     label: Резервне живлення
     description: Пріоритети живлення визначають у зв’язці зі щитом і потрібними групами.
   - id: smart-home-integration
+    focus_scene_family: climate
     service_slug: smart-home-integration
     label: Розумний будинок
     description: Керування об’єднує узгоджені сценарії світла, комфорту й сонцезахисту.
   - id: diagnostics-and-service
+    focus_scene_family: diagnostics
     service_slug: diagnostics-and-service
     label: Діагностика й сервіс
     description: Стан системи перевіряють у контексті наявних рішень об’єкта.
