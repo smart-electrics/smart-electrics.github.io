@@ -349,6 +349,39 @@ test("invalid studio JSON, DOM, or non-owner relation keeps the complete fallbac
   }
 });
 
+test("a swapped valid relation config and DOM keeps the single-relation fallback", async ({ page }) => {
+  await page.route("**/services/backup-power/", async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    const graphIndex = body.indexOf('<script type="application/json" data-service-studio-graph>');
+    const swapped = `${body.slice(0, graphIndex).replaceAll("backup-power--backup", "diagnostics-and-service--diagnostics")}${body.slice(graphIndex)}`;
+    await route.fulfill({ response, body: swapped, contentType: "text/html" });
+  });
+
+  await page.goto("/services/backup-power/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
+});
+
+test("a malformed canonical mapping keeps the complete fallback", async ({ page }) => {
+  await page.route("**/services/backup-power/", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /(<script type="application\/json" data-service-studio-graph>)([\s\S]*?)(<\/script>)/,
+      (_match, open, graph, close) => `${open}${graph.replace('"low-voltage--audio"', '"invented--relation"')}${close}`
+    );
+    await route.fulfill({ response, body, contentType: "text/html" });
+  });
+
+  await page.goto("/services/backup-power/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
+});
+
 test("an unknown rail action keeps the semantic fallback instead of enabling inert controls", async ({ page }) => {
   await page.route("**/services/lighting/", async (route) => {
     const response = await route.fetch();

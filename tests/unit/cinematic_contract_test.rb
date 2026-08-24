@@ -7,6 +7,17 @@ require "yaml"
 require "fileutils"
 
 class CinematicContractTest < Minitest::Test
+  SERVICE_STUDIO_RELATION_IDS = {
+    "electrical-design" => ["panels-and-protection--panel-assembly"],
+    "electrical-installation" => ["panels-and-protection--panel-assembly"],
+    "panels-and-protection" => ["panels-and-protection--panel-assembly"],
+    "lighting" => ["lighting--stair-lighting", "lighting--outdoor-lighting"],
+    "low-voltage" => ["low-voltage--cctv", "low-voltage--audio"],
+    "backup-power" => ["backup-power--backup"],
+    "smart-home-integration" => ["smart-home-integration--climate", "smart-home-integration--curtains-tulle-roller-shutters"],
+    "diagnostics-and-service" => ["diagnostics-and-service--diagnostics"]
+  }.freeze
+
   def project_root
     File.expand_path("../..", __dir__)
   end
@@ -93,6 +104,13 @@ class CinematicContractTest < Minitest::Test
     graph.fetch("directions").first["extra"] = "not part of the graph contract"
 
     assert_rejected(graph, "direction 1: fields must be exactly id, focus_scene_family, service_slug, label, description")
+  end
+
+  def test_rejects_top_level_fields_outside_the_canonical_graph_contract
+    graph = canonical_graph
+    graph["service_studio_relation_idz"] = graph.fetch("service_studio_relation_ids").transform_values(&:dup)
+
+    assert_rejected(graph, "cinematic_system.yml: fields must be exactly directions, relations, service_studio_relation_ids")
   end
 
   def test_rejects_duplicate_or_blank_direction_ids
@@ -184,5 +202,28 @@ class CinematicContractTest < Minitest::Test
       refute_predicate status, :success?
       assert_includes stderr, "cinematic_system.yml: must contain valid YAML"
     end
+  end
+
+  def test_requires_exact_service_studio_relation_mapping_shape
+    graph = canonical_graph
+    graph.delete("service_studio_relation_ids")
+    assert_rejected(graph, "service_studio_relation_ids must be a mapping")
+
+    graph = canonical_graph
+    graph["service_studio_relation_ids"] = SERVICE_STUDIO_RELATION_IDS.dup
+    graph.fetch("service_studio_relation_ids").delete("backup-power")
+    assert_rejected(graph, "service_studio_relation_ids must contain exactly the graph direction IDs in canonical order")
+
+    graph = canonical_graph
+    graph["service_studio_relation_ids"] = SERVICE_STUDIO_RELATION_IDS.merge("backup-power" => [])
+    assert_rejected(graph, "service_studio_relation_ids.backup-power must be a non-empty list of relation IDs")
+
+    graph = canonical_graph
+    graph["service_studio_relation_ids"] = SERVICE_STUDIO_RELATION_IDS.merge("lighting" => ["lighting--stair-lighting", "lighting--stair-lighting"])
+    assert_rejected(graph, "service_studio_relation_ids.lighting must not contain duplicate relation IDs")
+
+    graph = canonical_graph
+    graph["service_studio_relation_ids"] = SERVICE_STUDIO_RELATION_IDS.merge("diagnostics-and-service" => ["invented-relation"])
+    assert_rejected(graph, "service_studio_relation_ids.diagnostics-and-service must reference graph relation IDs")
   end
 end

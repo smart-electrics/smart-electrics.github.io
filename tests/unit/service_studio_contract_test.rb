@@ -4,6 +4,7 @@ require "fileutils"
 require "minitest/autorun"
 require "open3"
 require "tmpdir"
+require "yaml"
 
 class ServiceStudioContractTest < Minitest::Test
   ROOT = File.expand_path("../..", __dir__)
@@ -18,8 +19,8 @@ class ServiceStudioContractTest < Minitest::Test
     diagnostics-and-service
   ].freeze
 
-  def validate(services)
-    Open3.capture3("bundle", "exec", "ruby", "scripts/validate_service_studios.rb", services, chdir: ROOT)
+  def validate(services, graph_path = File.join(ROOT, "_data", "cinematic_system.yml"))
+    Open3.capture3("bundle", "exec", "ruby", "scripts/validate_service_studios.rb", services, graph_path, chdir: ROOT)
   end
 
   def copy_services
@@ -27,6 +28,14 @@ class ServiceStudioContractTest < Minitest::Test
       services = File.join(root, "_services")
       FileUtils.cp_r(File.join(ROOT, "_services"), services)
       yield services
+    end
+  end
+
+  def copy_graph
+    Dir.mktmpdir("smart-electrics-cinematic-system") do |root|
+      graph = File.join(root, "cinematic_system.yml")
+      FileUtils.cp(File.join(ROOT, "_data", "cinematic_system.yml"), graph)
+      yield graph
     end
   end
 
@@ -73,6 +82,21 @@ class ServiceStudioContractTest < Minitest::Test
       _stdout, stderr, status = validate(services)
 
       assert_predicate status, :success?, stderr
+    end
+  end
+
+  def test_derives_single_relation_contracts_from_the_canonical_graph_mapping
+    copy_services do |services|
+      copy_graph do |graph_path|
+        graph = YAML.safe_load(File.read(graph_path), permitted_classes: [], aliases: false)
+        graph.fetch("service_studio_relation_ids")["backup-power"] = ["diagnostics-and-service--diagnostics"]
+        File.write(graph_path, YAML.dump(graph))
+
+        _stdout, stderr, status = validate(services, graph_path)
+
+        refute_predicate status, :success?
+        assert_includes stderr, "backup-power.md: service_studio: relation_id must declare the canonical relation for backup-power"
+      end
     end
   end
 
@@ -181,6 +205,29 @@ class ServiceStudioContractTest < Minitest::Test
         path = File.join(services, "#{slug}.md")
         File.write(path, File.read(path).sub("title: #{original_title}", "title: #{wording}"))
         _stdout, stderr, status = validate(services)
+        refute_predicate status, :success?
+        assert_includes stderr, "must not contain forbidden live-video, vendor, portal, recording, tracking, or guarantee wording"
+      end
+    end
+  end
+
+  def test_rejects_price_certificate_and_fictional_completion_claims_in_all_new_studios
+    [
+      ["backup-power", "Що має залишатися в роботі", "ціна"],
+      ["backup-power", "Що має залишатися в роботі", "вартість"],
+      ["backup-power", "Що має залишатися в роботі", "₴"],
+      ["smart-home-integration", "Зони та функції", "сертифікат"],
+      ["diagnostics-and-service", "З чого починається перевірка", "реалізований проєкт"],
+      ["diagnostics-and-service", "З чого починається перевірка", "виконаний об’єкт"],
+      ["backup-power", "Що має залишатися в роботі", "price"],
+      ["smart-home-integration", "Зони та функції", "certificate"],
+      ["diagnostics-and-service", "З чого починається перевірка", "completed project"]
+    ].each do |slug, original_title, wording|
+      copy_services do |services|
+        path = File.join(services, "#{slug}.md")
+        File.write(path, File.read(path).sub("title: #{original_title}", "title: #{wording}"))
+        _stdout, stderr, status = validate(services)
+
         refute_predicate status, :success?
         assert_includes stderr, "must not contain forbidden live-video, vendor, portal, recording, tracking, or guarantee wording"
       end

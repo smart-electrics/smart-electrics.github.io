@@ -22,6 +22,25 @@ function relationIdsFor(config) {
   return new Set(config.relation_ids).size === config.relation_ids.length ? config.relation_ids : null;
 }
 
+function canonicalStudioRelationIds(graph) {
+  if (!Array.isArray(graph?.directions) || !Array.isArray(graph?.relations) || !graph?.service_studio_relation_ids || typeof graph.service_studio_relation_ids !== "object" || Array.isArray(graph.service_studio_relation_ids)) return null;
+
+  const directionIds = graph.directions.map((direction) => direction?.id);
+  const knownRelationIds = graph.relations.map((relation) => relation?.id);
+  if (!directionIds.every((id) => typeof id === "string" && id.trim()) || new Set(directionIds).size !== directionIds.length) return null;
+  if (!knownRelationIds.every((id) => typeof id === "string" && id.trim()) || new Set(knownRelationIds).size !== knownRelationIds.length) return null;
+
+  const mapping = graph.service_studio_relation_ids;
+  const mappingKeys = Object.keys(mapping);
+  if (mappingKeys.length !== directionIds.length || !mappingKeys.every((id, index) => id === directionIds[index])) return null;
+  if (!mappingKeys.every((directionId) => {
+    const ids = mapping[directionId];
+    return Array.isArray(ids) && ids.length > 0 && ids.every((id) => typeof id === "string" && id.trim() && knownRelationIds.includes(id)) && new Set(ids).size === ids.length;
+  })) return null;
+
+  return mapping;
+}
+
 function enhance(root) {
   const graph = readJson(root, "data-service-studio-graph");
   const config = readJson(root, "data-service-studio-config");
@@ -33,9 +52,11 @@ function enhance(root) {
 
   const relationIds = relationIdsFor(config);
   if (!relationIds) return;
-  if (Array.isArray(config.relation_ids) && !relationIds.every((relationId) =>
-    graph.relations?.some((relation) => relation?.id === relationId && relation.direction_id === config.direction_id)
-  )) return;
+  const canonicalRelations = canonicalStudioRelationIds(graph);
+  if (!canonicalRelations) return;
+  const canonicalRelationIds = canonicalRelations[config?.direction_id];
+  if (!canonicalRelationIds) return;
+  if (relationIds.length !== canonicalRelationIds.length || !relationIds.every((relationId, index) => relationId === canonicalRelationIds[index])) return;
 
   let machines;
   try {
