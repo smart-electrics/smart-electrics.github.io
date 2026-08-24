@@ -365,6 +365,26 @@ test("a swapped valid relation config and DOM keeps the single-relation fallback
   await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
 });
 
+test("a combined valid relation config, DOM, and mapping swap keeps the single-relation fallback", async ({ page }) => {
+  await page.route("**/services/backup-power/", async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    const graphIndex = body.indexOf('<script type="application/json" data-service-studio-graph>');
+    const beforeGraph = body.slice(0, graphIndex).replaceAll("backup-power--backup", "diagnostics-and-service--diagnostics");
+    const graph = body.slice(graphIndex).replace(
+      '"backup-power":["backup-power--backup"]',
+      '"backup-power":["diagnostics-and-service--diagnostics"]'
+    );
+    await route.fulfill({ response, body: `${beforeGraph}${graph}`, contentType: "text/html" });
+  });
+
+  await page.goto("/services/backup-power/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
+});
+
 test("a malformed canonical mapping keeps the complete fallback", async ({ page }) => {
   await page.route("**/services/backup-power/", async (route) => {
     const response = await route.fetch();

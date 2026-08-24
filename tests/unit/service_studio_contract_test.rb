@@ -85,7 +85,7 @@ class ServiceStudioContractTest < Minitest::Test
     end
   end
 
-  def test_derives_single_relation_contracts_from_the_canonical_graph_mapping
+  def test_rejects_a_wrong_mapping_before_validating_the_single_relation_studio
     copy_services do |services|
       copy_graph do |graph_path|
         graph = YAML.safe_load(File.read(graph_path), permitted_classes: [], aliases: false)
@@ -95,7 +95,24 @@ class ServiceStudioContractTest < Minitest::Test
         _stdout, stderr, status = validate(services, graph_path)
 
         refute_predicate status, :success?
-        assert_includes stderr, "backup-power.md: service_studio: relation_id must declare the canonical relation for backup-power"
+        assert_includes stderr, "cinematic_system.yml: service_studio_relation_ids must satisfy the canonical ownership mapping"
+      end
+    end
+  end
+
+  def test_rejects_a_structurally_wrong_mapping_even_when_the_studio_matches_it
+    copy_services do |services|
+      copy_graph do |graph_path|
+        graph = YAML.safe_load(File.read(graph_path), permitted_classes: [], aliases: false)
+        graph.fetch("service_studio_relation_ids")["backup-power"] = ["diagnostics-and-service--diagnostics"]
+        File.write(graph_path, YAML.dump(graph))
+
+        path = File.join(services, "backup-power.md")
+        File.write(path, File.read(path).sub("backup-power--backup", "diagnostics-and-service--diagnostics"))
+        _stdout, stderr, status = validate(services, graph_path)
+
+        refute_predicate status, :success?
+        assert_includes stderr, "cinematic_system.yml: service_studio_relation_ids must satisfy the canonical ownership mapping"
       end
     end
   end
@@ -214,12 +231,27 @@ class ServiceStudioContractTest < Minitest::Test
   def test_rejects_price_certificate_and_fictional_completion_claims_in_all_new_studios
     [
       ["backup-power", "Що має залишатися в роботі", "ціна"],
+      ["backup-power", "Що має залишатися в роботі", "ціни"],
+      ["backup-power", "Що має залишатися в роботі", "ціною"],
+      ["backup-power", "Що має залишатися в роботі", "коштує"],
+      ["backup-power", "Що має залишатися в роботі", "100 грн"],
+      ["backup-power", "Що має залишатися в роботі", "грн"],
+      ["backup-power", "Що має залишатися в роботі", "долари"],
+      ["backup-power", "Що має залишатися в роботі", "euro"],
+      ["backup-power", "Що має залишатися в роботі", "прайс"],
+      ["backup-power", "Що має залишатися в роботі", "ціновий перелік"],
       ["backup-power", "Що має залишатися в роботі", "вартість"],
       ["backup-power", "Що має залишатися в роботі", "₴"],
       ["smart-home-integration", "Зони та функції", "сертифікат"],
+      ["smart-home-integration", "Зони та функції", "сертифікований"],
       ["diagnostics-and-service", "З чого починається перевірка", "реалізований проєкт"],
+      ["diagnostics-and-service", "З чого починається перевірка", "реалізований об'єкт"],
+      ["diagnostics-and-service", "З чого починається перевірка", "реалізовано об'єкт"],
+      ["diagnostics-and-service", "З чого починається перевірка", "виконано робота"],
+      ["diagnostics-and-service", "З чого починається перевірка", "завершений проєкт"],
       ["diagnostics-and-service", "З чого починається перевірка", "виконаний об’єкт"],
       ["backup-power", "Що має залишатися в роботі", "price"],
+      ["backup-power", "Що має залишатися в роботі", "US dollars"],
       ["smart-home-integration", "Зони та функції", "certificate"],
       ["diagnostics-and-service", "З чого починається перевірка", "completed project"]
     ].each do |slug, original_title, wording|
@@ -231,6 +263,28 @@ class ServiceStudioContractTest < Minitest::Test
         refute_predicate status, :success?
         assert_includes stderr, "must not contain forbidden live-video, vendor, portal, recording, tracking, or guarantee wording"
       end
+    end
+  end
+
+  def test_allows_neutral_planned_automation_wording
+    copy_services do |services|
+      path = File.join(services, "smart-home-integration.md")
+      File.write(path, File.read(path).sub("title: Зони та функції", "title: Сценарій може виконувати команду"))
+
+      _stdout, stderr, status = validate(services)
+
+      assert_predicate status, :success?, stderr
+    end
+  end
+
+  def test_allows_a_non_price_word_that_contains_the_price_stem
+    copy_services do |services|
+      path = File.join(services, "smart-home-integration.md")
+      File.write(path, File.read(path).sub("title: Зони та функції", "title: Оцінка наявних рішень"))
+
+      _stdout, stderr, status = validate(services)
+
+      assert_predicate status, :success?, stderr
     end
   end
 end

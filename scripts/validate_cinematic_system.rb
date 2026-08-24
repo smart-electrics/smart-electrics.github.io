@@ -37,6 +37,7 @@ module CinematicSystemContract
   REQUIRED_RELATION_FIELDS = %w[id direction_id scene_family child related_direction_ids].freeze
   REQUIRED_CHILD_FIELDS = %w[id label description].freeze
   REQUIRED_GRAPH_FIELDS = %w[directions relations service_studio_relation_ids].freeze
+  PANEL_FALLBACK_DIRECTION_IDS = %w[electrical-design electrical-installation].freeze
 
   def validate(data_path, repository_root)
     graph = parse_yaml(data_path)
@@ -52,7 +53,7 @@ module CinematicSystemContract
     directions = graph["directions"]
     direction_ids = validate_directions(errors, directions, service_slugs)
     relation_ids = validate_relations(errors, graph["relations"], direction_ids)
-    validate_service_studio_relation_ids(errors, graph["service_studio_relation_ids"], direction_ids, relation_ids)
+    validate_service_studio_relation_ids(errors, graph["service_studio_relation_ids"], direction_ids, relation_ids, graph["relations"])
     validate_scene_assets(errors, directions, graph["relations"], repository_root)
     errors
   end
@@ -157,7 +158,7 @@ module CinematicSystemContract
     relation_ids
   end
 
-  def validate_service_studio_relation_ids(errors, studio_relation_ids, direction_ids, relation_ids)
+  def validate_service_studio_relation_ids(errors, studio_relation_ids, direction_ids, relation_ids, relations)
     unless studio_relation_ids.is_a?(Hash)
       errors << "service_studio_relation_ids must be a mapping"
       return
@@ -175,6 +176,39 @@ module CinematicSystemContract
       end
       errors << "#{prefix} must not contain duplicate relation IDs" unless ids.uniq.length == ids.length
       errors << "#{prefix} must reference graph relation IDs" if ids.any? { |relation_id| !relation_ids.include?(relation_id) }
+    end
+
+    validate_service_studio_relation_topology(errors, studio_relation_ids, direction_ids, relations)
+  end
+
+  def validate_service_studio_relation_topology(errors, studio_relation_ids, direction_ids, relations)
+    return unless relations.is_a?(Array)
+
+    panel_relations = relations.select do |relation|
+      relation.is_a?(Hash) && relation["child"].is_a?(Hash) && relation["child"]["id"] == "panel-assembly"
+    end
+    unless panel_relations.length == 1 && non_empty_string?(panel_relations.first["id"])
+      errors << "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation"
+      return
+    end
+
+    direction_ids.each do |direction_id|
+      owned_relations = relations.select do |relation|
+        relation.is_a?(Hash) && relation["direction_id"] == direction_id
+      end
+      if owned_relations.empty?
+        unless PANEL_FALLBACK_DIRECTION_IDS.include?(direction_id)
+          errors << "service_studio_relation_ids.#{direction_id} may use the panel-assembly fallback only for #{PANEL_FALLBACK_DIRECTION_IDS.join(', ')}"
+          next
+        end
+        expected_relation_ids = [panel_relations.first["id"]]
+      else
+        expected_relation_ids = owned_relations.map { |relation| relation["id"] }
+      end
+
+      unless studio_relation_ids[direction_id] == expected_relation_ids
+        errors << "service_studio_relation_ids.#{direction_id} must equal the canonical owned relation IDs"
+      end
     end
   end
 

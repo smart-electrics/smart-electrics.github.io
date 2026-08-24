@@ -10,7 +10,21 @@ module ServiceStudioContract
   MULTI_RELATION_STUDIO_FIELDS = %w[direction_id relation_ids states].freeze
   STATE_IDS = %w[assembled focus reassembled].freeze
   STATE_FIELDS = %w[label title summary].freeze
-  FORBIDDEN_WORDING = /(?:live[\s-]*video|жив(?:е|ого)\s+відео|прям(?:е|ого)\s+відео|\bportal\b|портал|\bvendor\b|вендор|запис(?:у|ом|и)?|recording|відстеж(?:ення|увати|ує)|tracking|гарант(?:ія|ує|ований)?|guarantee|поточн[[:alpha:]]*\s+(?:стан|живл)|runtime|час\s+роботи|автоматично\s+(?:працює|керує|виконує)|без\s+участі|виявлен[[:alpha:]]*\s+(?:несправ|авар|помил)|завершен[[:alpha:]]*\s+діагност|тривог[[:alpha:]]*|вимір[[:alpha:]]*\s*\d|ціна|вартіст[[:alpha:]]*|[₴$€£]|\b(?:price|cost|usd|eur|uah)\b|сертифікат[[:alpha:]]*|\b(?:certificate|certified|certification)\b|(?:реалізован|виконан)(?:ий|а|е|і|ого|ому|их|ими|у)?\s+(?:проєкт|об’єкт|робот[аиі]?)|\b(?:completed|implemented|finished)\s+(?:project|object|work)\b)/i
+  PANEL_FALLBACK_DIRECTION_IDS = %w[electrical-design electrical-installation].freeze
+  FORBIDDEN_WORDING = %r{
+    (?:
+      live[\s-]*video|жив(?:е|ого)\s+відео|прям(?:е|ого)\s+відео|\bportal\b|портал|\bvendor\b|вендор
+      |запис(?:у|ом|и)?|recording|відстеж(?:ення|увати|ує)|tracking|гарант(?:ія|ує|ований)?|guarantee
+      |поточн[[:alpha:]]*\s+(?:стан|живл)|runtime|час\s+роботи|автоматично\s+(?:працює|керує|виконує)|без\s+участі
+      |виявлен[[:alpha:]]*\s+(?:несправ|авар|помил)|завершен[[:alpha:]]*\s+діагност|тривог[[:alpha:]]*|вимір[[:alpha:]]*\s*\d
+      |(?<![[:alpha:]])(?:цін[[:alpha:]]*|прайс[[:alpha:]]*)|вартіст[[:alpha:]]*|кошту(?:є|ють|вати|вав|вала|вали)
+      |(?<![[:alpha:]])(?:грн\.?|гривн[[:alpha:]]*|долар[[:alpha:]]*|євро)(?![[:alpha:]])|[₴$€£]
+      |\b(?:price|cost|usd|eur|uah|dollars?|euros?|pounds?)\b|\b(?:us|u\.s\.)\s+dollars?\b
+      |сертифік(?:ат|ован|ац)[[:alpha:]]*|\b(?:certificate|certified|certification)\b
+      |(?:(?:реалізован|виконан)(?:о|ий|а|е|і|ого|ому|их|ими|у)?|завершен(?:о|ий|а|е|і))\s+(?:проєкт|об[’']єкт|робот)[[:alpha:]]*
+      |\b(?:completed|implemented|finished)\s+(?:project|object|work)\b
+    )
+  }ix
 
   def parse_yaml(path)
     source = File.read(path)
@@ -31,7 +45,7 @@ module ServiceStudioContract
     direction_ids = graph.fetch("directions", []).filter_map { |direction| direction["id"] if direction.is_a?(Hash) }
     relation_ids = graph.fetch("relations", []).filter_map { |relation| relation["id"] if relation.is_a?(Hash) }
     studio_relation_ids = canonical_studio_relation_ids(graph, direction_ids, relation_ids)
-    return ["cinematic_system.yml: service_studio_relation_ids must map every canonical direction to unique known relations"] unless studio_relation_ids
+    return ["cinematic_system.yml: service_studio_relation_ids must satisfy the canonical ownership mapping"] unless studio_relation_ids
     files = Dir.glob(File.join(services_directory, "*.md")).sort
     records = files.map { |path| [File.basename(path, ".md"), parse_yaml(path)] }.to_h
     errors = []
@@ -87,8 +101,35 @@ module ServiceStudioContract
     values = graph["service_studio_relation_ids"]
     return nil unless values.is_a?(Hash) && values.keys == direction_ids
     return nil unless values.values.all? { |ids| ids.is_a?(Array) && !ids.empty? && ids.all? { |id| non_empty_string?(id) } && ids.uniq.length == ids.length && ids.all? { |id| relation_ids.include?(id) } }
+    expected_values = structurally_canonical_studio_relation_ids(direction_ids, graph["relations"])
+    return nil unless expected_values && values == expected_values
 
     values
+  end
+
+  def structurally_canonical_studio_relation_ids(direction_ids, relations)
+    return nil unless relations.is_a?(Array)
+
+    panel_relations = relations.select do |relation|
+      relation.is_a?(Hash) && relation["child"].is_a?(Hash) && relation["child"]["id"] == "panel-assembly"
+    end
+    return nil unless panel_relations.length == 1 && non_empty_string?(panel_relations.first["id"])
+
+    direction_ids.to_h do |direction_id|
+      owned_relations = relations.select do |relation|
+        relation.is_a?(Hash) && relation["direction_id"] == direction_id
+      end
+      if owned_relations.empty?
+        return nil unless PANEL_FALLBACK_DIRECTION_IDS.include?(direction_id)
+
+        [direction_id, [panel_relations.first["id"]]]
+      else
+        relation_ids = owned_relations.map { |relation| relation["id"] }
+        return nil unless relation_ids.all? { |relation_id| non_empty_string?(relation_id) }
+
+        [direction_id, relation_ids]
+      end
+    end
   end
 
   def validate_relations(errors, prefix, slug, studio, expected_relation_ids, relation_ids, relations)

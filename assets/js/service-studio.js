@@ -1,5 +1,7 @@
 import { createServiceStudioState } from "./service-studio-state.js";
 
+const PANEL_FALLBACK_DIRECTION_IDS = new Set(["electrical-design", "electrical-installation"]);
+
 const one = (root, selector) => {
   const matches = root.querySelectorAll(selector);
   return matches.length === 1 ? matches[0] : null;
@@ -22,6 +24,26 @@ function relationIdsFor(config) {
   return new Set(config.relation_ids).size === config.relation_ids.length ? config.relation_ids : null;
 }
 
+function structurallyCanonicalStudioRelationIds(directionIds, relations) {
+  if (!relations.every((relation) => directionIds.includes(relation?.direction_id))) return null;
+
+  const panelRelations = relations.filter((relation) => relation?.child?.id === "panel-assembly");
+  if (panelRelations.length !== 1) return null;
+
+  const expected = {};
+  for (const directionId of directionIds) {
+    const ownedRelations = relations.filter((relation) => relation.direction_id === directionId);
+    if (ownedRelations.length === 0) {
+      if (!PANEL_FALLBACK_DIRECTION_IDS.has(directionId)) return null;
+      expected[directionId] = [panelRelations[0].id];
+    } else {
+      expected[directionId] = ownedRelations.map((relation) => relation.id);
+    }
+  }
+
+  return expected;
+}
+
 function canonicalStudioRelationIds(graph) {
   if (!Array.isArray(graph?.directions) || !Array.isArray(graph?.relations) || !graph?.service_studio_relation_ids || typeof graph.service_studio_relation_ids !== "object" || Array.isArray(graph.service_studio_relation_ids)) return null;
 
@@ -30,12 +52,20 @@ function canonicalStudioRelationIds(graph) {
   if (!directionIds.every((id) => typeof id === "string" && id.trim()) || new Set(directionIds).size !== directionIds.length) return null;
   if (!knownRelationIds.every((id) => typeof id === "string" && id.trim()) || new Set(knownRelationIds).size !== knownRelationIds.length) return null;
 
+  const expectedMapping = structurallyCanonicalStudioRelationIds(directionIds, graph.relations);
+  if (!expectedMapping) return null;
+
   const mapping = graph.service_studio_relation_ids;
   const mappingKeys = Object.keys(mapping);
   if (mappingKeys.length !== directionIds.length || !mappingKeys.every((id, index) => id === directionIds[index])) return null;
   if (!mappingKeys.every((directionId) => {
     const ids = mapping[directionId];
     return Array.isArray(ids) && ids.length > 0 && ids.every((id) => typeof id === "string" && id.trim() && knownRelationIds.includes(id)) && new Set(ids).size === ids.length;
+  })) return null;
+  if (!directionIds.every((directionId) => {
+    const ids = mapping[directionId];
+    const expectedIds = expectedMapping[directionId];
+    return ids.length === expectedIds.length && ids.every((id, index) => id === expectedIds[index]);
   })) return null;
 
   return mapping;
