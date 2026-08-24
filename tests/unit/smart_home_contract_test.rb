@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
+require "digest"
 require "open3"
 require "tmpdir"
 require "yaml"
@@ -18,7 +19,7 @@ class SmartHomeContractTest < Minitest::Test
     "panel" => %w[layer priority_groups],
     "low-voltage" => %w[route topology_focus],
     "backup-power" => %w[priority_groups restore_intent],
-    "audio" => %w[level source zone muted],
+    "audio" => %w[source zone group muted],
     "shading" => %w[position treatment]
   }.freeze
   REQUIRED_SCALAR_FIELDS = %w[id label eyebrow title event scene_label project_note live_summary].freeze
@@ -105,6 +106,19 @@ class SmartHomeContractTest < Minitest::Test
       assert_equal SYSTEMS, item.fetch("values").keys
       control_ids.each do |system_id, ids|
         assert_equal ids, item.fetch("values").fetch(system_id).keys
+      end
+    end
+  end
+
+  def test_each_scene_asset_has_recorded_sha256_provenance
+    contract = valid_contract
+    provenance = File.read(File.join(project_root, "docs", "media", "generated-assets.md"))
+
+    contract.dig("spatial", "visuals").each do |visual|
+      %w[desktop mobile].each do |variant|
+        asset = visual.fetch(variant).delete_prefix("/")
+        digest = Digest::SHA256.file(File.join(project_root, asset)).hexdigest
+        assert_includes provenance, digest, "#{asset} must have a recorded SHA-256"
       end
     end
   end
@@ -249,8 +263,12 @@ class SmartHomeContractTest < Minitest::Test
     assert_rejected(contract, "access: control 1 toggle must not define range bounds or options")
 
     contract = valid_contract
-    contract.dig("spatial", "systems").find { |system| system.fetch("id") == "audio" }.fetch("controls")[1]["id"] = "input"
-    assert_rejected(contract, "audio: controls must contain exactly level, source, zone, muted in order")
+    contract.dig("spatial", "systems").find { |system| system.fetch("id") == "audio" }.fetch("controls")[2]["id"] = "input"
+    assert_rejected(contract, "audio: controls must contain exactly source, zone, group, muted in order")
+
+    contract = valid_contract
+    contract.dig("spatial", "systems").find { |system| system.fetch("id") == "audio" }.fetch("controls").last.delete("off_label")
+    assert_rejected(contract, "audio: control 4 toggle must define non-empty on_label and off_label")
 
     contract = valid_contract
     contract.dig("spatial", "systems").find { |system| system.fetch("id") == "panel" }.fetch("diagnostics").delete("next_step")

@@ -109,8 +109,8 @@ layout: default
                     <output data-control-output="{{ system.id }}:{{ control.id }}">{{ control.output_label }}: <span>{% for option in control.options %}{% if initial_value == option.id %}{{ option.label }}{% endif %}{% endfor %}</span></output>
                   {% elsif control.type == 'toggle' %}
                     <p class="smart-home__phone-control-label">{{ control.label }}</p>
-                    <button class="smart-home__phone-toggle" data-phone-toggle data-control-system="{{ system.id }}" data-control-id="{{ control.id }}" type="button" aria-pressed="{% if initial_value %}true{% else %}false{% endif %}"><span aria-hidden="true"></span>{{ control.label }}</button>
-                    <output data-control-output="{{ system.id }}:{{ control.id }}">{{ control.output_label }}: <span>{% if initial_value %}Враховано{% else %}Не враховано{% endif %}</span></output>
+                    <button class="smart-home__phone-toggle" data-phone-toggle data-control-system="{{ system.id }}" data-control-id="{{ control.id }}" data-control-on-label="{{ control.on_label }}" data-control-off-label="{{ control.off_label }}" type="button" aria-pressed="{% if initial_value %}true{% else %}false{% endif %}"><span aria-hidden="true"></span>{{ control.label }}</button>
+                    <output data-control-output="{{ system.id }}:{{ control.id }}">{{ control.output_label }}: <span>{% if initial_value %}{{ control.on_label }}{% else %}{{ control.off_label }}{% endif %}</span></output>
                   {% endif %}
                 </div>
               {% endfor %}

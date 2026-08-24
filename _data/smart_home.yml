@@ -64,7 +64,7 @@ spatial:
         label: Логіка входу
         detail: Подію доступу пов’язують із потрібною дією без дистанційного керування точкою входу.
       controls:
-        - { id: arrival_route, type: toggle, label: Підготувати маршрут входу, output_label: Маршрут входу }
+        - { id: arrival_route, type: toggle, label: Підготувати маршрут входу, output_label: Маршрут входу, on_label: Маршрут підготовлено, off_label: Маршрут без підготовки }
         - { id: entry_zone, type: segment, label: Точка маршруту, output_label: Обрана точка, options: [{ id: gate, label: Хвіртка }, { id: entry, label: Вхід }, { id: garage, label: Гараж }] }
     - id: security
       label: Безпека й відео
@@ -103,7 +103,7 @@ spatial:
           label: Шар схеми
           output_label: Обраний шар
           options: [{ id: protection, label: Захист }, { id: groups, label: Групи }, { id: priorities, label: Пріоритети }]
-        - { id: priority_groups, type: toggle, label: Врахувати пріоритетні групи, output_label: Пріоритетні групи }
+        - { id: priority_groups, type: toggle, label: Врахувати пріоритетні групи, output_label: Пріоритетні групи, on_label: Пріоритетні групи враховано, off_label: Без окремих пріоритетів }
     - id: low-voltage
       label: Слабкострумна інфраструктура
       x: 23
@@ -134,7 +134,7 @@ spatial:
       summary: Пріоритетні споживачі та межі резерву узгоджують зі щитом і захистом.
       topology: { label: Логіка резерву, detail: Пріоритетні групи визначають у схемі конкретного електромонтажного проєкту. }
       controls:
-        - { id: priority_groups, type: toggle, label: Врахувати пріоритетні групи, output_label: Пріоритетні групи }
+        - { id: priority_groups, type: toggle, label: Врахувати пріоритетні групи, output_label: Пріоритетні групи, on_label: Пріоритетні групи враховано, off_label: Без окремих пріоритетів }
         - { id: restore_intent, type: segment, label: Порядок відновлення, output_label: Послідовність, options: [{ id: essential, label: Критичні групи }, { id: staged, label: Поетапно }, { id: manual, label: Вручну }] }
     - id: audio
       label: Аудіо
@@ -145,12 +145,12 @@ spatial:
       summary: Аудіо враховують у сценарії лише для зон, де воно потрібне.
       topology:
         label: Логіка аудіо
-        detail: Рівень для зони задають у сценарії; ця панель не відтворює аудіо.
+        detail: Джерело спрямовують до обраної зони та групи; ця панель не відтворює аудіо.
       controls:
-        - { id: level, type: range, label: Рівень для зони, output_label: Рівень аудіо, output_suffix: "%", min: 0, max: 100, step: 1 }
         - { id: source, type: segment, label: Джерело сигналу, output_label: Обране джерело, options: [{ id: local, label: Локальний вхід }, { id: media, label: Медіацентр }, { id: scenario, label: Сценарій }] }
         - { id: zone, type: segment, label: Зона аудіо, output_label: Обрана зона, options: [{ id: living, label: Вітальня }, { id: terrace, label: Тераса }, { id: private, label: Приватна зона }] }
-        - { id: muted, type: toggle, label: Тихий стан, output_label: Тихий стан }
+        - { id: group, type: segment, label: Група аудіо, output_label: Обрана група, options: [{ id: single, label: Одна зона }, { id: shared, label: Суміжні зони }, { id: floor, label: Увесь поверх }] }
+        - { id: muted, type: toggle, label: Приглушити або відновити звук, output_label: Стан аудіо, on_label: Звук приглушено, off_label: Звук відновлено }
     - id: shading
       label: Сонцезахист
       x: 48
@@ -237,7 +237,7 @@ presets:
       panel: { layer: groups, priority_groups: false }
       low-voltage: { route: network, topology_focus: points }
       backup-power: { priority_groups: false, restore_intent: manual }
-      audio: { level: 20, source: scenario, zone: living, muted: false }
+      audio: { source: scenario, zone: living, group: single, muted: false }
       shading: { position: 85, treatment: tulle }
     logic:
       route: [private, passage, living]
@@ -274,7 +274,7 @@ presets:
       panel: { layer: groups, priority_groups: false }
       low-voltage: { route: signals, topology_focus: points }
       backup-power: { priority_groups: false, restore_intent: manual }
-      audio: { level: 30, source: scenario, zone: living, muted: false }
+      audio: { source: scenario, zone: living, group: single, muted: false }
       shading: { position: 45, treatment: curtains }
     logic:
       route: [exterior, entry, passage, living]
@@ -311,7 +311,7 @@ presets:
       panel: { layer: protection, priority_groups: false }
       low-voltage: { route: network, topology_focus: interfaces }
       backup-power: { priority_groups: false, restore_intent: staged }
-      audio: { level: 45, source: media, zone: living, muted: false }
+      audio: { source: media, zone: living, group: shared, muted: false }
       shading: { position: 25, treatment: curtains }
     logic:
       route: [passage, living]
@@ -348,7 +348,7 @@ presets:
       panel: { layer: protection, priority_groups: true }
       low-voltage: { route: video, topology_focus: routes }
       backup-power: { priority_groups: true, restore_intent: essential }
-      audio: { level: 0, source: scenario, zone: living, muted: true }
+      audio: { source: scenario, zone: living, group: single, muted: true }
       shading: { position: 0, treatment: rollers }
     logic:
       route: [private, living, passage, entry]
@@ -385,7 +385,7 @@ presets:
       panel: { layer: protection, priority_groups: true }
       low-voltage: { route: signals, topology_focus: points }
       backup-power: { priority_groups: true, restore_intent: essential }
-      audio: { level: 0, source: scenario, zone: private, muted: true }
+      audio: { source: scenario, zone: private, group: single, muted: true }
       shading: { position: 0, treatment: rollers }
     logic:
       route: [private, stairs, passage, living]
@@ -422,7 +422,7 @@ presets:
       panel: { layer: groups, priority_groups: false }
       low-voltage: { route: network, topology_focus: interfaces }
       backup-power: { priority_groups: false, restore_intent: staged }
-      audio: { level: 20, source: media, zone: living, muted: false }
+      audio: { source: media, zone: living, group: single, muted: false }
       shading: { position: 15, treatment: blinds }
     logic:
       route: [exterior, living, private]
@@ -459,7 +459,7 @@ presets:
       panel: { layer: priorities, priority_groups: true }
       low-voltage: { route: signals, topology_focus: routes }
       backup-power: { priority_groups: true, restore_intent: essential }
-      audio: { level: 0, source: local, zone: living, muted: true }
+      audio: { source: local, zone: living, group: single, muted: true }
       shading: { position: 0, treatment: rollers }
     logic:
       route: [technical, living]

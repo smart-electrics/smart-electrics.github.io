@@ -38,8 +38,10 @@ function controlDefinition(panel, systemId) {
     }
 
     const toggle = only(control, `button[data-phone-toggle][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"]`);
-    if (!toggle || !text(toggle) || !["true", "false"].includes(toggle.getAttribute("aria-pressed"))) return null;
-    definitions.push({ id: controlId, type, defaultValue: toggle.getAttribute("aria-pressed") === "true" });
+    const onLabel = toggle?.dataset.controlOnLabel;
+    const offLabel = toggle?.dataset.controlOffLabel;
+    if (!toggle || !text(toggle) || !isNonEmpty(onLabel) || !isNonEmpty(offLabel) || !["true", "false"].includes(toggle.getAttribute("aria-pressed"))) return null;
+    definitions.push({ id: controlId, type, onLabel, offLabel, defaultValue: toggle.getAttribute("aria-pressed") === "true" });
   }
   return uniqueIds(definitions.map((control) => control.id)) ? definitions : null;
 }
@@ -204,7 +206,7 @@ function enhanceSimulator(root) {
 
   const controlValueLabel = (systemId, controlId, value) => {
     const control = markup.controlsBySystem[systemId].find((candidate) => candidate.id === controlId);
-    if (control.type === "toggle") return value ? "Враховано" : "Не враховано";
+    if (control.type === "toggle") return value ? control.onLabel : control.offLabel;
     if (control.type === "range") return `${value}${root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] output`)?.textContent?.includes("%") ? "%" : ""}`;
     return text(root.querySelector(`[data-phone-segment][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"][data-control-value="${CSS.escape(value)}"]`));
   };
@@ -265,11 +267,11 @@ function enhanceSimulator(root) {
     const previewSignature = controls.map((control) => `${control.id}:${state.valuesBySystem[state.systemId][control.id]}`).join("|");
     markup.scenePreview.dataset.previewSignature = previewSignature;
     root.dataset.previewSignature = previewSignature;
-    for (let index = 1; index <= 3; index += 1) {
+    for (let index = 1; index <= 4; index += 1) {
       markup.scenePreview.style.setProperty(`--smart-home-preview-control-${index}`, "0");
       root.style.setProperty(`--smart-home-preview-control-${index}`, "0");
     }
-    controls.slice(0, 3).forEach((control, index) => {
+    controls.slice(0, 4).forEach((control, index) => {
       markup.scenePreview.style.setProperty(`--smart-home-preview-control-${index + 1}`, String(normalizedControlValue(control, state.valuesBySystem[state.systemId][control.id])));
       root.style.setProperty(`--smart-home-preview-control-${index + 1}`, String(normalizedControlValue(control, state.valuesBySystem[state.systemId][control.id])));
     });

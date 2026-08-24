@@ -43,6 +43,25 @@ test("select-system changes only the active system and preserves all controls, p
   assert.strictEqual(selected.valuesBySystem, adjusted.valuesBySystem);
 });
 
+test("selects every declared system and atomically restores every declared preset", () => {
+  const machine = makeMachine();
+
+  for (const systemId of systemIds) {
+    const selected = machine.transition(machine.initialState, { type: "select-system", systemId });
+    assert.equal(selected.systemId, systemId);
+    assert.equal(selected.presetId, "morning");
+    assert.strictEqual(selected.valuesBySystem, machine.initialState.valuesBySystem);
+  }
+
+  for (const [index, presetId] of presetIds.entries()) {
+    const manual = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 65 });
+    const selected = machine.transition(manual, { type: "select-preset", presetId });
+    assert.equal(selected.presetId, presetId);
+    assert.equal(selected.manual, false);
+    assert.deepEqual(selected.valuesBySystem, canonicalValues(index * 5));
+  }
+});
+
 test("select-preset atomically restores canonical values for all systems and exits manual state", () => {
   const machine = makeMachine();
   const changedLighting = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 70 });

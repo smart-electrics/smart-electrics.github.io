@@ -26,7 +26,7 @@ module SmartHomeContract
     "panel" => %w[layer priority_groups].freeze,
     "low-voltage" => %w[route topology_focus].freeze,
     "backup-power" => %w[priority_groups restore_intent].freeze,
-    "audio" => %w[level source zone muted].freeze,
+    "audio" => %w[source zone group muted].freeze,
     "shading" => %w[position treatment].freeze
   }.freeze
   REQUIRED_SCALARS = %w[
@@ -205,6 +205,9 @@ module SmartHomeContract
 
   def validate_toggle_control(errors, prefix, control)
     errors << "#{prefix} toggle must not define range bounds or options" if %w[min max step options].any? { |field| control.key?(field) }
+    unless %w[on_label off_label].all? { |field| non_empty_string?(control[field]) }
+      errors << "#{prefix} toggle must define non-empty on_label and off_label"
+    end
   end
 
   def validate_visuals(errors, visuals, repository_root)

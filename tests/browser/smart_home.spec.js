@@ -66,11 +66,32 @@ test("upgrades the complete nine-system, seven-preset configuration into one int
     await expect(button).toHaveAccessibleName(label);
   }
   await expect(root.locator("[data-phone-control]")).toHaveCount(20);
-  await expect(root.locator("[data-phone-range]")).toHaveCount(3);
-  await expect(root.locator("[data-phone-segment]")).toHaveCount(40);
+  await expect(root.locator("[data-phone-range]")).toHaveCount(2);
+  await expect(root.locator("[data-phone-segment]")).toHaveCount(43);
   await expect(root.locator("[data-phone-toggle]")).toHaveCount(4);
+  const audioControlIds = await root.locator('[data-phone-control-panel="audio"] [data-phone-control]').evaluateAll((controls) => controls.map((control) => control.dataset.phoneControl));
+  expect(audioControlIds).toEqual(["audio:source", "audio:zone", "audio:group", "audio:muted"]);
   await expect(root.locator("[data-phone-live]")).toContainText("Ранок");
   expect(await page.getByRole("main").innerText()).not.toMatch(forbiddenCopy);
+});
+
+test("every preset atomically changes the configuration and returns from manual mode", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  const presetIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
+
+  for (const [index, label] of presets.entries()) {
+    const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
+    await slider.evaluate((input) => {
+      input.value = input.value === input.max ? input.min : input.max;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await expect(root).toHaveAttribute("data-manual", "true");
+    await root.getByRole("radio", { name: label }).click();
+    await expect(root).toHaveAttribute("data-preset", presetIds[index]);
+    await expect(root).toHaveAttribute("data-manual", "false");
+    await expect(root.locator("[data-phone-live]")).toContainText(label);
+  }
 });
 
 test("every system selector changes the real scene, active panel, and engineering explanation", async ({ page }) => {
@@ -153,9 +174,26 @@ test("segment and toggle controls have native keyboard actions and update their 
   await toggle.focus();
   await toggle.press("Space");
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
-  await expect(root.locator('[data-control-output="panel:priority_groups"]')).toContainText("Враховано");
+  await expect(root.locator('[data-control-output="panel:priority_groups"]')).toContainText("Пріоритетні групи враховано");
   await expect(root.locator("[data-scene-preview]")).toHaveAttribute("data-control", "priority_groups");
-  await expect(root.locator("[data-topology-result]")).toContainText("Наступна інженерна перевірка: Врахувати пріоритетні групи, Враховано");
+  await expect(root.locator("[data-topology-result]")).toContainText("Наступна інженерна перевірка: Врахувати пріоритетні групи, Пріоритетні групи враховано");
+});
+
+test("audio follows source to zone to group and mute or restore changes visible scene pixels", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  await root.locator('[data-phone-system="audio"]').click();
+  const mute = root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]');
+  const preview = root.locator("[data-scene-preview]");
+  const before = await preview.evaluate((element) => getComputedStyle(element, "::after").opacity);
+
+  await mute.click();
+  await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук приглушено");
+  await expect(root.locator("[data-topology-result]")).toContainText("Звук приглушено");
+  await expect.poll(() => preview.evaluate((element) => getComputedStyle(element, "::after").opacity)).not.toBe(before);
+
+  await mute.click();
+  await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук відновлено");
 });
 
 test("every one of the twenty manual controls changes its active scene preview signature and causal result", async ({ page }) => {

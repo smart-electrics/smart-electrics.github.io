@@ -117,6 +117,7 @@
   --smart-home-preview-control-1: 0.5;
   --smart-home-preview-control-2: 0.5;
   --smart-home-preview-control-3: 0.5;
+  --smart-home-preview-control-4: 0;
   background:
     radial-gradient(circle at calc(23% + var(--smart-home-preview-control-2) * 54%) calc(17% + var(--smart-home-preview-control-3) * 55%), rgba(255, 205, 142, calc(0.12 + var(--smart-home-preview-control-1) * 0.3)), transparent calc(15% + var(--smart-home-preview-control-2) * 13%)),
     linear-gradient(90deg, rgba(226, 127, 75, 0.22), transparent 26% 74%, rgba(245, 184, 116, 0.12));
@@ -153,6 +154,17 @@
 [data-smart-home-simulator][data-system="lighting"] .smart-home__scene-preview,
 [data-smart-home-simulator][data-system="audio"] .smart-home__scene-preview {
   opacity: 1;
+}
+
+[data-smart-home-simulator][data-system="audio"] .smart-home__scene-preview::after {
+  background: radial-gradient(circle, rgba(255, 220, 184, 0.08), rgba(219, 141, 92, 0.34) 62%, transparent 66%);
+  border: 1px solid rgba(255, 220, 184, 0.42);
+  border-radius: 50%;
+  height: clamp(4.5rem, 9vw, 9rem);
+  inset: 50% 8% auto auto;
+  opacity: calc(0.82 - var(--smart-home-preview-control-4) * 0.62);
+  transform: translateY(-50%);
+  width: clamp(4.5rem, 9vw, 9rem);
 }
 
 [data-smart-home-simulator][data-system="shading"] .smart-home__scene-preview::before,
