@@ -2,10 +2,9 @@
   <title id="favicon-title">Smart Electrics</title>
   <desc id="favicon-desc">Знак Smart Electrics на темній плитці.</desc>
   <rect width="256" height="256" rx="52" fill="#100d0c"/>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M51 81V60a12 12 0 0 1 12-12h62M205 81V60a12 12 0 0 0-12-12h-62M51 175v21a12 12 0 0 0 12 12h62M205 175v21a12 12 0 0 1-12 12h-62" stroke="#b66d47" stroke-width="16"/>
-    <path d="M51 114v28M205 114v28" stroke="#75432f" stroke-width="16"/>
-    <path d="M51 128h49c8 0 14 6 14 14v21c0 8 6 14 14 14h51" stroke="#f2a65a" stroke-width="10"/>
+  <g transform="scale(5.333333)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 7h-9a4 4 0 0 0-4 4v8M28 7h9a4 4 0 0 1 4 4v8M41 28v9a4 4 0 0 1-4 4h-7" stroke="#af5d38" stroke-width="7"/>
+    <path d="M4 28h9v4h3v3" stroke="#f6a45f" stroke-width="7"/>
+    <circle cx="16" cy="35" r="5" fill="#ffd0a1" stroke="none"/>
   </g>
-  <circle cx="179" cy="177" r="13" fill="#ffc781"/>
 </svg>

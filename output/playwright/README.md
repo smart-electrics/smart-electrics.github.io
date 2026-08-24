@@ -6,6 +6,13 @@ below.
 - `logo-concepts.png` — three independent throwaway directions used for the
   selection decision; only Direction A was recreated as production artwork;
   captured on 2026-08-22.
+- `logo-identity-sizes.png` — owner-facing proof of the refined canonical mark
+  and the dedicated micro favicon at 16, 24, 32 and 48 CSS px on dark and light
+  environments; captured in real Chromium on 2026-08-23.
+- `logo-identity-header-375.png`, `logo-identity-header-1440.png`,
+  `logo-identity-header-1980.png` — cropped header renders from the complete
+  responsive width matrix, confirming lockup scale, spacing and navigation
+  fit after the identity refinement; captured in real Chromium on 2026-08-23.
 - `home-375.png`, `home-768.png`, `home-1024.png`, `home-1440.png`,
   `home-1980.png` — the luxury control-centre homepage at the complete
   Chromium matrix (`375×812`, `768×1024`, `1024×768`, `1440×1000`,
