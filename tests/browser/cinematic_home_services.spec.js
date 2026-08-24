@@ -95,7 +95,7 @@ test("both public cinematic surfaces expose the validated physical controls only
     const { root, stage } = await stageFor(page);
     await expect(root).toHaveAttribute("data-cinematic-physical-enhanced", "true");
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveCount(1);
-    await expect(stage.locator("[data-cinematic-physical-controls]")).toBeVisible();
+    await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(1);
   }
 });
 
@@ -103,7 +103,7 @@ test("assembled residence controls swap the physical room pixels without moving 
   await page.goto("/");
   const { root, stage } = await stageFor(page);
   const layer = stage.locator("[data-cinematic-physical-layer]");
-  const controls = stage.locator("[data-cinematic-physical-controls]");
+  const controls = stage.locator("[data-cinematic-physical-controls='room']");
   const snapshot = stage.locator("[data-cinematic-physical-snapshot]");
   const media = stage.locator("[data-cinematic-media]");
 
@@ -161,7 +161,7 @@ test("assembled residence controls swap the physical room pixels without moving 
   await expect(cinematicSnapshot).toHaveAttribute("data-cinematic-snapshot-active", "true");
   expect(await cinematicSnapshot.evaluate((element) => element.style.getPropertyValue("--cinematic-snapshot-image"))).toMatch(/room-route-blackout-(768|1536)\.webp/);
   await expect(layer).toBeHidden();
-  await expect(controls).toBeHidden();
+  await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
   await stage.getByRole("button", { name: "Повернутися до всієї системи", exact: true }).click();
   await expect(root).toHaveAttribute("data-cinematic-state", "assembled");
   await expect(layer).toBeVisible();
@@ -169,17 +169,58 @@ test("assembled residence controls swap the physical room pixels without moving 
   expect(await physicalSignature(stage)).toEqual(afterLighting);
 });
 
+test("stair and exterior relations use the same physical layer to swap their own exact pixels", async ({ page }) => {
+  for (const route of surfaceRoutes) {
+    await page.goto(route);
+    const { root, stage } = await stageFor(page);
+    const layer = stage.locator("[data-cinematic-physical-layer]");
+    const media = stage.locator("[data-cinematic-media]");
+    const geometry = await Promise.all([layer.boundingBox(), media.boundingBox()]);
+
+    await chooseDirection(stage, "Освітлення");
+    await stage.getByRole("button", { name: "Показати зв’язок: Освітлення сходів", exact: true }).click();
+    const stairControls = stage.locator("[data-cinematic-physical-controls='stairs']");
+    await expect(root).toHaveAttribute("data-cinematic-relation", "lighting--stair-lighting");
+    await expect(stairControls).toBeVisible();
+    await expect(stairControls.getByRole("button")).toHaveCount(3);
+    const stairsBefore = await physicalSignature(stage);
+    await stairControls.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
+    await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "stairs:stair_lighting=route");
+    await expect(stage.locator("[data-cinematic-live]")).toHaveText("Підсвітка сходів: Маршрут сходами.");
+    const stairsRoute = await physicalSignature(stage);
+    expect(stairsRoute.src).toMatch(/stairs-route-(768|1536)\.webp$/);
+    expect(stairsRoute.hash).not.toBe(stairsBefore.hash);
+
+    await stage.getByRole("button", { name: "Повернутися до всієї системи", exact: true }).click();
+    await chooseDirection(stage, "Освітлення");
+    await stage.getByRole("button", { name: "Показати зв’язок: Зовнішнє освітлення", exact: true }).click();
+    const exteriorControls = stage.locator("[data-cinematic-physical-controls='exterior']");
+    await expect(root).toHaveAttribute("data-cinematic-relation", "lighting--outdoor-lighting");
+    await expect(exteriorControls).toBeVisible();
+    await expect(exteriorControls.getByRole("button")).toHaveCount(3);
+    const exteriorBefore = await physicalSignature(stage);
+    await exteriorControls.getByRole("button", { name: "Нічне зниження", exact: true }).click();
+    await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "exterior:exterior_lighting=reduced-night");
+    await expect(stage.locator("[data-cinematic-live]")).toHaveText("Зовнішнє освітлення: Нічне зниження.");
+    const exteriorReduced = await physicalSignature(stage);
+    expect(exteriorReduced.src).toMatch(/exterior-reduced-night-(768|1536)\.webp$/);
+    expect(exteriorReduced.hash).not.toBe(exteriorBefore.hash);
+    const afterGeometry = await Promise.all([layer.boundingBox(), media.boundingBox()]);
+    expect(afterGeometry.map((box) => ({ width: box?.width, height: box?.height, left: box?.left, top: box?.top }))).toEqual(geometry.map((box) => ({ width: box?.width, height: box?.height, left: box?.left, top: box?.top })));
+  }
+});
+
 test("physical controls fail closed for malformed state data", async ({ page }) => {
   await page.addInitScript(() => {
     const originalParse = JSON.parse;
     JSON.parse = function physicalSceneParse(value, ...rest) {
-      if (typeof value === "string" && value.includes('"window_treatments"') && value.includes('"initial_state"')) return { scenes: [] };
+      if (typeof value === "string" && value.includes('"systems"') && value.includes('"initial_state"')) return { systems: [] };
       return originalParse.call(this, value, ...rest);
     };
   });
   await page.goto("/");
   const { stage } = await stageFor(page);
-  await expect(stage.locator("[data-cinematic-physical-controls]")).toBeHidden();
+  await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
   await expect(stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
 });
 
@@ -188,9 +229,9 @@ test("a unique but wrong physical control ID fails closed before controls become
     const observer = new MutationObserver((records) => {
       for (const record of records) for (const node of record.addedNodes) {
         if (!(node instanceof Element)) continue;
-        const control = node.matches("button[data-lighting-id]") ? node : node.querySelector("button[data-lighting-id]");
+        const control = node.matches("button[data-physical-control-id='lighting']") ? node : node.querySelector("button[data-physical-control-id='lighting']");
         if (control) {
-          control.dataset.lightingId = "not-evening";
+          control.dataset.physicalValueId = "not-evening";
           observer.disconnect();
           return;
         }
@@ -201,7 +242,7 @@ test("a unique but wrong physical control ID fails closed before controls become
   await page.goto("/");
   const { root, stage } = await stageFor(page);
   await expect(root).not.toHaveAttribute("data-cinematic-physical-enhanced", "true");
-  await expect(stage.locator("[data-cinematic-physical-controls]")).toBeHidden();
+  await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
   await expect(stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
 });
 

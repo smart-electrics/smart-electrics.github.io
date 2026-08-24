@@ -88,6 +88,23 @@ test("upgrades the complete nine-system, seven-preset configuration into one int
   expect(await page.getByRole("main").innerText()).not.toMatch(forbiddenCopy);
 });
 
+test("physical stair and exterior scenes are subordinate to the canonical phone and swap exact media", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  const physical = root.locator("[data-smart-home-physical]");
+  await expect(physical).toHaveAttribute("data-smart-home-physical-enhanced", "true");
+  await expect(root.locator("button[data-phone-system]")).toHaveCount(systems.length);
+  const picture = physical.locator("[data-smart-home-physical-picture]");
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=off");
+  await physical.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=route");
+  await expect(picture.locator("img")).toHaveAttribute("src", /stairs-route-1536\.webp$/);
+  await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
+  await physical.getByRole("button", { name: "Нічне зниження", exact: true }).click();
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "exterior:exterior_lighting=reduced-night");
+  await expect(picture.locator("img")).toHaveAttribute("src", /exterior-reduced-night-1536\.webp$/);
+});
+
 test("every preset atomically changes the configuration and returns from manual mode", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);

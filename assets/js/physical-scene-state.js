@@ -1,63 +1,101 @@
 const text = (value) => typeof value === "string" ? value.trim() : "";
 
-function choices(data, key) {
-  const values = data?.[key];
-  if (!Array.isArray(values) || values.length === 0) throw new TypeError(`physical scene ${key} must be a non-empty list`);
-  const ids = values.map((choice) => text(choice?.id));
-  const labels = values.map((choice) => text(choice?.label));
-  if (ids.some((id) => !id) || labels.some((label) => !label) || new Set(ids).size !== ids.length) {
-    throw new TypeError(`physical scene ${key} choices must have unique IDs and non-empty labels`);
+function stateKey(controlIds, state) {
+  return controlIds.map((id) => `${id}=${state[id]}`).join(":");
+}
+
+function createSystem(rawSystem) {
+  const id = text(rawSystem?.id);
+  const sceneKey = text(rawSystem?.scene_key);
+  const rawControls = rawSystem?.controls;
+  if (!id || !sceneKey || !Array.isArray(rawControls) || rawControls.length === 0) throw new TypeError("physical scene system must define an ID, scene key, and controls");
+
+  const controls = rawControls.map((control) => {
+    const controlId = text(control?.id);
+    const label = text(control?.label);
+    const rawChoices = control?.choices;
+    if (!controlId || !label || !Array.isArray(rawChoices) || rawChoices.length === 0) throw new TypeError("physical scene controls must define choices");
+    const choices = rawChoices.map((choice) => Object.freeze({ id: text(choice?.id), label: text(choice?.label) }));
+    if (choices.some((choice) => !choice.id || !choice.label) || new Set(choices.map((choice) => choice.id)).size !== choices.length) {
+      throw new TypeError("physical scene control choices must have unique IDs and non-empty labels");
+    }
+    return Object.freeze({ id: controlId, label, choices: Object.freeze(choices) });
+  });
+  const controlIds = controls.map((control) => control.id);
+  if (new Set(controlIds).size !== controlIds.length) throw new TypeError("physical scene controls must have unique IDs");
+
+  const initial = rawSystem?.initial_state;
+  if (!initial || typeof initial !== "object" || Array.isArray(initial) || Object.keys(initial).length !== controlIds.length) throw new TypeError("physical scene initial state must cover each control");
+  const initialState = {};
+  for (const control of controls) {
+    const valueId = text(initial[control.id]);
+    if (!control.choices.some((choice) => choice.id === valueId)) throw new TypeError("physical scene initial state must reference every control choice");
+    initialState[control.id] = valueId;
   }
-  return new Map(values.map((choice) => [text(choice.id), Object.freeze({ id: text(choice.id), label: text(choice.label) })]));
-}
+  const frozenInitialState = Object.freeze(initialState);
 
-function stateKey(lightingId, windowTreatmentId) {
-  return `${lightingId}:${windowTreatmentId}`;
-}
-
-export function createPhysicalSceneState(data) {
-  const lighting = choices(data, "lighting");
-  const windowTreatments = choices(data, "window_treatments");
-  const initial = data?.initial_state;
-  const lightingId = text(initial?.lighting_id);
-  const windowTreatmentId = text(initial?.window_treatment_id);
-  if (!lighting.has(lightingId) || !windowTreatments.has(windowTreatmentId)) throw new TypeError("physical scene initial state must reference both axes");
-
-  const rawScenes = data?.scenes;
-  if (!Array.isArray(rawScenes) || rawScenes.length !== lighting.size * windowTreatments.size) throw new TypeError("physical scene mappings must cover every pair");
+  const expectedSceneCount = controls.reduce((total, control) => total * control.choices.length, 1);
+  const rawScenes = rawSystem?.scenes;
+  if (!Array.isArray(rawScenes) || rawScenes.length !== expectedSceneCount) throw new TypeError("physical scene mappings must cover every control combination");
   const scenes = new Map();
-  for (const scene of rawScenes) {
-    const sceneLightingId = text(scene?.lighting_id);
-    const sceneWindowTreatmentId = text(scene?.window_treatment_id);
-    const src768 = text(scene?.src_768);
-    const src1536 = text(scene?.src_1536);
-    const alt = text(scene?.alt);
-    if (!lighting.has(sceneLightingId) || !windowTreatments.has(sceneWindowTreatmentId) || !src768 || !src1536 || !alt) throw new TypeError("physical scene mapping must be complete");
-    const key = stateKey(sceneLightingId, sceneWindowTreatmentId);
-    if (scenes.has(key)) throw new TypeError("physical scene mappings must be unique");
-    scenes.set(key, Object.freeze({ lightingId: sceneLightingId, windowTreatmentId: sceneWindowTreatmentId, src768, src1536, alt }));
+  for (const rawScene of rawScenes) {
+    const sceneState = rawScene?.state;
+    if (!sceneState || typeof sceneState !== "object" || Array.isArray(sceneState) || Object.keys(sceneState).length !== controlIds.length) throw new TypeError("physical scene mapping must include every control state");
+    const state = {};
+    for (const control of controls) {
+      const valueId = text(sceneState[control.id]);
+      if (!control.choices.some((choice) => choice.id === valueId)) throw new TypeError("physical scene mapping must reference known choices");
+      state[control.id] = valueId;
+    }
+    const key = stateKey(controlIds, state);
+    const src768 = text(rawScene?.src_768);
+    const src1536 = text(rawScene?.src_1536);
+    const alt = text(rawScene?.alt);
+    if (!src768 || !src1536 || !alt || scenes.has(key)) throw new TypeError("physical scene mappings must be complete and unique");
+    scenes.set(key, Object.freeze({ state: Object.freeze(state), src768, src1536, alt }));
   }
-  if (scenes.size !== lighting.size * windowTreatments.size) throw new TypeError("physical scene mappings must cover every pair");
+  if (scenes.size !== expectedSceneCount) throw new TypeError("physical scene mappings must cover every control combination");
 
-  const initialState = Object.freeze({ lightingId, windowTreatmentId });
-  const validState = (candidate) => candidate && lighting.has(candidate.lightingId) && windowTreatments.has(candidate.windowTreatmentId) && scenes.has(stateKey(candidate.lightingId, candidate.windowTreatmentId));
-  const nextState = (nextLightingId, nextWindowTreatmentId, current) => {
-    if (nextLightingId === current.lightingId && nextWindowTreatmentId === current.windowTreatmentId) return current;
-    return Object.freeze({ lightingId: nextLightingId, windowTreatmentId: nextWindowTreatmentId });
-  };
+  const validState = (candidate) => candidate && typeof candidate === "object" && controlIds.every((controlId) =>
+    controls.find((control) => control.id === controlId).choices.some((choice) => choice.id === candidate[controlId])
+  ) && scenes.has(stateKey(controlIds, candidate));
 
   return Object.freeze({
-    initialState,
-    lighting: Object.freeze([...lighting.values()]),
-    windowTreatments: Object.freeze([...windowTreatments.values()]),
+    id,
+    sceneKey,
+    controls: Object.freeze(controls),
+    initialState: frozenInitialState,
     sceneFor(candidate) {
-      return validState(candidate) ? scenes.get(stateKey(candidate.lightingId, candidate.windowTreatmentId)) : null;
+      return validState(candidate) ? scenes.get(stateKey(controlIds, candidate)) : null;
     },
     reduce(current, action) {
-      if (!validState(current) || !action || typeof action !== "object") return initialState;
-      if (action.type === "select-lighting" && lighting.has(text(action.lightingId))) return nextState(text(action.lightingId), current.windowTreatmentId, current);
-      if (action.type === "select-window-treatment" && windowTreatments.has(text(action.windowTreatmentId))) return nextState(current.lightingId, text(action.windowTreatmentId), current);
-      return current;
+      if (!validState(current) || !action || typeof action !== "object") return frozenInitialState;
+      if (action.type !== "select-control") return current;
+      const control = controls.find((candidate) => candidate.id === text(action.controlId));
+      const valueId = text(action.valueId);
+      if (!control || !control.choices.some((choice) => choice.id === valueId)) return current;
+      if (current[control.id] === valueId) return current;
+      return Object.freeze({ ...current, [control.id]: valueId });
+    }
+  });
+}
+
+/**
+ * Pure deterministic seam for physical media. Each system owns its controls
+ * and media combinations while the browser adapter reuses one stable layer.
+ */
+export function createPhysicalSceneState(data) {
+  const rawSystems = data?.systems;
+  if (!Array.isArray(rawSystems) || rawSystems.length === 0) throw new TypeError("physical scene data must contain systems");
+  const systems = rawSystems.map(createSystem);
+  if (new Set(systems.map((system) => system.id)).size !== systems.length || new Set(systems.map((system) => system.sceneKey)).size !== systems.length) {
+    throw new TypeError("physical scene systems must have unique IDs and scene keys");
+  }
+  const bySceneKey = new Map(systems.map((system) => [system.sceneKey, system]));
+  return Object.freeze({
+    systems: Object.freeze(systems),
+    systemForSceneKey(sceneKey) {
+      return bySceneKey.get(text(sceneKey)) || null;
     }
   });
 }
