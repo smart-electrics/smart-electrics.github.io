@@ -166,10 +166,21 @@ function enhanceSmartHomePhysicalControls(root) {
   try { physical = createPhysicalSceneState(JSON.parse(data.textContent)); } catch (_) { return; }
   const systems = physical.systems.filter((system) => system.id === "stairs" || system.id === "exterior");
   const pickers = [...root.querySelectorAll("button[data-smart-home-physical-system]")];
-  const containers = new Map([...root.querySelectorAll("[data-smart-home-physical-controls]")].map((container) => [container.dataset.smartHomePhysicalControls, container]));
-  if (systems.length !== 2 || pickers.length !== 2 || containers.size !== 2 || systems.some((system) => !containers.has(system.id) || !pickers.some((picker) => picker.dataset.smartHomePhysicalSystem === system.id))) return;
+  const controlContainers = [...root.querySelectorAll("[data-smart-home-physical-controls]")];
+  const containers = new Map(controlContainers.map((container) => [container.dataset.smartHomePhysicalControls, container]));
+  const initialSystem = systems.find((system) => system.id === "stairs");
+  const initialScene = initialSystem?.sceneFor(initialSystem.initialState);
+  const pickerIds = pickers.map((picker) => text(picker.dataset.smartHomePhysicalSystem));
+  const containerIds = controlContainers.map((container) => text(container.dataset.smartHomePhysicalControls));
+  if (
+    systems.length !== 2 || !initialSystem || !initialScene ||
+    pickers.length !== systems.length || new Set(pickerIds).size !== pickerIds.length || !systems.every((system) => pickerIds.includes(system.id)) ||
+    controlContainers.length !== systems.length || containers.size !== systems.length || new Set(containerIds).size !== containerIds.length ||
+    systems.some((system) => !containers.has(system.id) || !controlsMatch(containers.get(system.id), system)) ||
+    picture.dataset.smartHomePhysicalPicture !== "stairs" || source.getAttribute("srcset") !== initialScene.src768 || image.getAttribute("src") !== initialScene.src1536 || image.alt !== initialScene.alt
+  ) return;
   const states = new Map(systems.map((system) => [system.id, system.initialState]));
-  let activeSystem = systems.find((system) => system.id === "stairs");
+  let activeSystem = initialSystem;
   const synchronize = (announce = false) => {
     const state = states.get(activeSystem.id);
     const scene = activeSystem.sceneFor(state);
