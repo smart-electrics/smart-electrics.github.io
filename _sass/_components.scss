@@ -2396,6 +2396,7 @@
   box-shadow: 0 2rem 7rem rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.045);
   display: grid;
   gap: clamp(1.5rem, 3vw, 3.4rem);
+  overflow: clip;
   padding: clamp(1.1rem, 3vw, 3.5rem);
   position: relative;
 }
