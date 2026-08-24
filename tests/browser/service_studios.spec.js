@@ -303,3 +303,20 @@ test("an unknown rail action keeps the semantic fallback instead of enabling ine
   await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
   await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
 });
+
+test("an action-only button keeps the semantic fallback instead of exposing an inert action", async ({ page }) => {
+  await page.route("**/services/lighting/", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      '<p class="service-studio__live"',
+      '<button type="button" data-service-studio-action="select-invented">Неактивна дія</button><p class="service-studio__live"'
+    );
+    await route.fulfill({ response, body, contentType: "text/html" });
+  });
+
+  await page.goto("/services/lighting/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
+});

@@ -49,6 +49,8 @@ function enhance(root) {
 
   const controls = [...stage.querySelectorAll("button[data-service-studio-control]")];
   const relationControls = [...stage.querySelectorAll("button[data-service-studio-relation-control]")];
+  const actionableButtons = [...stage.querySelectorAll("button[data-service-studio-action]")];
+  const buttons = [...stage.querySelectorAll("button")];
   const scenes = [...stage.querySelectorAll("[data-service-studio-scene]")];
   const panels = [...stage.querySelectorAll("[data-service-studio-panel]")];
   const stateIds = ["assembled", "focus", "reassembled"];
@@ -73,7 +75,9 @@ function enhance(root) {
     : relationControls.length === relationIds.length && relationIds.every((relationId) =>
       relationControls.filter((control) => control.dataset.serviceStudioRelationId === relationId).length === 1
     );
-  if (!hasExactStateControls || !hasExactlyVisuals(scenes, "serviceStudioScene") || !hasExactlyVisuals(panels, "serviceStudioPanel") || !hasRelations) return;
+  const hasExactActionableButtons = actionableButtons.length === controls.length && actionableButtons.every((button) => controls.includes(button));
+  const hasOnlyValidatedButtons = buttons.length === controls.length + relationControls.length && buttons.every((button) => controls.includes(button) || relationControls.includes(button));
+  if (!hasExactStateControls || !hasExactActionableButtons || !hasOnlyValidatedButtons || !hasExactlyVisuals(scenes, "serviceStudioScene") || !hasExactlyVisuals(panels, "serviceStudioPanel") || !hasRelations) return;
 
   const panelFor = (stateId, relationId) => panels.find((panel) => panel.dataset.serviceStudioPanel === stateId && panel.dataset.serviceStudioRelationId === relationId);
   const sceneFor = (stateId, relationId) => scenes.find((scene) => scene.dataset.serviceStudioScene === stateId && scene.dataset.serviceStudioRelationId === relationId);
