@@ -1,18 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="social-title social-desc">
   <title id="social-title">Smart Electrics</title>
   <desc id="social-desc">Від електромережі до розумного будинку. Львів та область.</desc>
+  <style>
+    @font-face{font-family:ManropeBrand;font-style:normal;font-weight:200 800;src:url("../fonts/manrope-cyrillic.woff2") format("woff2");unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;}
+    @font-face{font-family:ManropeBrand;font-style:normal;font-weight:200 800;src:url("../fonts/manrope-latin.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+    .brand-type{font-family:ManropeBrand,"Avenir Next",Avenir,"Helvetica Neue",Arial,sans-serif;}
+  </style>
   <rect width="1200" height="630" fill="#0b0908"/>
   <circle cx="1044" cy="68" r="310" fill="#211813" opacity=".72"/>
   <path d="M0 525h1200M930 0v630" fill="none" stroke="#f7f2ed" stroke-opacity=".08"/>
-  <g transform="translate(90 92) scale(1.16)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M18 42V24a10 10 0 0 1 10-10h51M170 42V24a10 10 0 0 0-10-10h-51M18 138v18a10 10 0 0 0 10 10h51M170 138v18a10 10 0 0 1-10 10h-51" stroke="#b66d47" stroke-width="13"/>
-    <path d="M18 72v35M170 72v35" stroke="#75432f" stroke-width="13"/>
-    <path d="M18 90h38c7 0 12 5 12 12v17c0 7 5 12 12 12h66" stroke="#f2a65a" stroke-width="8"/>
-    <circle cx="146" cy="131" r="11" fill="#ffc781" stroke="none"/>
+  <g transform="translate(82 72) scale(3.75)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 7h-9a4 4 0 0 0-4 4v8M28 7h9a4 4 0 0 1 4 4v8M41 28v9a4 4 0 0 1-4 4h-9" stroke="#af5d38" stroke-width="6"/>
+    <path d="M5 28h7a4 4 0 0 1 4 4v1a3 3 0 0 0 3 3" stroke="#f6a45f" stroke-width="5"/>
+    <circle cx="19" cy="36" r="4" fill="#ffd0a1" stroke="none"/>
   </g>
-  <text x="365" y="176" fill="#f7f2ed" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="74" font-weight="600" letter-spacing="-2">Smart Electrics</text>
+  <text class="brand-type" x="300" y="173" fill="#f7f2ed" font-size="74" font-weight="650" letter-spacing="-2.6">Smart Electrics</text>
   <text x="90" y="394" fill="#f7f2ed" font-family="Georgia, Times New Roman, serif" font-size="65" letter-spacing="-2">Від електромережі</text>
   <text x="90" y="470" fill="#f7f2ed" font-family="Georgia, Times New Roman, serif" font-size="65" letter-spacing="-2">до розумного будинку</text>
-  <circle cx="96" cy="568" r="6" fill="#f2a65a"/>
-  <text x="118" y="578" fill="#a99c93" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="25" font-weight="600" letter-spacing="2">ЛЬВІВ ТА ОБЛАСТЬ</text>
+  <circle cx="96" cy="568" r="6" fill="#f6a45f"/>
+  <text class="brand-type" x="118" y="578" fill="#a99c93" font-size="25" font-weight="650" letter-spacing="2">ЛЬВІВ ТА ОБЛАСТЬ</text>
 </svg>

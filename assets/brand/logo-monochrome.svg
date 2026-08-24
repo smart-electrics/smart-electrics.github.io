@@ -1,11 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 170" role="img" aria-labelledby="logo-mono-title logo-mono-desc">
   <title id="logo-mono-title">Smart Electrics</title>
   <desc id="logo-mono-desc">Одноколірний логотип Smart Electrics.</desc>
-  <g fill="none" stroke="#0b0908" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M18 42V24a10 10 0 0 1 10-10h51M170 42V24a10 10 0 0 0-10-10h-51M18 138v18a10 10 0 0 0 10 10h51M170 138v18a10 10 0 0 1-10 10h-51" stroke-width="13"/>
-    <path d="M18 72v35M170 72v35" stroke-width="13"/>
-    <path d="M18 90h38c7 0 12 5 12 12v17c0 7 5 12 12 12h66" stroke-width="8"/>
+  <style>
+    @font-face{font-family:ManropeBrand;font-style:normal;font-weight:200 800;src:url("../fonts/manrope-latin.woff2") format("woff2");}
+    .wordmark{font-family:ManropeBrand,"Avenir Next",Avenir,"Helvetica Neue",Arial,sans-serif;}
+  </style>
+  <g transform="translate(18 14) scale(2.958333)" fill="none" stroke="#0b0908" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 7h-9a4 4 0 0 0-4 4v8M28 7h9a4 4 0 0 1 4 4v8M41 28v9a4 4 0 0 1-4 4h-9" stroke-width="6"/>
+    <path d="M5 28h7a4 4 0 0 1 4 4v1a3 3 0 0 0 3 3" stroke-width="5"/>
+    <circle cx="19" cy="36" r="4" fill="#0b0908" stroke="none"/>
   </g>
-  <circle cx="146" cy="131" r="11" fill="#0b0908"/>
-  <text x="232" y="93" fill="#0b0908" font-family="Avenir Next, Avenir, Helvetica Neue, Arial, sans-serif" font-size="66" font-weight="600" letter-spacing="-2">Smart Electrics</text>
+  <text class="wordmark" x="210" y="107" fill="#0b0908" font-size="68" font-weight="650" letter-spacing="-2.4">Smart Electrics</text>
 </svg>
