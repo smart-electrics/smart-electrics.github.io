@@ -66,3 +66,46 @@ test("composition scales fluidly at intermediate widths", async ({ page }) => {
     previousShellWidth = measurements.shellWidth;
   }
 });
+
+test("tablet residence controls keep every word intact", async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 1000 });
+  await page.goto("/services/");
+
+  const splitWords = await page
+    .locator("[data-cinematic-physical-controls]:visible button")
+    .evaluateAll((buttons) => buttons.flatMap((button) => {
+      const node = button.firstChild;
+      if (!(node instanceof Text)) return [button.textContent.trim()];
+
+      return [...node.data.matchAll(/\S+/gu)].flatMap((match) => {
+        const range = document.createRange();
+        range.setStart(node, match.index);
+        range.setEnd(node, match.index + match[0].length);
+        return range.getClientRects().length > 1 ? [match[0]] : [];
+      });
+    }));
+
+  expect(splitWords, "physical-control labels should wrap only between words").toEqual([]);
+});
+
+test("smart-home disassembly never expands the document", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto("/smart-home/");
+
+  const maximumOverflow = page.evaluate(() => new Promise((resolve) => {
+    let maximum = 0;
+    const startedAt = performance.now();
+    const measure = (now) => {
+      maximum = Math.max(
+        maximum,
+        document.documentElement.scrollWidth - document.documentElement.clientWidth
+      );
+      if (now - startedAt < 1100) requestAnimationFrame(measure);
+      else resolve(maximum);
+    };
+    requestAnimationFrame(measure);
+  }));
+
+  await page.getByRole("radio", { name: "Повернення" }).click();
+  expect(await maximumOverflow, "outgoing motion must stay inside the simulator chassis").toBe(0);
+});

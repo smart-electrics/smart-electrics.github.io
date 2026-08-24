@@ -311,6 +311,45 @@
   position: absolute;
 }
 
+.residence-spine__physical-layer,
+.residence-spine__physical-picture,
+.residence-spine__physical-picture img,
+.residence-spine__physical-snapshot {
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.residence-spine__physical-layer {
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.residence-spine__physical-picture img {
+  display: block;
+  object-fit: cover;
+  object-position: 72% center;
+}
+
+.residence-spine__physical-snapshot {
+  background-image: var(--cinematic-physical-snapshot-image, none);
+  background-position: 72% center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.residence-spine__physical-snapshot[data-cinematic-physical-snapshot-active="true"] {
+  animation: residence-spine-physical-outgoing 760ms cubic-bezier(.28, .74, .22, 1) both;
+}
+
+.residence-spine__physical-layer[data-cinematic-physical-transition="true"] .residence-spine__physical-picture:not([hidden]) {
+  animation: residence-spine-physical-incoming 760ms cubic-bezier(.2, .72, .18, 1) both;
+}
+
 .residence-spine__panels {
   align-items: end;
   display: grid;
@@ -354,6 +393,66 @@
   color: #d8c4b0;
   line-height: 1.48;
   margin: 0;
+}
+
+.residence-spine__physical-controls {
+  border-top: 1px solid #4a392d;
+  display: grid;
+  gap: 0.55rem;
+  padding-top: 0.65rem;
+}
+
+.residence-spine__physical-controls fieldset {
+  border: 0;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.residence-spine__physical-controls legend {
+  color: var(--amber-light);
+  font-size: 0.66rem;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  line-height: 1.35;
+  padding: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.residence-spine__physical-controls fieldset > div {
+  display: grid;
+  gap: 0.35rem;
+  grid-template-columns: repeat(var(--physical-control-count), minmax(2.75rem, 1fr));
+}
+
+.residence-spine__physical-controls fieldset:first-child > div {
+  --physical-control-count: 4;
+}
+
+.residence-spine__physical-controls fieldset:last-child > div {
+  --physical-control-count: 5;
+}
+
+.residence-spine__physical-controls button {
+  background: #211812;
+  border: 1px solid #74503a;
+  border-radius: 0.2rem;
+  color: #f5dfc8;
+  cursor: pointer;
+  font-size: clamp(0.58rem, 0.68vw, 0.72rem);
+  font-weight: 700;
+  line-height: 1.1;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  overflow-wrap: anywhere;
+  padding: 0.3rem;
+}
+
+.residence-spine__physical-controls button:hover,
+.residence-spine__physical-controls button[aria-pressed="true"] {
+  background: #382418;
+  border-color: var(--amber-light);
+  color: #fff3e4;
 }
 
 .residence-spine__destination {
@@ -479,6 +578,18 @@
   to { clip-path: inset(0); transform: translate3d(0, 0, 0); }
 }
 
+@keyframes residence-spine-physical-outgoing {
+  from { clip-path: inset(0); transform: scale(1); }
+  54% { clip-path: inset(0 0 31% 0); transform: scale(1.018); }
+  to { clip-path: inset(0 100% 0 0); transform: scale(1.035); }
+}
+
+@keyframes residence-spine-physical-incoming {
+  from { clip-path: inset(0 0 0 100%); transform: scale(1.035); }
+  48% { clip-path: inset(0 0 0 36%); transform: scale(1.018); }
+  to { clip-path: inset(0); transform: scale(1); }
+}
+
 @keyframes residence-spine-lane-draw {
   from { transform: scaleY(0); }
   to { transform: scaleY(1); }
@@ -533,7 +644,7 @@
   }
 }
 
-@media (max-width: 47rem) {
+@media (max-width: 54rem) {
   .residence-spine__fallback-directions {
     grid-template-columns: 1fr;
   }
@@ -582,7 +693,9 @@
   }
 
   .residence-spine__scene img,
-  .residence-spine__outgoing-snapshot {
+  .residence-spine__outgoing-snapshot,
+  .residence-spine__physical-picture img,
+  .residence-spine__physical-snapshot {
     object-position: 68% center;
     background-position: 68% center;
   }
@@ -613,6 +726,15 @@
   .residence-spine__panel > p:not(.residence-spine__panel-kicker) {
     font-size: 0.92rem;
     line-height: 1.4;
+  }
+
+  .residence-spine__physical-controls {
+    gap: 0.45rem;
+    padding-top: 0.55rem;
+  }
+
+  .residence-spine__physical-controls legend {
+    font-size: 0.62rem;
   }
 
   .residence-spine__relation-switcher {

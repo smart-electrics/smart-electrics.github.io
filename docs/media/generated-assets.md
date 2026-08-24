@@ -47,6 +47,59 @@ Materials/textures: true wood grain scale, stone pores, clean glass reflections,
 Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers, logos, brands, watermarks, UI overlays, phones, tablets, visible vendor products, fake awards, impossible floating objects. Architecture must be buildable. Lamps, switches, ceiling lines, furniture, doors and reflections must have correct geometry. No duplicated furniture or repeating textures. No warped straight lines, malformed fixtures, random cables, surreal reflections, over-smoothed CGI surfaces, exaggerated bloom or orange color cast.
 ```
 
+## residence-physical-controls
+
+- Дата: 2026-08-24
+- Інструмент: OpenAI image generation tool / `gpt-image` 2.0
+- Вхідні зображення: відсутні; усі 20 PNG є оригінальними generated sources із
+  C2PA/JUMBF provenance. Перевірка `exiftool` підтвердила `gpt-image` 2.0 у
+  кожному source manifest.
+- Призначення: одна просторова anchor-сцена для інтерактивного керування
+  освітленням і віконними покриттями: `off`, `route`, `evening`, `full` ×
+  `open`, `tulle`, `blinds`, `blackout`, `curtains`.
+- Публічне твердження: інтерактивна візуальна концепція / готова до адаптації
+  демонстраційна конфігурація. Це не підтверджений клієнтський об'єкт, не
+  документальний кейс і не твердження про сумісність із конкретним vendor.
+- Джерела: усі 20 PNG мають 1536×1024 px; точні розміри, byte size та SHA-256
+  зафіксовані нижче.
+
+### Source manifest
+
+| Стан | Source PNG (точний шлях) | Розмір | Bytes | SHA-256 |
+| --- | --- | ---: | ---: | --- |
+| off / open | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-455d8150-a8ec-454b-8215-be31314b398f.png` | 1536×1024 | 1607232 | `2b72daa6ed92cf09ecc2f7ff2cb86dff1a665baffb5331beb1335bc138cfea03` |
+| off / tulle | `/Users/mykhailomykhailenko/.codex/generated_images/01a0330f-ea0a-7aa3-830d-55b3a7dc9765/exec-98577f9c-7638-4475-a8bd-4be49d56f03a.png` | 1536×1024 | 1496484 | `e81da23052e654d67ff49f46f16b63cd1c443edc41c6e475027588cabdd51ac5` |
+| off / blinds | `/Users/mykhailomykhailenko/.codex/generated_images/01a03310-1198-7990-8fec-331ca64d0090/exec-c16ad696-9529-44ea-ada9-f34845ae49b7.png` | 1536×1024 | 1488461 | `3989d3ea00e265e88d30269b22bdea688b99ea9e30db3f779186bba764c8637f` |
+| off / blackout | `/Users/mykhailomykhailenko/.codex/generated_images/01a03310-3a6a-7e70-9b67-d4f7bc67290e/exec-3cd9f367-1db1-4042-9c92-501fa4a8d196.png` | 1536×1024 | 1509480 | `029b7fc7dbe7895be9a9f3ee61ea4c9219b374351b9f780a440b301edb2d2cbd` |
+| off / curtains | `/Users/mykhailomykhailenko/.codex/generated_images/01a03312-eea5-7de3-a4bc-22ae1b53fbd1/exec-cd6ba586-0313-46b2-97fa-bf71490b0f86.png` | 1536×1024 | 1448898 | `ece1f447a2390ec7dd1e3177691e712f4c7e167b752245b0e27a07e14378a79c` |
+| route / open | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-26d25f21-b1ec-4931-8213-3056aaee70f7.png` | 1536×1024 | 1741105 | `80807b43374b462f83e3916937a506832a0c90c0a7c12b077c3d2b4f625054a5` |
+| route / tulle | `/Users/mykhailomykhailenko/.codex/generated_images/01a0330f-ea0a-7aa3-830d-55b3a7dc9765/exec-8defcb5b-a684-4148-b487-86e3cb38424a.png` | 1536×1024 | 1721111 | `5f0857cc42ab0b8bb710f5d347daa53ca68cc2bf1001e919ef1e632649405b2b` |
+| route / blinds | `/Users/mykhailomykhailenko/.codex/generated_images/01a03310-1198-7990-8fec-331ca64d0090/exec-647903f5-b48a-42de-84e3-9e05e49385a9.png` | 1536×1024 | 1670344 | `36ffc167939869f920de0da0a180fc794617f3e8695a4c77c6b7b03bd43d3be1` |
+| route / blackout | `/Users/mykhailomykhailenko/.codex/generated_images/01a03310-3a6a-7e70-9b67-d4f7bc67290e/exec-c3d049b5-85a6-44d0-8d33-34fd8c995719.png` | 1536×1024 | 1622084 | `e92148e8393a8fbb326fe1d4fa3f442e74fd055b26c12c9428e1fd2c90e4b543` |
+| route / curtains | `/Users/mykhailomykhailenko/.codex/generated_images/01a03312-eea5-7de3-a4bc-22ae1b53fbd1/exec-5269ea7f-0155-4fda-8998-22c5c697016d.png` | 1536×1024 | 1624581 | `5610d22e14aa42ab9315c4deffe49743992b7b694f104bd94d9278c4bf1e53df` |
+| evening / open | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-7c939873-b349-4068-8bf8-95e2f6dd7f8f.png` | 1536×1024 | 2150713 | `d166b42fb766f3690f6ef7d4feee5cc62d950f41590bf0e56500219e2b6bee49` |
+| evening / tulle | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-61aeeb3a-796c-4bac-8a57-e2494142f81e.png` | 1536×1024 | 1937135 | `9a5f9e2949b30755cab9baf0d51b649d19bc35152fbe7bcf08e125645e4c965f` |
+| evening / blinds | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-0d32bd2d-1bad-447e-8c0e-3cc089bdf7b2.png` | 1536×1024 | 1938654 | `7fe8a146ed5a5cc3ab68a9090fa55eadcd1a0d7efa5742f5c6b384ed64dfb4f8` |
+| evening / blackout | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-d14078c2-8b9b-42b8-abc1-2e9ac5a4103d.png` | 1536×1024 | 1849984 | `f1e7e6d752cc44144d525a90ff6718b98db347423d8f613cfff868318c0b7de3` |
+| evening / curtains | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-6ca4af78-7f5b-484d-9b93-ea5ef576df8a.png` | 1536×1024 | 1869077 | `b720dc7a4a61f6db38a553e38d6e14cc739a8258226326a4c074c3e1b2506a1c` |
+| full / open | `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-c49f7bbe-8cd2-4794-8dea-6017a8848250.png` | 1536×1024 | 2382695 | `23024a40218be85070970b6bf49743b070ca745ddf81e0415680a4570f5b5713` |
+| full / tulle | `/Users/mykhailomykhailenko/.codex/generated_images/01a0330f-ea0a-7aa3-830d-55b3a7dc9765/exec-a1c24a56-3e13-43e9-bca4-ba5214a1f0b2.png` | 1536×1024 | 2225434 | `39800b0c869806851accdb258affa4c51f0b79ecddfff99dd95fba53e15830cb` |
+| full / blinds | `/Users/mykhailomykhailenko/.codex/generated_images/01a03310-1198-7990-8fec-331ca64d0090/exec-1bf3dc68-a697-4d07-a876-12d393f1941f.png` | 1536×1024 | 2183172 | `ed8772497ed94bb4d7036cb269b3b2c65a8808b5a5fed00b49fb72a594d7ff64` |
+| full / blackout | `/Users/mykhailomykhailenko/.codex/generated_images/01a03310-3a6a-7e70-9b67-d4f7bc67290e/exec-1d494ce4-9cf9-4ab5-aa14-261293d781df.png` | 1536×1024 | 2136241 | `ce14559749b90c5b5e9664a856dcbc4f94311dcff978be4fd54f4225624815b0` |
+| full / curtains | `/Users/mykhailomykhailenko/.codex/generated_images/01a03312-eea5-7de3-a4bc-22ae1b53fbd1/exec-c148e749-060a-4379-87ca-9b4f42eb2159.png` | 1536×1024 | 2063312 | `d69a033895addb4d4a6a215479eac16038fc9a8f93080935e60f57c0544c0025` |
+
+### Production conversion
+
+- Desktop: `cwebp -m 6 -q 88 -metadata none`, 1536×1024 px.
+- Mobile: `cwebp -m 6 -q 86 -resize 768 512 -metadata none`, 768×512 px.
+- Metadata: none (`webpmux -info` reported `No features present.` for every
+  WebP).
+- Per-file byte budgets: desktop ≤250000 bytes; mobile ≤75000 bytes. The
+  complete output manifest, exact SHA-256, dimensions, bytes and validation
+  result are in [`residence-controls-visual-qa.md`](residence-controls-visual-qa.md).
+- Result: 20/20 source combinations documented; 40/40 production WebPs pass
+  decode, dimensions, metadata and byte-budget checks.
+
 ## smart-home-scenario-set
 
 - Дата: 2026-08-23
