@@ -2,65 +2,20 @@
 layout: default
 ---
 <section class="home-hero" aria-labelledby="hero-title">
-  <div class="home-hero__frame" data-home-scene data-state="lighting" data-webgl="fallback">
+  <div class="home-hero__frame">
     <div class="home-hero__copy">
-      <p class="home-hero__eyebrow">
-        <span>{{ site.data.site.eyebrow }}</span>
-        <span>{{ site.data.site.location }}</span>
-      </p>
-      <h1 id="hero-title">
-        {% for line in site.data.site.hero_title %}<span class="home-hero__title-line home-hero__title-line--{{ line.tone }}">{{ line.text }}</span>{% unless forloop.last %}<br>{% endunless %}{% endfor %}
-      </h1>
+      <p class="home-hero__eyebrow"><span>{{ site.data.site.eyebrow }}</span><span>{{ site.data.site.location }}</span></p>
+      <h1 id="hero-title">{% for line in site.data.site.hero_title %}<span class="home-hero__title-line home-hero__title-line--{{ line.tone }}">{{ line.text }}</span>{% unless forloop.last %}<br>{% endunless %}{% endfor %}</h1>
       <p class="home-hero__lede">{{ site.data.site.hero_body }}</p>
-
       <div class="home-hero__actions">
-        {% if site.data.site.contact_cta.enabled %}
-          <a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
-        {% else %}
-          <button class="button button--primary" type="button" disabled aria-describedby="hero-contact-status">{{ site.data.site.contact_cta.label }}</button>
-        {% endif %}
+        {% if site.data.site.contact_cta.enabled %}<a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>{% else %}<button class="button button--primary" type="button" disabled aria-describedby="hero-contact-status">{{ site.data.site.contact_cta.label }}</button>{% endif %}
         <a class="button button--quiet" href="{{ '/smart-home/' | relative_url }}">{{ site.data.site.hero_secondary_cta }}</a>
       </div>
       <p class="home-hero__prelaunch" id="hero-contact-status">{{ site.data.site.contact_cta.status }}</p>
     </div>
 
-    <div class="home-hero__visual">
-      <picture class="home-hero__poster">
-        <source media="(max-width: 767px)" srcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }}" width="768" height="512">
-        <source srcset="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024">
-        <img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 64vw" alt="{{ site.data.site.hero_visual_alt }}" loading="eager" fetchpriority="high">
-      </picture>
-      <canvas class="home-hero__canvas" data-home-canvas aria-hidden="true"></canvas>
-      <div class="home-hero__labels" aria-hidden="true">
-        {% for control in site.data.site.hero_controls %}<span data-label="{{ control.id }}">{{ control.visual_label }}</span>{% endfor %}
-      </div>
-    </div>
-
-    <div class="home-hero__controls" role="group" aria-label="{{ site.data.site.hero_controls_aria_label }}">
-      {% for control in site.data.site.hero_controls %}
-        <button type="button" data-scene-control data-scene="{{ control.id }}" data-scene-description="{{ control.description }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ control.label }}</button>
-      {% endfor %}
-    </div>
-    <div class="home-hero__status">
-      <p data-scene-status aria-live="polite">{{ site.data.site.hero_controls.first.description }}</p>
-      <p>{{ site.data.site.hero_disclaimer }}</p>
-    </div>
+    {% include cinematic-stage.html variant="home" title="Електрична система для всього простору" description="Оберіть напрям, щоб побачити його місце в системі, пов’язані роботи й детальну сторінку." assembled_alt=site.data.site.hero_visual_alt %}
   </div>
 </section>
 
-<section class="audience-paths shell" aria-labelledby="audience-title">
-  <div class="audience-paths__intro">
-    <p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p>
-    <h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2>
-  </div>
-  <div class="audience-paths__grid">
-    {% for path in site.data.site.audience_paths %}
-      <a class="audience-card" href="{{ path.url | relative_url }}">
-        <span class="audience-card__number">0{{ forloop.index }}</span>
-        <h3>{{ path.title }}</h3>
-        <p>{{ path.body }}</p>
-        <span class="audience-card__link">{{ path.cta }} <span aria-hidden="true">↗</span></span>
-      </a>
-    {% endfor %}
-  </div>
-</section>
+<section class="audience-paths shell" aria-labelledby="audience-title"><div class="audience-paths__intro"><p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p><h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2></div><div class="audience-paths__grid">{% for path in site.data.site.audience_paths %}<a class="audience-card" href="{{ path.url | relative_url }}"><h3>{{ path.title }}</h3><p>{{ path.body }}</p><span class="audience-card__link">{{ path.cta }} <span aria-hidden="true">↗</span></span></a>{% endfor %}</div></section>

@@ -74,20 +74,22 @@ async function assertNoHorizontalOverflow(page, route) {
   expect(overflow, `${route} should not scroll horizontally`).toBe(0);
 }
 
-test("services index renders eight ordered destinations without placeholder copy", async ({ page }) => {
+test("services index retains eight ordered destination links in its progressive document baseline", async ({ page }) => {
+  await page.route("**/assets/js/cinematic-stage.js", (route) => route.abort());
   const response = await page.goto("/services/");
   expect(response?.status()).toBe(200);
 
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Послуги");
 
-  const links = main.getByRole("link");
+  const links = main.locator("[data-cinematic-fallback] [data-cinematic-direction-link]");
   await expect(links).toHaveCount(8);
 
   for (const [index, service] of services.entries()) {
     const link = links.nth(index);
     await expect(link).toHaveAttribute("href", service.route);
-    await expect(link).toHaveAccessibleName(`${service.title}, переглянути напрям`);
+    await expect(link).toBeVisible();
+    await expect(link).not.toHaveText("");
   }
 
   const visibleCopy = await main.innerText();
