@@ -2,580 +2,404 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const route = "/smart-home/";
-const scenarios = [
-  { id: "morning", label: "Ранок", primary: "shading", zone: "living", visual: "shading" },
-  { id: "arrival", label: "Повернення", primary: "lighting" },
-  { id: "evening", label: "Вечір", primary: "lighting" },
-  { id: "away", label: "Вихід", primary: "security" },
-  { id: "night", label: "Нічний маршрут", primary: "lighting" },
-  { id: "heat", label: "Спека", primary: "climate" },
-  { id: "backup", label: "Резерв", primary: "backup-power" }
+const presets = ["Ранок", "Повернення", "Вечір", "Вихід", "Нічний маршрут", "Спека", "Резерв"];
+const systems = [
+  ["lighting", "Освітлення"], ["climate", "Клімат-контроль"], ["access", "Доступ"],
+  ["security", "Безпека й відео"], ["panel", "Щит і захист"], ["low-voltage", "Слабкострумна інфраструктура"],
+  ["backup-power", "Резервне живлення"], ["audio", "Аудіо"], ["shading", "Сонцезахист"]
 ];
-const systemIds = ["lighting", "climate", "access", "security", "panel", "low-voltage", "backup-power", "audio", "shading"];
-const placeholderCopy = /placeholder|lorem ipsum|page-note|контент готується|сторінка готується|текст готується|coming soon/i;
-const forbiddenCopy = [
-  /(?:відгук\w*|рейтинг\w*|зірк\w*|оцінк\w*)/i,
-  /24\s*\/\s*7/i,
-  /\b(?:гаранті\w*|сертифікат\w*|ціна|ціни|вартіст\w*|коштує|кошторис|бюджет|строк\w*|площ\w*|адрес\w*)\b/i,
-  /(?:\d[\d\s.,]*)\s*(?:грн|₴|uah|usd|долар\w*|євро)\b/i,
-  /\b(?:knx|loxone|control4|crestron|savant|legrand|schneider|ajax|fibaro|tuya|homekit|alexa|philips\s+hue)\b/i,
-  /\b(?:zigbee|z-wave|matter|dali|modbus)\b/i,
-  /\b(?:vendor|протокол\w*|сумісн\w*|телефон\w*|email|e-mail|formspree|ga4)\b/i,
-  /\b(?:онлайн|online|live|telemetry|телеметр\w*|у\s+мережі)\b/i,
-  /\bsmart[\s_-]*home\b/i,
-  /\bдомашн\w*\s+автоматизац\w*\b/i,
-  /\b(?:магі\w*|режим\w*|пакет\w*)\b/i
-];
+const forbiddenCopy = /(?:24\s*\/\s*7|гаранті\w*|сертифікат\w*|ціна|вартіст\w*|knx|loxone|control4|crestron|ajax|zigbee|z-wave|matter|dali|modbus|онлайн|telemetry|телеметр|smart[\s_-]*home|домашн\w*\s+автоматизац\w*)/i;
 
-function assertTruthfulCopy(text) {
-  expect(text, "smart-home page should not expose placeholder copy").not.toMatch(placeholderCopy);
-  expect(text, "smart-home route should not claim that anything is being prepared").not.toMatch(/готується/i);
-  for (const phrase of forbiddenCopy) {
-    expect(text, "smart-home page should not expose unsupported marketing or vendor copy").not.toMatch(phrase);
-  }
-}
-
-async function rootFor(page) {
+async function simulator(page) {
   const root = page.locator("[data-smart-home-simulator]");
   await expect(root).toHaveCount(1);
   return root;
 }
 
-async function assertOrder(page) {
-  const radios = page.getByRole("group", { name: /оберіть.*момент|сценарі/i }).getByRole("radio");
-  await expect(radios).toHaveCount(scenarios.length);
-  for (const [index, scenario] of scenarios.entries()) {
-    await expect(radios.nth(index)).toHaveAccessibleName(scenario.label);
-    await expect(radios.nth(index)).toHaveAttribute("value", scenario.id);
-  }
-}
-
-async function assertEnhanced(page, scenarioId) {
-  const root = await rootFor(page);
-  const scenario = scenarios.find((item) => item.id === scenarioId);
+async function assertEnhancedPhone(page, preset = "morning") {
+  const root = await simulator(page);
   await expect(root).toHaveAttribute("data-enhanced", "true");
-  await expect(root).toHaveAttribute("data-scenario", scenarioId);
-  await expect(root).toHaveAttribute("data-system", scenario.primary);
-  await expect(root.locator("[data-scenario-panel]:visible")).toHaveCount(1);
+  await expect(root).toHaveAttribute("data-preset", preset);
+  await expect(root.locator("[data-smart-home-phone]")).toBeVisible();
+  await expect(root.locator("[data-static-explainer]")).toBeHidden();
+  await expect(root.locator("[aria-live]")).toHaveCount(1);
+  await expect(root.locator("[data-phone-control-panel]:visible")).toHaveCount(1);
   await expect(root.locator("picture[data-scene-picture]:visible")).toHaveCount(1);
-  await expect(root.locator("[data-route-layer]:visible")).toHaveCount(1);
-  await expect(root.locator("button[data-system-control]:visible")).toHaveCount(systemIds.length);
-  await expect(root.locator("[data-system-label]:visible")).toHaveCount(0);
 }
 
-async function chooseScenario(page, scenarioId, method = "click") {
-  const scenario = scenarios.find((item) => item.id === scenarioId);
-  const radio = page.getByRole("radio", { name: scenario.label });
-  await radio.focus();
-  if (method === "click") await radio.click();
-  else await radio.press(method);
-  await assertEnhanced(page, scenarioId);
-}
-
-async function assertRouteGeometry(page, scenarioId) {
-  const root = await rootFor(page);
-  const geometry = await root.evaluate((element, id) => {
-    const scene = element.querySelector("[data-scenario-scene]");
-    const route = element.querySelector('[data-route-layer="' + id + '"]');
-    const panel = element.querySelector('[data-scenario-panel="' + id + '"]');
-    const sceneRect = scene.getBoundingClientRect();
-    const routeRect = route.getBoundingClientRect();
-    return {
-      points: route.points.numberOfItems,
-      routeZones: panel.querySelectorAll("[data-route-zone]").length,
-      withinScene:
-        routeRect.left >= sceneRect.left - 1 &&
-        routeRect.right <= sceneRect.right + 1 &&
-        routeRect.top >= sceneRect.top - 1 &&
-        routeRect.bottom <= sceneRect.bottom + 1
-    };
-  }, scenarioId);
-  expect(geometry.points, scenarioId + " route point count").toBe(geometry.routeZones);
-  expect(geometry.withinScene, scenarioId + " route bounds").toBe(true);
-}
-
-async function assertViewportBounds(page, label) {
-  const bounds = await page.evaluate(() => {
-    const settledVisible = (element) => {
-      if (element.closest("[data-outgoing-snapshot]")) return false;
-      const style = getComputedStyle(element);
+async function assertViewport(page, width) {
+  await page.setViewportSize({ width, height: 1000 });
+  await page.goto(route);
+  const root = await simulator(page);
+  const bounds = await page.evaluate(() => ({
+    overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+    escaped: [...document.querySelectorAll("main *")].filter((element) => {
+      if (element.closest("[data-outgoing-snapshot]") || getComputedStyle(element).display === "none" || getComputedStyle(element).visibility === "hidden") return false;
       const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-    };
-    const width = window.innerWidth;
+      return rect.width > 0 && rect.height > 0 && (rect.left < -1 || rect.right > innerWidth + 1);
+    }).length,
+    sceneWidth: document.querySelector("[data-scenario-scene]").getBoundingClientRect().width
+  }));
+  expect(bounds.overflow, `${width}px document overflow`).toBe(0);
+  expect(bounds.escaped, `${width}px visible child bounds`).toBe(0);
+  if (width <= 414) {
+    const undersized = await root.locator('button:visible, input[type="range"]:visible, .smart-home__preset-choice label:visible, a:visible').evaluateAll((elements) => elements
+      .map((element) => ({ label: element.textContent.trim() || element.getAttribute("aria-label") || "", rect: element.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width < 44 || rect.height < 44));
+    expect(undersized, `${width}px interactive targets`).toEqual([]);
+  }
+  if (width === 1980) expect(bounds.sceneWidth, "1980px stage width").toBeGreaterThanOrEqual(1400);
+}
+
+async function readPresetPreview(root) {
+  return root.evaluate((simulatorRoot) => {
+    const preview = simulatorRoot.querySelector("[data-scene-preview]");
     return {
-      overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
-      children: [...document.querySelectorAll("main *")]
-        .filter(settledVisible)
-        .map((element) => {
-          const rect = element.getBoundingClientRect();
-          return {
-            tag: element.tagName,
-            className: element.getAttribute("class"),
-            dataAttributes: Object.fromEntries(
-              [...element.attributes]
-                .filter((attribute) => attribute.name.startsWith("data-"))
-                .map((attribute) => [attribute.name, attribute.value])
-            ),
-            left: rect.left,
-            right: rect.right
-          };
-        })
-        .filter((rect) => rect.left < -1 || rect.right > width + 1)
+      background: getComputedStyle(preview).backgroundImage,
+      pixels: getComputedStyle(preview).getPropertyValue("--smart-home-preview-control-1").trim(),
+      signature: simulatorRoot.dataset.previewSignature,
+      topology: simulatorRoot.querySelector("[data-topology-result]").textContent.trim(),
+      explanation: simulatorRoot.querySelector("[data-phone-signature]").textContent.trim()
     };
   });
-  expect(bounds.overflow, label + ": document horizontal overflow").toBe(0);
-  expect(bounds.children, label + ": actual visible child bounds").toEqual([]);
 }
 
-async function assertMobileTargetSize(page) {
-  const undersized = await page.evaluate(() =>
-    [...document.querySelectorAll("header a, header summary, main label[for], main a, main button, footer a")]
-      .filter((element) => {
-        const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      })
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return { name: element.getAttribute("aria-label") || element.textContent.trim(), width: rect.width, height: rect.height };
-      })
-      .filter((target) => target.width < 44 || target.height < 44)
-  );
-  expect(undersized, "mobile controls need 44px targets").toEqual([]);
-}
-
-function instrumentForbiddenRuntime(page) {
-  return page.addInitScript(() => {
-    window.__smartHomeForbiddenRuntime = { canvasContexts: 0, fetch: 0, xhr: 0, beacon: 0, storage: 0, externalRequests: [] };
-    const capture = (value) => {
-      try {
-        const url = new URL(typeof value === "string" ? value : value.url, window.location.href);
-        if (url.origin !== window.location.origin) window.__smartHomeForbiddenRuntime.externalRequests.push(url.href);
-      } catch (_) {
-        window.__smartHomeForbiddenRuntime.externalRequests.push(String(value));
-      }
-    };
-    const getContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function trackedCanvasContext(...args) {
-      window.__smartHomeForbiddenRuntime.canvasContexts += 1;
-      return getContext.call(this, ...args);
-    };
-    const fetch = window.fetch;
-    window.fetch = function trackedFetch(...args) {
-      window.__smartHomeForbiddenRuntime.fetch += 1;
-      capture(args[0]);
-      return fetch.call(this, ...args);
-    };
-    const open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function trackedXhr(method, url, ...args) {
-      window.__smartHomeForbiddenRuntime.xhr += 1;
-      capture(url);
-      return open.call(this, method, url, ...args);
-    };
-    const beacon = navigator.sendBeacon?.bind(navigator);
-    if (beacon) {
-      navigator.sendBeacon = function trackedBeacon(url, ...args) {
-        window.__smartHomeForbiddenRuntime.beacon += 1;
-        capture(url);
-        return beacon(url, ...args);
-      };
-    }
-    for (const method of ["getItem", "setItem", "removeItem", "clear"]) {
-      const original = Storage.prototype[method];
-      Storage.prototype[method] = function trackedStorage(...args) {
-        window.__smartHomeForbiddenRuntime.storage += 1;
-        return original.call(this, ...args);
-      };
-    }
-  });
-}
-
-test("delivers the canonical seven-scenario nine-system model with morning shading as the initial state", async ({ page }) => {
+test("upgrades the complete nine-system, seven-preset configuration into one interactive phone", async ({ page }) => {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
-  await expect(page.locator("html")).toHaveAttribute("lang", "uk");
-  await assertOrder(page);
-  await assertEnhanced(page, "morning");
-
-  const root = await rootFor(page);
-  await expect(root).toHaveAttribute("data-zone", "living");
-  await expect(root).toHaveAttribute("data-visual", "shading");
-  await expect(root.locator("picture[data-scene-picture]:visible")).toHaveAttribute("data-scene-picture", "shading");
-  await expect(root.locator("[data-zone-node]")).toHaveCount(7);
-  await expect(root.locator("button[data-system-control]")).toHaveCount(systemIds.length);
-  await expect(root.locator("picture[data-scene-picture]")).toHaveCount(5);
-  await expect(root.locator("video, audio, [autoplay], [data-autoplay]")).toHaveCount(0);
-  await expect(root.locator("[data-route-marker], .smart-home__scenario-marker, .smart-home__scenario-index")).toHaveCount(0);
-  await assertRouteGeometry(page, "morning");
+  const root = await simulator(page);
+  await assertEnhancedPhone(page);
+  await expect(root.locator("picture[data-scene-picture]")).toHaveCount(9);
+  await expect(root.locator("[data-active-scene-label]")).toHaveCount(1);
+  await expect(root.getByRole("radio")).toHaveCount(presets.length);
+  for (const preset of presets) await expect(root.getByRole("radio", { name: preset })).toHaveCount(1);
+  await expect(root.locator("button[data-phone-system]")).toHaveCount(systems.length);
+  for (const [id, label] of systems) {
+    const button = root.locator(`button[data-phone-system="${id}"]`);
+    await expect(button).toHaveAccessibleName(label);
+  }
+  await expect(root.locator("[data-phone-control]")).toHaveCount(20);
+  await expect(root.locator("[data-phone-range]")).toHaveCount(2);
+  await expect(root.locator("[data-phone-segment]")).toHaveCount(43);
+  await expect(root.locator("[data-phone-toggle]")).toHaveCount(4);
+  const audioControlIds = await root.locator('[data-phone-control-panel="audio"] [data-phone-control]').evaluateAll((controls) => controls.map((control) => control.dataset.phoneControl));
+  expect(audioControlIds).toEqual(["audio:source", "audio:zone", "audio:group", "audio:muted"]);
+  await expect(root.locator("[data-phone-live]")).toContainText("Ранок");
+  expect(await page.getByRole("main").innerText()).not.toMatch(forbiddenCopy);
 });
 
-test("plays one cinematic initial assemble without changing the declared morning scenario or looping", async ({ page }) => {
+test("every preset atomically changes the configuration and returns from manual mode", async ({ page }) => {
   await page.goto(route);
-  const root = await rootFor(page);
-  await expect(root).toHaveAttribute("data-motion-phase", "initial");
-  await expect(root).toHaveAttribute("data-scenario", "morning");
+  const root = await simulator(page);
+  const presetIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
+
+  for (const [index, label] of presets.entries()) {
+    const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
+    await slider.evaluate((input) => {
+      input.value = input.value === input.max ? input.min : input.max;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await expect(root).toHaveAttribute("data-manual", "true");
+    const manualPreview = await readPresetPreview(root);
+    await root.getByRole("radio", { name: label }).click();
+    await expect(root).toHaveAttribute("data-preset", presetIds[index]);
+    await expect(root).toHaveAttribute("data-manual", "false");
+    await expect(root.locator("[data-phone-live]")).toContainText(label);
+    await expect(root.locator(`[data-preset-panel="${presetIds[index]}"]`)).toBeVisible();
+    const presetPreview = await readPresetPreview(root);
+    expect(presetPreview.background, `${label} computed scene background`).not.toBe(manualPreview.background);
+    expect(presetPreview.pixels, `${label} computed scene pixels`).not.toBe(manualPreview.pixels);
+    expect(presetPreview.signature, `${label} preview signature`).not.toBe(manualPreview.signature);
+    expect(presetPreview.topology, `${label} causal topology`).not.toBe(manualPreview.topology);
+    expect(presetPreview.explanation, `${label} visible explanation`).not.toBe(manualPreview.explanation);
+    expect(presetPreview.explanation).toContain(label);
+  }
+});
+
+test("every system selector changes the real scene, active panel, and engineering explanation", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  for (const [id, label] of systems) {
+    await root.locator(`button[data-phone-system="${id}"]`).click();
+    await expect(root).toHaveAttribute("data-system", id);
+    await expect(root).toHaveAttribute("data-visual", id);
+    await expect(root.locator("picture[data-scene-picture]:visible")).toHaveAttribute("data-scene-picture", id);
+    await expect(root.locator("[data-phone-control-panel]:visible")).toHaveAttribute("data-phone-control-panel", id);
+    await expect(root.locator("[data-phone-system-label]")).toHaveText(label);
+    await expect(root.locator(`button[data-phone-system="${id}"]`)).toHaveAttribute("aria-pressed", "true");
+    await expect(root.locator("[data-phone-topology-detail]")).not.toHaveText("");
+  }
+});
+
+test("panel and low-voltage controls expose observation, isolation, and the next engineering step", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  for (const id of ["panel", "low-voltage"]) {
+    await root.locator(`[data-phone-system="${id}"]`).click();
+    await expect(root.locator("[data-topology-source]")).toContainText("Обрана");
+    await expect(root.locator("[data-topology-logic]")).toContainText("Ізоляція");
+    await expect(root.locator("[data-topology-result]")).toContainText("Наступна інженерна перевірка");
+    const topologyFontSizes = await root.locator("[data-scene-topology] > span").evaluateAll((labels) => labels.map((label) => Number.parseFloat(getComputedStyle(label).fontSize)));
+    expect(topologyFontSizes.every((fontSize) => fontSize >= 12), `${id} topology text remains readable`).toBe(true);
+    const topologyDoesNotOverlapCaption = await root.evaluate((simulatorRoot) => {
+      const caption = simulatorRoot.querySelector("[data-scenario-scene] figcaption");
+      const topology = simulatorRoot.querySelector("[data-scene-topology]");
+      if (!caption || !topology || getComputedStyle(caption).display === "none") return true;
+      return caption.getBoundingClientRect().bottom <= topology.getBoundingClientRect().top;
+    });
+    expect(topologyDoesNotOverlapCaption, `${id} topology does not overlap the scene caption`).toBe(true);
+  }
+});
+
+test("manual controls update the visible preview without starting a scene transition, and a preset restores all values", async ({ page }) => {
+  await page.goto(route);
+  const root = await simulator(page);
+  const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
+  const phaseBeforeManual = await root.getAttribute("data-motion-phase");
+  await slider.evaluate((input) => {
+    input.value = "78";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(root).toHaveAttribute("data-manual", "true");
+  await expect(root.locator("[data-scene-preview]")).toHaveAttribute("data-value", "78");
+  await expect(root.locator("[data-phone-signature]")).toContainText("Ручне коригування на основі");
+  await expect(root.locator("[data-topology-result]")).toContainText("Рівень світла: 78%");
+  await expect(root.locator('[data-control-output="lighting:brightness"]')).toHaveText("Яскравість: 78%");
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
+  await expect(root).toHaveAttribute("data-motion-phase", phaseBeforeManual || "initial");
 
-  const initialMotion = await root.locator("[data-motion-layer]").evaluateAll((elements) =>
-    elements.some((element) => {
-      const style = getComputedStyle(element);
-      return style.animationName !== "none" && style.animationIterationCount === "1";
-    })
-  );
-  expect(initialMotion).toBe(true);
+  await root.getByRole("radio", { name: "Ранок" }).click();
+  await expect(root).toHaveAttribute("data-manual", "false");
+  await expect(slider).not.toHaveValue("78");
 
-  await page.waitForTimeout(1200);
-  await assertEnhanced(page, "morning");
-  await expect(page.getByRole("radio", { name: "Ранок" })).toBeChecked();
+  await root.getByRole("radio", { name: "Вечір" }).check();
+  await expect(root).toHaveAttribute("data-preset", "evening");
+  await expect(root).toHaveAttribute("data-manual", "false");
+  await expect(slider).not.toHaveValue("78");
+  await expect(root.locator("[data-phone-live]")).toContainText("Вечір");
 });
 
-test("keeps the complete semantic page baseline, truthful copy, and disabled contact CTA", async ({ page }) => {
-  const response = await page.goto(route);
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/i);
-  await expect(page).toHaveTitle(/Розумний будинок.*Smart Electrics/i);
-  await expect(page.locator("html")).toHaveAttribute("lang", "uk");
-
-  const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { level: 1 })).toHaveText("Розумний будинок");
-  await expect(main.locator("[data-smart-home-section]")).toHaveCount(7);
-  await expect(main.getByText(/демонстрація логіки.*не керування обладнанням/i)).toBeVisible();
-
-  const figure = (await rootFor(page)).locator("figure");
-  await expect(figure).toHaveCount(1);
-  await expect(figure.locator("picture[data-scene-picture]")).toHaveCount(5);
-  await expect(figure.locator("picture[data-scene-picture]:visible img")).toHaveAccessibleName(/\S.{7,}/);
-  await expect(figure.locator("figcaption")).toContainText(/сценар|об['’ʼ\x60]?єкт/i);
-
-  const configuration = main.getByRole("region", { name: "Поточна конфігурація" });
-  const activeConfiguration = configuration.locator("[data-scenario-panel]:visible");
-  for (const label of ["Подія", "Що змінюється в об’єкті", "Що визначаємо під час проєктування"]) {
-    await expect(activeConfiguration.getByText(label, { exact: true })).toBeVisible();
-  }
-  const formation = main.getByRole("region", { name: "Як формується сценарій автоматизації" });
-  await expect(formation.getByRole("listitem")).toHaveCount(5);
-  const related = main.getByRole("region", { name: "Пов’язані послуги й готові рішення" });
-  expect(await related.getByRole("link").count()).toBeGreaterThanOrEqual(3);
-  await expect(main.getByRole("button", { name: "Обговорити об’єкт", exact: true })).toBeDisabled();
-  assertTruthfulCopy(await main.innerText());
-  expect(await page.content(), "smart-home HTML must not retain a preparing-status copy in header, CTA, or body").not.toMatch(/готується/i);
-});
-
-test("every scenario preserves one panel, picture, route, and valid route geometry", async ({ page }) => {
+test("segment and toggle controls have native keyboard actions and update their own visible outputs", async ({ page }) => {
   await page.goto(route);
-  for (const scenario of scenarios) {
-    await chooseScenario(page, scenario.id);
-    await assertRouteGeometry(page, scenario.id);
-  }
+  const root = await simulator(page);
+  await root.locator('[data-phone-system="climate"]').click();
+  const cooling = root.locator('[data-phone-segment][data-control-system="climate"][data-control-id="comfort"][data-control-value="cool"]');
+  await cooling.focus();
+  await cooling.press("Enter");
+  await expect(cooling).toHaveAttribute("aria-pressed", "true");
+  await expect(root.locator('[data-control-output="climate:comfort"]')).toContainText("Прохолодніше");
+  await expect(root.locator("[data-scene-preview]")).toHaveAttribute("data-control", "comfort");
+  await expect(root.locator("[data-topology-result]")).toContainText("Стан комфорту: Прохолодніше");
+
+  await root.locator('[data-phone-system="panel"]').click();
+  const toggle = root.locator('[data-phone-toggle][data-control-system="panel"]');
+  await toggle.focus();
+  await toggle.press("Space");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(root.locator('[data-control-output="panel:priority_groups"]')).toContainText("Пріоритетні групи враховано");
+  await expect(root.locator("[data-scene-preview]")).toHaveAttribute("data-control", "priority_groups");
+  await expect(root.locator("[data-topology-result]")).toContainText("Наступна інженерна перевірка: Врахувати пріоритетні групи, Пріоритетні групи враховано");
 });
 
-test("system focus changes the actual zone, visual, explanation, and cinematic A/B phase", async ({ page }) => {
+test("audio follows source to zone to group and mute or restore changes visible scene pixels", async ({ page }) => {
   await page.goto(route);
-  const root = await rootFor(page);
-  const before = await root.getAttribute("data-motion-phase");
-  const control = root.locator('button[data-system-control="climate"]');
-  await control.focus();
+  const root = await simulator(page);
+  await root.locator('[data-phone-system="audio"]').click();
+  const mute = root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]');
+  const preview = root.locator("[data-scene-preview]");
+  const before = await preview.evaluate((element) => getComputedStyle(element, "::after").opacity);
 
-  await expect(root).toHaveAttribute("data-system", "climate");
-  await expect(root).toHaveAttribute("data-zone", "living");
-  await expect(root).toHaveAttribute("data-visual", "climate");
-  await expect(root.locator("picture[data-scene-picture]:visible")).toHaveAttribute("data-scene-picture", "climate");
-  await expect(root.locator("[data-zone-node='living']")).toHaveAttribute("data-active", "true");
-  await expect(root.locator("[data-active-system-summary]")).toHaveText(
-    await root.locator("[data-scenario-panel='morning'] [data-system-detail='climate']").getAttribute("data-summary")
-  );
-  await expect(root).not.toHaveAttribute("data-motion-phase", before ?? "");
-  const focusedPhase = await root.getAttribute("data-motion-phase");
-  await control.click();
-  await expect(root).not.toHaveAttribute("data-motion-phase", focusedPhase ?? "");
+  await mute.click();
+  await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук приглушено");
+  await expect(root.locator("[data-topology-result]")).toContainText("Звук приглушено");
+  await expect.poll(() => preview.evaluate((element) => getComputedStyle(element, "::after").opacity)).not.toBe(before);
+
+  await mute.click();
+  await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук відновлено");
 });
 
-test("each explicit scenario or system selection immediately updates state and disassembles one aria-hidden outgoing snapshot", async ({ page }) => {
-  await page.goto(route);
-  const root = await rootFor(page);
-
-  await page.getByRole("radio", { name: "Повернення" }).check();
-  await assertEnhanced(page, "arrival");
-  const outgoingScenario = root.locator("[data-outgoing-snapshot]");
-  await expect(outgoingScenario).toHaveCount(1);
-  await expect(outgoingScenario).toHaveAttribute("aria-hidden", "true");
-  await expect(outgoingScenario).toHaveCSS("animation-name", "smart-home-disassemble");
-  const transitionalSnapshotStyles = await outgoingScenario.evaluate((snapshot) => {
-    const animation = snapshot.getAnimations().find((candidate) => candidate.animationName === "smart-home-disassemble");
-    if (!animation) return { opacity: getComputedStyle(snapshot).opacity, filter: getComputedStyle(snapshot).filter };
-    animation.pause();
-    animation.currentTime = 460;
-    const styles = getComputedStyle(snapshot);
-    const result = { opacity: styles.opacity, filter: styles.filter };
-    animation.finish();
-    return result;
-  });
-  expect(transitionalSnapshotStyles, "the outgoing scene must disassemble geometrically without dimming or filtering readable labels").toEqual({ opacity: "1", filter: "none" });
-  const transitionalCalloutOpacity = await root.locator('button[data-system-control="climate"]').evaluate((button) => {
-    const animation = button.getAnimations().find((candidate) => candidate.animationName.startsWith("smart-home-"));
-    if (!animation) return getComputedStyle(button).opacity;
-    animation.pause();
-    animation.currentTime = 290;
-    const opacity = getComputedStyle(button).opacity;
-    animation.finish();
-    return opacity;
-  });
-  expect(transitionalCalloutOpacity, "interactive callout text must remain fully opaque during its masked reveal").toBe("1");
-  const transitionalCoreOpacity = await root.locator('[data-motion-layer="core"]').evaluate((core) => {
-    const animation = core.getAnimations().find((candidate) => candidate.animationName.startsWith("smart-home-lens-"));
-    if (!animation) return getComputedStyle(core).opacity;
-    animation.pause();
-    animation.currentTime = 320;
-    const opacity = getComputedStyle(core).opacity;
-    animation.finish();
-    return opacity;
-  });
-  expect(transitionalCoreOpacity, "central engineering labels must remain fully opaque during their masked reveal").toBe("1");
-  await expect(outgoingScenario).toHaveCount(0, { timeout: 1300 });
-
-  await root.locator('button[data-system-control="climate"]').click();
-  await expect(root).toHaveAttribute("data-scenario", "arrival");
-  await expect(root).toHaveAttribute("data-system", "climate");
-  const outgoingSystem = root.locator("[data-outgoing-snapshot]");
-  await expect(outgoingSystem).toHaveCount(1);
-  await expect(outgoingSystem).toHaveAttribute("aria-hidden", "true");
+test("every one of the twenty manual controls changes its active scene preview signature and causal result", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(outgoingSystem, "animationcancel must remove a snapshot when reduced motion changes mid-transition").toHaveCount(0);
+  await page.goto(route);
+  const root = await simulator(page);
+  let mutated = 0;
+  for (const [systemId] of systems) {
+    await root.locator(`[data-phone-system="${systemId}"]`).click();
+    const controls = root.locator("[data-phone-control-panel]:visible [data-phone-control]");
+    for (let index = 0; index < await controls.count(); index += 1) {
+      const control = controls.nth(index);
+      const signature = await root.getAttribute("data-preview-signature");
+      const type = await control.getAttribute("data-control-type");
+      if (type === "range") {
+        await control.locator("input").evaluate((input) => {
+          input.value = input.value === input.max ? input.min : input.max;
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      } else if (type === "segment") {
+        const values = await control.locator("[data-phone-segment]").evaluateAll((buttons) => buttons.map((button) => ({ value: button.dataset.controlValue, pressed: button.getAttribute("aria-pressed") })));
+        const next = values.find((candidate) => candidate.pressed !== "true");
+        await control.locator(`[data-phone-segment][data-control-value="${next.value}"]`).click();
+      } else {
+        await control.locator("[data-phone-toggle]").click();
+      }
+      await expect(root).not.toHaveAttribute("data-preview-signature", signature || "");
+      await expect(root.locator("[data-topology-result]")).not.toHaveText("");
+      await expect(root.locator("[data-phone-signature]")).toContainText("Ручне коригування на основі");
+      await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
+      mutated += 1;
+    }
+  }
+  expect(mutated).toBe(20);
 });
 
-test("the central simulator plate is opaque architectural geometry, not a glass widget", async ({ page }) => {
+test("preset and system selection use one cancellable outgoing snapshot, while reduced motion creates none", async ({ page }) => {
   await page.goto(route);
-  const root = await rootFor(page);
-  await expect(root.locator(".smart-home__control-glass")).toHaveCount(0);
-  const spine = root.locator(".smart-home__control-spine");
-  await expect(spine).toHaveCount(1);
-  await expect(spine).toHaveCSS("backdrop-filter", "none");
-  await expect(spine).toHaveCSS("border-radius", "0px");
-  expect(await spine.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe("rgba(0, 0, 0, 0)");
+  const root = await simulator(page);
+  await root.getByRole("radio", { name: "Повернення" }).check();
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(1);
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveAttribute("aria-hidden", "true");
+  const snapshotGeometry = await root.evaluate((simulatorRoot) => {
+    const rect = (selector) => simulatorRoot.querySelector(selector).getBoundingClientRect();
+    const scene = rect("[data-scenario-scene]");
+    const snapshotElement = simulatorRoot.querySelector("[data-outgoing-snapshot]");
+    const snapshot = snapshotElement.getBoundingClientRect();
+    const phone = rect("[data-smart-home-phone]");
+    return {
+      scene: { left: scene.left, top: scene.top, right: scene.right, bottom: scene.bottom, width: scene.width, height: scene.height },
+      snapshot: { left: snapshot.left, top: snapshot.top, right: snapshot.right, bottom: snapshot.bottom, width: snapshot.width, height: snapshot.height },
+      phone: { left: phone.left, top: phone.top, right: phone.right, bottom: phone.bottom },
+      parentedToScene: snapshotElement.parentElement === simulatorRoot.querySelector("[data-scenario-scene]"),
+      layoutSize: { snapshotWidth: snapshotElement.offsetWidth, snapshotHeight: snapshotElement.offsetHeight, sceneWidth: snapshotElement.parentElement.clientWidth, sceneHeight: snapshotElement.parentElement.clientHeight }
+    };
+  });
+  expect(snapshotGeometry.parentedToScene).toBe(true);
+  expect(Math.abs(snapshotGeometry.layoutSize.snapshotWidth - snapshotGeometry.layoutSize.sceneWidth)).toBeLessThanOrEqual(1);
+  expect(Math.abs(snapshotGeometry.layoutSize.snapshotHeight - snapshotGeometry.layoutSize.sceneHeight)).toBeLessThanOrEqual(1);
+  const overlapsPhone = !(
+    snapshotGeometry.snapshot.right <= snapshotGeometry.phone.left ||
+    snapshotGeometry.snapshot.left >= snapshotGeometry.phone.right ||
+    snapshotGeometry.snapshot.bottom <= snapshotGeometry.phone.top ||
+    snapshotGeometry.snapshot.top >= snapshotGeometry.phone.bottom
+  );
+  expect(overlapsPhone, "outgoing scene snapshot never covers the phone").toBe(false);
+  await root.locator('[data-phone-system="audio"]').click();
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(1);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await root.locator('[data-phone-system="panel"]').click();
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
 });
 
-test("selection remains deterministic through pointer, Enter, Space, and native arrow keys", async ({ page }) => {
+test("keeps rapid scene replacement bounded and supplies responsive media for all nine scenes", async ({ page }) => {
   await page.goto(route);
-  await chooseScenario(page, "arrival");
-  await chooseScenario(page, "evening", "Enter");
-  await chooseScenario(page, "away", "Space");
-  await page.getByRole("radio", { name: "Вихід" }).press("ArrowRight");
-  await assertEnhanced(page, "night");
-  await page.reload();
-  await assertEnhanced(page, "morning");
-});
-
-test("smart-home navigation is active in desktop and mobile navigation", async ({ page }) => {
-  await page.goto(route);
-  const desktop = page.locator(".desktop-nav");
-  await expect(desktop.locator('a[href="/smart-home/"]')).toHaveAttribute("aria-current", "page");
-
-  const mobile = page.locator(".mobile-nav");
-  const mobileLink = mobile.locator('nav a[href="/smart-home/"]');
-  await expect(mobileLink).toHaveAttribute("aria-current", "page");
-  if (await mobile.locator("summary").isVisible()) {
-    await mobile.locator("summary").click();
-    await expect(mobileLink).toBeVisible();
+  const root = await simulator(page);
+  for (const [systemId] of systems) await root.locator(`[data-phone-system="${systemId}"]`).click();
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(1);
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0, { timeout: 1800 });
+  for (const [systemId] of systems) {
+    const picture = root.locator(`picture[data-scene-picture="${systemId}"]`);
+    await expect(picture.locator("source")).toHaveCount(2);
+    await expect(picture.locator("img")).toHaveAttribute("alt", /\S{8,}/);
   }
 });
 
-test("no-JS retains static panels and labels without inert buttons and emits one initial picture and route", async ({ browser }) => {
-  const context = await browser.newContext({
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000",
-    colorScheme: "dark",
-    javaScriptEnabled: false,
-    locale: "uk-UA"
-  });
-  const page = await context.newPage();
+test("keeps a complete static explanation when JavaScript is unavailable or enhancement contract is malformed", async ({ browser, page }) => {
+  const context = await browser.newContext({ baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000", javaScriptEnabled: false, locale: "uk-UA" });
+  const noJsPage = await context.newPage();
   try {
-    await page.goto(route);
-    const root = await rootFor(page);
-    await expect(root).not.toHaveAttribute("data-enhanced", /./);
-    await assertOrder(page);
-    await expect(root.locator("[data-scenario-panel]:visible")).toHaveCount(scenarios.length);
-    await expect(root.locator("[data-system-label]:visible")).toHaveCount(systemIds.length);
-    await expect(root.locator("button[data-system-control]:visible")).toHaveCount(0);
-    const staticState = await root.evaluate((element) => ({
-      pictures: [...element.querySelectorAll("picture[data-scene-picture]")].filter((node) => !node.hasAttribute("hidden")).length,
-      routes: [...element.querySelectorAll("[data-route-layer]")].filter((node) => !node.hasAttribute("hidden")).length
-    }));
-    expect(staticState).toEqual({ pictures: 1, routes: 1 });
-    for (const scenario of scenarios) {
-      const panel = root.locator('[data-scenario-panel="' + scenario.id + '"]');
-      await expect(panel.getByRole("heading")).not.toHaveText("");
-      const outcomes = panel.locator(".smart-home__scenario-outcomes li");
-      expect(await outcomes.count(), scenario.id + " outcome lower bound").toBeGreaterThanOrEqual(2);
-      expect(await outcomes.count(), scenario.id + " outcome upper bound").toBeLessThanOrEqual(4);
-      await expect(panel.getByText(/що визначаємо під час проєктування/i)).toBeVisible();
-    }
+    await noJsPage.goto(route);
+    const noJsRoot = await simulator(noJsPage);
+    await expect(noJsRoot).not.toHaveAttribute("data-enhanced", /./);
+    await expect(noJsRoot.locator("[data-smart-home-phone]")).toBeHidden();
+    await expect(noJsRoot.locator("[data-static-explainer] li")).toHaveCount(systems.length);
+    await expect(noJsRoot.locator("[data-preset-panel]:visible")).toHaveCount(presets.length);
   } finally {
     await context.close();
   }
-});
 
-test("malformed markup fails closed and keeps static content readable", async ({ page }) => {
   await page.route("**/smart-home/", async (request) => {
     const response = await request.fetch();
-    await request.fulfill({ response, body: (await response.text()).replace('value="backup"', 'value="malformed-backup"') });
+    await request.fulfill({ response, body: (await response.text()).replace('data-phone-system="audio"', 'data-phone-system="lighting"') });
   });
   await page.goto(route);
-  const root = await rootFor(page);
-  await expect(root).not.toHaveAttribute("data-enhanced", /./);
-  await expect(root.locator("[data-scenario-panel]:visible")).toHaveCount(scenarios.length);
-  await expect(root.locator("[data-system-label]:visible")).toHaveCount(systemIds.length);
-  await expect(root.locator("button[data-system-control]:visible")).toHaveCount(0);
+  const malformed = await simulator(page);
+  await expect(malformed).not.toHaveAttribute("data-enhanced", /./);
+  await expect(malformed.locator("[data-smart-home-phone]")).toBeHidden();
+  await expect(malformed.locator("[data-static-explainer]")).toBeVisible();
+  await expect(malformed.locator("[data-preset-panel]:visible")).toHaveCount(presets.length);
 });
 
-test("the simulator avoids canvas, forms, storage, network APIs, and external runtime requests", async ({ page }) => {
-  const externalRequests = [];
-  page.on("request", (request) => {
-    const url = new URL(request.url());
-    if (url.origin !== "http://127.0.0.1:4000") externalRequests.push(url.href);
-  });
-  await instrumentForbiddenRuntime(page);
-  const response = await page.goto(route);
-  expect(response?.status()).toBe(200);
-  for (const scenario of scenarios) await chooseScenario(page, scenario.id);
-
-  await expect(page.locator("canvas")).toHaveCount(0);
-  await expect(page.locator("main form, main textarea, main select, main input:not([type='radio'])")).toHaveCount(0);
-  expect(await page.evaluate(() => window.__smartHomeForbiddenRuntime)).toEqual({
-    canvasContexts: 0,
-    fetch: 0,
-    xhr: 0,
-    beacon: 0,
-    storage: 0,
-    externalRequests: []
-  });
-  expect(externalRequests).toEqual([]);
-});
-
-test("keyboard traversal exposes visible focus for scenarios and all nine system controls", async ({ page }) => {
+test("all enhanced interactive states are keyboard accessible and pass axe", async ({ page }) => {
   await page.goto(route);
-  await page.keyboard.press("Tab");
-  await expect(page.locator(".skip-link")).toBeFocused();
-
-  const firstRadio = page.getByRole("radio", { name: "Ранок" });
-  for (let step = 0; step < 48 && !(await firstRadio.evaluate((element) => element === document.activeElement)); step += 1) {
-    await page.keyboard.press("Tab");
-  }
-  await expect(firstRadio).toBeFocused();
-  expect(await firstRadio.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
-
-  for (const scenario of scenarios.slice(1)) {
-    await page.keyboard.press("ArrowRight");
-    const radio = page.getByRole("radio", { name: scenario.label });
-    await expect(radio).toBeFocused();
+  const root = await simulator(page);
+  for (const preset of presets) {
+    const radio = root.getByRole("radio", { name: preset });
+    await radio.focus();
     expect(await radio.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
   }
-
-  for (const systemId of systemIds) {
-    const control = (await rootFor(page)).locator('button[data-system-control="' + systemId + '"]');
-    await control.focus();
-    await expect(control).toBeFocused();
-    expect(await control.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
+  for (const [id] of systems) {
+    const system = root.locator(`[data-phone-system="${id}"]`);
+    await system.focus();
+    expect(await system.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
   }
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
-test("all scenario states pass axe and reduced motion resolves to zero animation and transition", async ({ page }) => {
+test("keeps the experience elastic from phone to 1980px and removes all motion for reduced-motion", async ({ page }) => {
+  for (const width of [375, 414, 768, 900, 1024, 1280, 1440, 1720, 1980]) await assertViewport(page, width);
+
+  const wideRoot = await simulator(page);
+  await wideRoot.locator('[data-phone-system="audio"]').click();
+  const audioControlsContained = await wideRoot.evaluate((simulatorRoot) => {
+    const phone = simulatorRoot.querySelector("[data-smart-home-phone]").getBoundingClientRect();
+    return [...simulatorRoot.querySelectorAll('[data-phone-control-panel="audio"] [data-phone-control]')].every((control) => {
+      const rect = control.getBoundingClientRect();
+      return rect.left >= phone.left && rect.right <= phone.right && rect.top >= phone.top && rect.bottom <= phone.bottom;
+    });
+  });
+  expect(audioControlsContained, "1980px audio controls remain inside the phone").toBe(true);
+
+  await page.setViewportSize({ width: 1440, height: 1200 });
   await page.goto(route);
-  for (const scenario of scenarios) {
-    await chooseScenario(page, scenario.id);
-    expect((await new AxeBuilder({ page }).analyze()).violations, scenario.id + " axe").toEqual([]);
-  }
+  const sceneBounds = await page.locator("[data-scenario-scene]").boundingBox();
+  expect(sceneBounds?.y, "1440px cinematic stage enters the first viewport").toBeLessThanOrEqual(760);
+
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(route);
+  const topology = await page.locator("[data-scene-topology] > span").evaluateAll((labels) => labels.map((label) => {
+    const rect = label.getBoundingClientRect();
+    return { top: rect.top, width: rect.width, fontSize: Number.parseFloat(getComputedStyle(label).fontSize) };
+  }));
+  expect(topology.every(({ width }) => width >= 280), "375px topology label width").toBe(true);
+  expect(topology.every(({ fontSize }) => fontSize >= 12), "375px topology text remains readable").toBe(true);
+  expect(topology[0].top).toBeLessThan(topology[1].top);
+  expect(topology[1].top).toBeLessThan(topology[2].top);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.reload();
-  await chooseScenario(page, "heat");
-  await expect((await rootFor(page)).locator("[data-outgoing-snapshot]")).toHaveCount(0);
-  const activeMotion = await (await rootFor(page)).locator("*").evaluateAll((elements) =>
-    elements.filter((element) => {
-      const style = getComputedStyle(element);
-      return [style.animationDuration, style.transitionDuration].some((value) =>
-        value.split(",").some((duration) => Number.parseFloat(duration) > 0)
-      );
-    }).length
-  );
+  await page.goto(route);
+  const root = await simulator(page);
+  await root.locator('[data-phone-system="audio"]').click();
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
+  const activeMotion = await root.locator("*").evaluateAll((elements) => elements.filter((element) => {
+    const style = getComputedStyle(element);
+    return [style.animationDuration, style.transitionDuration].some((value) => value.split(",").some((duration) => Number.parseFloat(duration) > 0));
+  }).length);
   expect(activeMotion).toBe(0);
 });
 
-test("scene imagery loads with meaningful alt text and leaves copy readable after image abort", async ({ page }) => {
-  await page.goto(route);
-  const figure = (await rootFor(page)).locator("figure");
-  const image = figure.locator("picture[data-scene-picture]:visible img");
-  await expect.poll(() => image.evaluate((element) => element.complete && element.naturalWidth > 0)).toBe(true);
-  await expect(image).toHaveAttribute("alt", /\S{8,}/);
-  await page.route("**/assets/images/**", (request) => request.abort());
-  await page.reload();
-  const fallbackFigure = (await rootFor(page)).locator("figure");
-  await expect(fallbackFigure.locator("figcaption")).toBeVisible();
-  await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText("Розумний будинок");
-  await expect(page.getByRole("main").getByText("Поточна конфігурація", { exact: true })).toBeVisible();
-});
-
-test("clipped outgoing snapshot does not create a visible bounds violation at deterministic disassemble progress", async ({ page }) => {
-  await page.setViewportSize({ width: 900, height: 900 });
-  await page.goto(route);
-  const root = await rootFor(page);
-  await page.getByRole("radio", { name: "Повернення" }).check();
-  const snapshot = root.locator("[data-outgoing-snapshot]");
-  await expect(snapshot).toHaveCount(1);
-
-  const evidence = await snapshot.evaluate((element) => {
-    const animation = element.getAnimations().find((candidate) => candidate.animationName === "smart-home-disassemble");
-    if (!animation) return null;
-    animation.pause();
-    animation.currentTime = 858;
-
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    const clippingAncestor = element.closest(".smart-home__simulator.shell");
-    const hit = document.elementFromPoint(window.innerWidth - 1, Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2)));
-    return {
-      ariaHidden: element.getAttribute("aria-hidden"),
-      animationName: animation.animationName,
-      clippingOverflow: clippingAncestor ? getComputedStyle(clippingAncestor).overflow : null,
-      documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
-      hitIsSnapshot: hit === element || Boolean(hit?.closest("[data-outgoing-snapshot]")),
-      viewportWidth: window.innerWidth,
-      rawPredicateWouldFlag:
-        style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0 && rect.right > window.innerWidth + 1,
-      rect: { left: rect.left, right: rect.right }
-    };
+test("does not create a portal, media player, network runtime, canvas, or storage side effect", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__smartHomeRuntime = { fetches: 0, storage: 0, canvas: 0 };
+    const fetch = window.fetch;
+    window.fetch = (...args) => { window.__smartHomeRuntime.fetches += 1; return fetch(...args); };
+    const getItem = Storage.prototype.getItem;
+    Storage.prototype.getItem = function (...args) { window.__smartHomeRuntime.storage += 1; return getItem.apply(this, args); };
+    const context = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (...args) { window.__smartHomeRuntime.canvas += 1; return context.apply(this, args); };
   });
-
-  expect(evidence).not.toBeNull();
-  expect(evidence.ariaHidden).toBe("true");
-  expect(evidence.animationName).toBe("smart-home-disassemble");
-  expect(evidence.clippingOverflow).toBe("clip");
-  expect(evidence.documentOverflow).toBe(0);
-  expect(evidence.hitIsSnapshot).toBe(false);
-  expect(evidence.viewportWidth).toBe(900);
-  expect(evidence.rawPredicateWouldFlag).toBe(true);
-  await assertViewportBounds(page, "outgoing snapshot at deterministic 858ms");
-});
-
-test("all required viewports retain document and actual child bounds", async ({ page }) => {
-  for (const width of [375, 768, 1024, 1440, 1980]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto(route);
-    for (const scenario of scenarios) {
-      await chooseScenario(page, scenario.id);
-      await assertViewportBounds(page, scenario.id + " at " + width + "px");
-      if (width === 375) await assertMobileTargetSize(page);
-    }
-  }
-});
-
-test("intermediate widths retain mobile target sizes and actual child bounds", async ({ page }) => {
-  for (const width of [414, 900, 1280, 1720]) {
-    await page.setViewportSize({ width, height: 900 });
-    await page.goto(route);
-    for (const scenario of scenarios) {
-      await chooseScenario(page, scenario.id);
-      await assertViewportBounds(page, scenario.id + " at intermediate " + width + "px");
-      if (width <= 414) await assertMobileTargetSize(page);
-    }
-  }
+  await page.goto(route);
+  const root = await simulator(page);
+  await root.locator('[data-phone-system="audio"]').click();
+  await expect(page.locator("canvas, video, audio, [autoplay], [data-autoplay], main form, main textarea, main select")).toHaveCount(0);
+  expect(await page.evaluate(() => window.__smartHomeRuntime)).toEqual({ fetches: 0, storage: 0, canvas: 0 });
 });

@@ -1,100 +1,133 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createScenarioMachine } from "../../assets/js/smart-home-simulator-state.js";
+import { createSmartHomeMachine } from "../../assets/js/smart-home-simulator-state.js";
 
-const scenarioIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
-const systemIds = ["lighting", "climate", "access", "security", "panel", "low-voltage", "backup-power", "audio", "shading"];
-const primaryByScenario = {
-  morning: "shading",
-  arrival: "lighting",
-  evening: "lighting",
-  away: "security",
-  night: "lighting",
-  heat: "climate",
-  backup: "backup-power"
+const systemIds = ["lighting", "climate", "shading", "access", "security", "panel", "low-voltage", "backup-power", "audio"];
+const presetIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
+const controlsBySystem = {
+  lighting: [{ id: "intensity", type: "range", min: 0, max: 100, step: 5, defaultValue: 40 }],
+  climate: [{ id: "target", type: "range", min: 16, max: 28, step: 1, defaultValue: 21 }],
+  shading: [{ id: "position", type: "range", min: 0, max: 100, step: 5, defaultValue: 0 }],
+  access: [{ id: "perimeter", type: "toggle", defaultValue: false }],
+  security: [{ id: "coverage", type: "segment", options: ["entry", "perimeter", "all"], defaultValue: "entry" }],
+  panel: [{ id: "layer", type: "segment", options: ["input", "protection", "priority"], defaultValue: "input" }],
+  "low-voltage": [{ id: "route", type: "segment", options: ["network", "sensors", "video"], defaultValue: "network" }],
+  "backup-power": [{ id: "priority", type: "segment", options: ["critical", "comfort", "all"], defaultValue: "critical" }],
+  audio: [{ id: "enabled", type: "toggle", defaultValue: false }]
 };
+const canonicalValues = (offset) => ({
+  lighting: { intensity: 40 + offset }, climate: { target: 21 + (offset === 0 ? 0 : 1) }, shading: { position: offset }, access: { perimeter: offset > 0 },
+  security: { coverage: offset > 0 ? "all" : "entry" }, panel: { layer: offset > 0 ? "priority" : "input" },
+  "low-voltage": { route: offset > 0 ? "video" : "network" }, "backup-power": { priority: offset > 0 ? "all" : "critical" }, audio: { enabled: offset > 0 }
+});
+const presets = Object.fromEntries(presetIds.map((presetId, index) => [presetId, canonicalValues(index * 5)]));
+function makeMachine(overrides = {}) {
+  return createSmartHomeMachine({ systemIds, presetIds, initialPresetId: "morning", initialSystemId: "lighting", controlsBySystem, presets, ...overrides });
+}
 
-test("creates an immutable deterministic morning/shading state from all four factory arguments", () => {
-  const machine = createScenarioMachine(scenarioIds, "morning", systemIds, primaryByScenario);
-
-  assert.deepEqual(machine.initialState, { scenarioId: "morning", systemId: "shading" });
+test("creates an immutable canonical state for all nine systems and seven presets", () => {
+  const machine = makeMachine();
+  assert.deepEqual(machine.initialState, { systemId: "lighting", presetId: "morning", valuesBySystem: canonicalValues(0), manual: false });
   assert.equal(Object.isFrozen(machine.initialState), true);
-  assert.throws(() => {
-    machine.initialState.systemId = "lighting";
-  }, TypeError);
-  assert.deepEqual(machine.initialState, { scenarioId: "morning", systemId: "shading" });
+  assert.equal(Object.isFrozen(machine.initialState.valuesBySystem), true);
+  assert.equal(Object.isFrozen(machine.initialState.valuesBySystem.lighting), true);
+  assert.throws(() => { machine.initialState.valuesBySystem.lighting.intensity = 100; }, TypeError);
 });
 
-test("selecting every scenario deterministically restores its declared primary system", () => {
-  const machine = createScenarioMachine(scenarioIds, "morning", systemIds, primaryByScenario);
+test("select-system changes only the active system and preserves all controls, preset, and manual state", () => {
+  const machine = makeMachine();
+  const adjusted = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 70 });
+  const selected = machine.transition(adjusted, { type: "select-system", systemId: "audio" });
+  assert.deepEqual(selected, { systemId: "audio", presetId: "morning", valuesBySystem: { ...canonicalValues(0), lighting: { intensity: 70 } }, manual: true });
+  assert.strictEqual(selected.valuesBySystem, adjusted.valuesBySystem);
+});
 
-  for (const scenarioId of scenarioIds.slice(1)) {
-    const nextState = machine.transition(machine.initialState, { type: "select-scenario", scenarioId });
+test("selects every declared system and atomically restores every declared preset", () => {
+  const machine = makeMachine();
 
-    assert.notStrictEqual(nextState, machine.initialState);
-    assert.deepEqual(nextState, { scenarioId, systemId: primaryByScenario[scenarioId] });
-    assert.equal(Object.isFrozen(nextState), true);
+  for (const systemId of systemIds) {
+    const selected = machine.transition(machine.initialState, { type: "select-system", systemId });
+    assert.equal(selected.systemId, systemId);
+    assert.equal(selected.presetId, "morning");
+    assert.strictEqual(selected.valuesBySystem, machine.initialState.valuesBySystem);
+  }
+
+  for (const [index, presetId] of presetIds.entries()) {
+    const manual = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 65 });
+    const selected = machine.transition(manual, { type: "select-preset", presetId });
+    assert.equal(selected.presetId, presetId);
+    assert.equal(selected.manual, false);
+    assert.deepEqual(selected.valuesBySystem, canonicalValues(index * 5));
   }
 });
 
-test("system focus changes only the selected system and preserves the scenario", () => {
-  const machine = createScenarioMachine(scenarioIds, "morning", systemIds, primaryByScenario);
-  const focused = machine.transition(machine.initialState, { type: "focus-system", systemId: "climate" });
-
-  assert.deepEqual(focused, { scenarioId: "morning", systemId: "climate" });
-  assert.deepEqual(machine.initialState, { scenarioId: "morning", systemId: "shading" });
-  assert.deepEqual(
-    machine.transition(focused, { type: "select", scenarioId: "heat" }),
-    { scenarioId: "heat", systemId: "climate" }
-  );
+test("select-preset atomically restores canonical values for all systems and exits manual state", () => {
+  const machine = makeMachine();
+  const changedLighting = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 70 });
+  const changedClimate = machine.transition(changedLighting, { type: "set-control", systemId: "climate", controlId: "target", value: 25 });
+  const restored = machine.transition(changedClimate, { type: "select-preset", presetId: "evening" });
+  assert.deepEqual(restored, { systemId: "lighting", presetId: "evening", valuesBySystem: canonicalValues(10), manual: false });
+  assert.notStrictEqual(restored.valuesBySystem, changedClimate.valuesBySystem);
 });
 
-test("returns the same state for duplicate, unknown, or malformed actions", () => {
-  const machine = createScenarioMachine(scenarioIds, "morning", systemIds, primaryByScenario);
-  const selectedEvening = machine.transition(machine.initialState, { type: "select", scenarioId: "evening" });
+test("set-control validates range, segment, and toggle values, changes exactly one control, and enters manual state", () => {
+  const machine = makeMachine();
+  const range = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 65 });
+  const segment = machine.transition(range, { type: "set-control", systemId: "security", controlId: "coverage", value: "all" });
+  const toggle = machine.transition(segment, { type: "set-control", systemId: "audio", controlId: "enabled", value: true });
+  assert.deepEqual(range.valuesBySystem, { ...canonicalValues(0), lighting: { intensity: 65 } });
+  assert.deepEqual(segment.valuesBySystem, { ...canonicalValues(0), lighting: { intensity: 65 }, security: { coverage: "all" } });
+  assert.deepEqual(toggle.valuesBySystem, { ...canonicalValues(0), lighting: { intensity: 65 }, security: { coverage: "all" }, audio: { enabled: true } });
+  assert.strictEqual(range.valuesBySystem.climate, machine.initialState.valuesBySystem.climate);
+  assert.strictEqual(segment.valuesBySystem.lighting, range.valuesBySystem.lighting);
+  assert.equal(toggle.manual, true);
+});
+
+test("returns the same valid state for malformed actions and normalizes malformed state to initialState", () => {
+  const machine = makeMachine();
   const noOpActions = [
-    { type: "select", scenarioId: "evening" },
-    { type: "focus-system", systemId: "lighting" },
-    { type: "select", scenarioId: "unknown" },
-    { type: "focus-system", systemId: "unknown" },
-    { type: "select" },
-    { type: "activate", scenarioId: "backup" },
-    {},
-    null,
-    undefined,
-    "backup"
+    { type: "select-system", systemId: "unknown" }, { type: "select-preset", presetId: "unknown" },
+    { type: "set-control", systemId: "lighting", controlId: "intensity", value: 63 }, { type: "set-control", systemId: "security", controlId: "coverage", value: "unknown" },
+    { type: "set-control", systemId: "audio", controlId: "enabled", value: "true" }, { type: "set-control", systemId: "lighting", controlId: "unknown", value: 65 },
+    { type: "activate" }, {}, null, undefined, "lighting"
   ];
-
-  for (const action of noOpActions) {
-    assert.strictEqual(machine.transition(selectedEvening, action), selectedEvening);
+  for (const action of noOpActions) assert.strictEqual(machine.transition(machine.initialState, action), machine.initialState);
+  for (const malformedState of [null, undefined, {}, { ...machine.initialState, manual: "false" }, { ...machine.initialState, valuesBySystem: {} }]) {
+    assert.strictEqual(machine.transition(malformedState, { type: "select-system", systemId: "audio" }), machine.initialState);
   }
 });
 
-test("normalizes malformed previous state to the immutable initial state", () => {
-  const machine = createScenarioMachine(scenarioIds, "morning", systemIds, primaryByScenario);
+test("remains deterministic after the caller mutates the source configuration", () => {
+  const mutableConfig = {
+    systemIds: [...systemIds],
+    presetIds: [...presetIds],
+    initialPresetId: "morning",
+    initialSystemId: "lighting",
+    controlsBySystem: structuredClone(controlsBySystem),
+    presets: structuredClone(presets)
+  };
+  const machine = createSmartHomeMachine(mutableConfig);
 
-  for (const invalidState of [null, undefined, {}, { scenarioId: "morning" }, { systemId: "shading" }, { scenarioId: "unknown", systemId: "lighting" }, "morning"]) {
-    assert.strictEqual(
-      machine.transition(invalidState, { type: "select", scenarioId: "backup" }),
-      machine.initialState
-    );
-  }
+  mutableConfig.systemIds.splice(0);
+  mutableConfig.presetIds.splice(0);
+  mutableConfig.controlsBySystem.security[0].options.splice(0);
+  mutableConfig.presets.evening.lighting.intensity = 100;
+
+  const selected = machine.transition(machine.initialState, { type: "select-system", systemId: "audio" });
+  const adjusted = machine.transition(selected, { type: "set-control", systemId: "security", controlId: "coverage", value: "all" });
+  const restored = machine.transition(adjusted, { type: "select-preset", presetId: "evening" });
+  assert.equal(selected.systemId, "audio");
+  assert.equal(adjusted.valuesBySystem.security.coverage, "all");
+  assert.deepEqual(restored.valuesBySystem, canonicalValues(10));
 });
 
-test("rejects invalid four-argument factory configuration before state can be created", () => {
+test("rejects incomplete or invalid factory configuration before state can be created", () => {
   const invalidConfigurations = [
-    [[], "morning", systemIds, primaryByScenario],
-    [["morning", "morning"], "morning", systemIds, primaryByScenario],
-    [scenarioIds, "unknown", systemIds, primaryByScenario],
-    [scenarioIds, "morning", [], primaryByScenario],
-    [scenarioIds, "morning", ["lighting", "lighting"], primaryByScenario],
-    [scenarioIds, "morning", systemIds, { ...primaryByScenario, morning: "unknown" }],
-    [scenarioIds, "morning", systemIds, { arrival: "lighting" }],
-    [scenarioIds, "morning", systemIds]
+    { systemIds: systemIds.slice(1) }, { systemIds: [...systemIds, "lighting"] }, { presetIds: presetIds.slice(1) }, { initialPresetId: "unknown" }, { initialSystemId: "unknown" },
+    { controlsBySystem: { ...controlsBySystem, lighting: [{ id: "intensity", type: "range", min: 0, max: 100, step: 5, defaultValue: 63 }] } },
+    { controlsBySystem: { ...controlsBySystem, audio: [{ id: "enabled", type: "toggle", defaultValue: "false" }] } },
+    { presets: { ...presets, morning: { ...canonicalValues(0), audio: { enabled: "false" } } } }, { presets: { morning: canonicalValues(0) } }
   ];
-
-  for (const args of invalidConfigurations) {
-    assert.throws(() => createScenarioMachine(...args), TypeError);
-  }
+  for (const overrides of invalidConfigurations) assert.throws(() => makeMachine(overrides), TypeError);
 });

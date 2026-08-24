@@ -13,8 +13,22 @@ module SmartHomeContract
   CANONICAL_SYSTEM_IDS = %w[
     lighting climate access security panel low-voltage backup-power audio shading
   ].freeze
-  CANONICAL_VISUAL_IDS = %w[interior shading stairs exterior climate].freeze
+  CANONICAL_VISUAL_IDS = CANONICAL_SYSTEM_IDS.freeze
   SYSTEM_ROLES = %w[focus support quiet].freeze
+  DIAGNOSTIC_SYSTEM_IDS = %w[panel low-voltage].freeze
+  DIAGNOSTIC_FIELDS = %w[observation isolation next_step].freeze
+  CONTROL_TYPES = %w[range segment toggle].freeze
+  CANONICAL_CONTROL_IDS = {
+    "lighting" => %w[brightness layer].freeze,
+    "climate" => %w[comfort operation].freeze,
+    "access" => %w[arrival_route entry_zone].freeze,
+    "security" => %w[coverage event_path].freeze,
+    "panel" => %w[layer priority_groups].freeze,
+    "low-voltage" => %w[route topology_focus].freeze,
+    "backup-power" => %w[priority_groups restore_intent].freeze,
+    "audio" => %w[source zone group muted].freeze,
+    "shading" => %w[position treatment].freeze
+  }.freeze
   REQUIRED_SCALARS = %w[
     id label eyebrow title event scene_label project_note live_summary
   ].freeze
@@ -25,14 +39,14 @@ module SmartHomeContract
   CONTACT_COPY = /(?:\bemail\b|\be-mail\b|@|\bнапишіть\b|\bзверніться\b|\bконтакт\w*\b)/i
   PII_COPY = /(?:\+?\d[\d\s()\-]{7,}\d|\bпаспорт\w*\b|\bідентифікаційн\w*\b)/i
 
-  def validate(data_path, _repository_root)
+  def validate(data_path, repository_root)
     data = parse_data(data_path)
     return ["#{File.basename(data_path)}: must contain valid YAML"] unless data.is_a?(Hash)
 
     errors = []
-    spatial = validate_spatial(errors, data["spatial"])
+    spatial = validate_spatial(errors, data["spatial"], repository_root)
     validate_simulator_copy(errors, data["simulator"])
-    validate_scenarios(errors, data["scenarios"], spatial)
+    validate_presets(errors, data["presets"], spatial)
     errors
   end
 
@@ -42,7 +56,7 @@ module SmartHomeContract
     nil
   end
 
-  def validate_spatial(errors, spatial)
+  def validate_spatial(errors, spatial, repository_root)
     unless spatial.is_a?(Hash)
       errors << "spatial must be a mapping"
       return fallback_spatial
@@ -50,16 +64,19 @@ module SmartHomeContract
 
     zone_ids = validate_locations(errors, spatial["zones"], CANONICAL_ZONE_IDS, "zones")
     system_ids = validate_locations(errors, spatial["systems"], CANONICAL_SYSTEM_IDS, "systems")
-    visual_ids = validate_visuals(errors, spatial["visuals"])
+    system_records = spatial["systems"].is_a?(Array) ? spatial["systems"] : []
+    validate_system_metadata(errors, system_records)
+    visual_ids = validate_visuals(errors, spatial["visuals"], repository_root)
     {
       zones: zone_ids == CANONICAL_ZONE_IDS ? zone_ids : CANONICAL_ZONE_IDS,
       systems: system_ids == CANONICAL_SYSTEM_IDS ? system_ids : CANONICAL_SYSTEM_IDS,
-      visuals: visual_ids == CANONICAL_VISUAL_IDS ? visual_ids : CANONICAL_VISUAL_IDS
+      visuals: visual_ids == CANONICAL_VISUAL_IDS ? visual_ids : CANONICAL_VISUAL_IDS,
+      system_records: system_records
     }
   end
 
   def fallback_spatial
-    { zones: CANONICAL_ZONE_IDS, systems: CANONICAL_SYSTEM_IDS, visuals: CANONICAL_VISUAL_IDS }
+    { zones: CANONICAL_ZONE_IDS, systems: CANONICAL_SYSTEM_IDS, visuals: CANONICAL_VISUAL_IDS, system_records: [] }
   end
 
   def validate_locations(errors, records, canonical_ids, name)
@@ -89,9 +106,113 @@ module SmartHomeContract
     ids
   end
 
-  def validate_visuals(errors, visuals)
+  def validate_system_metadata(errors, systems)
+    Array(systems).each_with_index do |system, index|
+      prefix = CANONICAL_SYSTEM_IDS[index] || "system #{index + 1}"
+      next unless system.is_a?(Hash)
+
+      errors << "#{prefix}: spatial system visual must match its canonical system ID" unless system["visual"] == prefix
+      validate_required_copy(errors, prefix, "spatial system summary", system["summary"])
+      validate_topology(errors, prefix, system["topology"])
+      validate_diagnostics(errors, prefix, system["diagnostics"])
+      validate_controls(errors, prefix, system["controls"], CANONICAL_CONTROL_IDS.fetch(prefix))
+    end
+  end
+
+  def validate_topology(errors, prefix, topology)
+    unless topology.is_a?(Hash)
+      errors << "#{prefix}: topology must be a mapping"
+      return
+    end
+
+    %w[label detail].each { |field| validate_required_copy(errors, prefix, "topology #{field}", topology[field]) }
+  end
+
+  def validate_diagnostics(errors, prefix, diagnostics)
+    unless DIAGNOSTIC_SYSTEM_IDS.include?(prefix)
+      errors << "#{prefix}: diagnostics are only allowed for panel and low-voltage" unless diagnostics.nil?
+      return
+    end
+
+    unless diagnostics.is_a?(Hash) && diagnostics.keys == DIAGNOSTIC_FIELDS
+      errors << "#{prefix}: diagnostics must contain exactly #{DIAGNOSTIC_FIELDS.join(', ')} in order"
+      return
+    end
+
+    DIAGNOSTIC_FIELDS.each { |field| validate_required_copy(errors, prefix, "diagnostics #{field}", diagnostics[field]) }
+  end
+
+  def validate_controls(errors, prefix, controls, canonical_ids)
+    unless controls.is_a?(Array) && (1..4).cover?(controls.length)
+      errors << "#{prefix}: controls must contain 1 to 4 mappings"
+      return
+    end
+
+    ids = controls.map { |control| control.is_a?(Hash) ? control["id"] : nil }
+    errors << "#{prefix}: controls must use unique non-empty IDs" unless ids.all? { |id| non_empty_string?(id) } && ids.uniq.length == ids.length
+    errors << "#{prefix}: controls must contain exactly #{canonical_ids.join(', ')} in order" unless ids == canonical_ids
+
+    controls.each_with_index do |control, index|
+      control_prefix = "#{prefix}: control #{index + 1}"
+      unless control.is_a?(Hash)
+        errors << "#{control_prefix} must be a mapping"
+        next
+      end
+
+      validate_required_copy(errors, prefix, "control #{index + 1} label", control["label"])
+      validate_required_copy(errors, prefix, "control #{index + 1} output_label", control["output_label"])
+      if control.key?("output_suffix")
+        validate_required_copy(errors, prefix, "control #{index + 1} output_suffix", control["output_suffix"])
+      end
+
+      case control["type"]
+      when "range"
+        validate_range_control(errors, control_prefix, control)
+      when "segment"
+        validate_segment_control(errors, control_prefix, control)
+      when "toggle"
+        validate_toggle_control(errors, control_prefix, control)
+      else
+        errors << "#{control_prefix} type must be #{CONTROL_TYPES.join(', ')}"
+      end
+    end
+  end
+
+  def validate_range_control(errors, prefix, control)
+    %w[min max step].each do |field|
+      errors << "#{prefix} #{field} must be numeric" unless control[field].is_a?(Numeric)
+    end
+    return unless %w[min max step].all? { |field| control[field].is_a?(Numeric) }
+
+    errors << "#{prefix} range must have min lower than max and a positive step within that span" unless control["min"] < control["max"] && control["step"].positive? && control["step"] <= control["max"] - control["min"]
+  end
+
+  def validate_segment_control(errors, prefix, control)
+    options = control["options"]
+    unless options.is_a?(Array) && (2..5).cover?(options.length)
+      errors << "#{prefix} options must contain 2 to 5 mappings"
+      return
+    end
+
+    ids = options.map { |option| option.is_a?(Hash) ? option["id"] : nil }
+    errors << "#{prefix} options must use unique non-empty IDs" unless ids.all? { |id| non_empty_string?(id) } && ids.uniq.length == ids.length
+    options.each_with_index do |option, index|
+      next unless option.is_a?(Hash)
+
+      validate_required_copy(errors, prefix, "option #{index + 1} label", option["label"])
+    end
+  end
+
+  def validate_toggle_control(errors, prefix, control)
+    errors << "#{prefix} toggle must not define range bounds or options" if %w[min max step options].any? { |field| control.key?(field) }
+    unless %w[on_label off_label].all? { |field| non_empty_string?(control[field]) }
+      errors << "#{prefix} toggle must define non-empty on_label and off_label"
+    end
+  end
+
+  def validate_visuals(errors, visuals, repository_root)
     ids = visuals.is_a?(Array) ? visuals.map { |visual| visual.is_a?(Hash) ? visual["id"] : nil } : []
-    errors << "spatial visuals must contain exactly the canonical five IDs in order" unless ids == CANONICAL_VISUAL_IDS
+    errors << "spatial visuals must contain exactly the canonical nine IDs in order" unless ids == CANONICAL_VISUAL_IDS
 
     Array(visuals).each_with_index do |visual, index|
       prefix = CANONICAL_VISUAL_IDS[index] || "visual #{index + 1}"
@@ -100,11 +221,20 @@ module SmartHomeContract
         next
       end
 
-      expected_base = prefix == "interior" ? "/assets/images/home/control-room" : "/assets/images/smart-home/#{prefix}"
+      expected_base = {
+        "lighting" => "/assets/images/home/control-room",
+        "access" => "/assets/images/smart-home/exterior",
+        "security" => "/assets/images/smart-home/surveillance",
+        "low-voltage" => "/assets/images/smart-home/electrical-installation",
+        "backup-power" => "/assets/images/smart-home/backup"
+      }.fetch(prefix, "/assets/images/smart-home/#{prefix}")
       { "desktop" => "#{expected_base}-1536.webp", "mobile" => "#{expected_base}-768.webp" }.each do |field, expected|
         errors << "#{prefix}: spatial visual #{field} must be #{expected}" unless visual[field] == expected
+        asset_path = File.join(repository_root, expected.delete_prefix("/"))
+        errors << "#{prefix}: spatial visual #{field} asset must exist" unless File.file?(asset_path)
       end
       validate_required_copy(errors, prefix, "spatial visual alt", visual["alt"])
+      errors << "#{prefix}: spatial visual alt must describe the scene meaningfully" if non_empty_string?(visual["alt"]) && visual["alt"].strip.length < 24
     end
     ids
   end
@@ -120,16 +250,16 @@ module SmartHomeContract
     end
   end
 
-  def validate_scenarios(errors, scenarios, spatial)
-    unless scenarios.is_a?(Array) && scenarios.length == CANONICAL_IDS.length
-      errors << "scenarios must contain exactly the canonical seven IDs in order"
+  def validate_presets(errors, presets, spatial)
+    unless presets.is_a?(Array) && presets.length == CANONICAL_IDS.length
+      errors << "presets must contain exactly the canonical seven IDs in order"
       return
     end
 
-    ids = scenarios.map { |scenario| scenario.is_a?(Hash) ? scenario["id"] : nil }
-    errors << "scenarios must contain exactly the canonical seven IDs in order" unless ids == CANONICAL_IDS
+    ids = presets.map { |preset| preset.is_a?(Hash) ? preset["id"] : nil }
+    errors << "presets must contain exactly the canonical seven IDs in order" unless ids == CANONICAL_IDS
 
-    scenarios.each_with_index do |scenario, index|
+    presets.each_with_index do |scenario, index|
       prefix = CANONICAL_IDS[index]
       unless scenario.is_a?(Hash)
         errors << "#{prefix}: must be a mapping"
@@ -147,8 +277,56 @@ module SmartHomeContract
 
       validate_outcomes(errors, prefix, scenario["outcomes"])
       validate_logic(errors, prefix, scenario["logic"], spatial)
+      validate_preset_values(errors, prefix, scenario["values"], spatial)
       validate_related_services(errors, prefix, scenario["related_services"])
       validate_related_solution(errors, prefix, scenario["related_solution"])
+    end
+  end
+
+  def validate_preset_values(errors, prefix, values, spatial)
+    unless values.is_a?(Hash) && values.keys == spatial[:systems]
+      errors << "#{prefix}: values must contain exactly the canonical nine system IDs in order"
+      return
+    end
+
+    system_records = spatial[:system_records]
+    return if system_records.length != CANONICAL_SYSTEM_IDS.length
+
+    system_records.each_with_index do |system, index|
+      next unless system.is_a?(Hash)
+
+      system_id = CANONICAL_SYSTEM_IDS[index]
+      controls = system["controls"]
+      next unless controls.is_a?(Array)
+
+      system_values = values[system_id]
+      expected_ids = controls.filter_map { |control| control["id"] if control.is_a?(Hash) }
+      unless system_values.is_a?(Hash) && system_values.keys == expected_ids
+        errors << "#{prefix}: values #{system_id} must contain every control ID in order"
+        next
+      end
+
+      controls.each do |control|
+        next unless control.is_a?(Hash)
+
+        validate_preset_value(errors, prefix, system_id, control, system_values[control["id"]])
+      end
+    end
+  end
+
+  def validate_preset_value(errors, prefix, system_id, control, value)
+    control_prefix = "#{prefix}: values #{system_id}.#{control["id"]}"
+    case control["type"]
+    when "range"
+      range_is_valid = %w[min max step].all? { |field| control[field].is_a?(Numeric) } && control["min"] < control["max"] && control["step"].positive?
+      unless range_is_valid && value.is_a?(Numeric) && value.between?(control["min"], control["max"]) && ((value - control["min"]) % control["step"]).zero?
+        errors << "#{control_prefix} must be a valid range value"
+      end
+    when "segment"
+      option_ids = Array(control["options"]).filter_map { |option| option["id"] if option.is_a?(Hash) }
+      errors << "#{control_prefix} must reference a declared segment option" unless option_ids.include?(value)
+    when "toggle"
+      errors << "#{control_prefix} must be boolean" unless value == true || value == false
     end
   end
 
@@ -185,6 +363,9 @@ module SmartHomeContract
       validate_required_copy(errors, prefix, "logic system #{index + 1} summary", system["summary"])
       unless non_empty_string?(system["visual"]) && spatial[:visuals].include?(system["visual"])
         errors << "#{system_prefix} visual must reference a canonical visual"
+      end
+      if system["id"] && system["visual"] && system["visual"] != system["id"]
+        errors << "#{system_prefix} visual must match its system ID"
       end
     end
 

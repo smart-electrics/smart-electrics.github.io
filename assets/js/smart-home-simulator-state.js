@@ -1,65 +1,205 @@
-const isNonEmptyId = (value) => typeof value === "string" && value.trim().length > 0;
+const REQUIRED_SYSTEM_IDS = [
+  "lighting",
+  "climate",
+  "shading",
+  "access",
+  "security",
+  "panel",
+  "low-voltage",
+  "backup-power",
+  "audio"
+];
 
-function hasUniqueIds(ids) {
-  return Array.isArray(ids) && ids.length > 0 && ids.every(isNonEmptyId) && new Set(ids).size === ids.length;
+const REQUIRED_PRESET_IDS = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
+
+const isNonEmptyId = (value) => typeof value === "string" && value.trim().length > 0;
+const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+
+function hasExactIds(ids, expectedIds) {
+  return (
+    Array.isArray(ids) &&
+    ids.length === expectedIds.length &&
+    ids.every(isNonEmptyId) &&
+    new Set(ids).size === ids.length &&
+    expectedIds.every((id) => ids.includes(id))
+  );
 }
 
-function readPrimarySystem(primaryByScenario, scenarioId) {
-  if (primaryByScenario instanceof Map) return primaryByScenario.get(scenarioId);
-  if (primaryByScenario && typeof primaryByScenario === "object") return primaryByScenario[scenarioId];
-  return undefined;
+function hasOnlyKeys(record, keys) {
+  return isRecord(record) && Object.keys(record).length === keys.length && keys.every((key) => Object.hasOwn(record, key));
+}
+
+function isSteppedValue(value, min, step) {
+  const steps = (value - min) / step;
+  return Math.abs(steps - Math.round(steps)) < 1e-9;
+}
+
+function validateControl(control) {
+  if (!isRecord(control) || !isNonEmptyId(control.id)) return false;
+
+  if (control.type === "range") {
+    return (
+      Number.isFinite(control.min) &&
+      Number.isFinite(control.max) &&
+      Number.isFinite(control.step) &&
+      control.min < control.max &&
+      control.step > 0 &&
+      Number.isFinite(control.defaultValue) &&
+      control.defaultValue >= control.min &&
+      control.defaultValue <= control.max &&
+      isSteppedValue(control.defaultValue, control.min, control.step)
+    );
+  }
+
+  if (control.type === "segment") {
+    return (
+      Array.isArray(control.options) &&
+      control.options.length > 1 &&
+      control.options.every(isNonEmptyId) &&
+      new Set(control.options).size === control.options.length &&
+      control.options.includes(control.defaultValue)
+    );
+  }
+
+  return control.type === "toggle" && typeof control.defaultValue === "boolean";
+}
+
+function isControlValueValid(control, value) {
+  if (control.type === "range") {
+    return (
+      Number.isFinite(value) &&
+      value >= control.min &&
+      value <= control.max &&
+      isSteppedValue(value, control.min, control.step)
+    );
+  }
+
+  if (control.type === "segment") return control.options.includes(value);
+  return typeof value === "boolean";
+}
+
+function freezeValues(valuesBySystem, systemIds) {
+  return Object.freeze(
+    Object.fromEntries(
+      systemIds.map((systemId) => [systemId, Object.freeze({ ...valuesBySystem[systemId] })])
+    )
+  );
+}
+
+function createControlIndex(systemIds, controlsBySystem) {
+  if (!hasOnlyKeys(controlsBySystem, systemIds)) throw new TypeError("Controls must be declared for every allowed system.");
+
+  const controlsById = new Map();
+  for (const systemId of systemIds) {
+    const controls = controlsBySystem[systemId];
+    if (!Array.isArray(controls) || controls.length === 0 || !controls.every(validateControl)) {
+      throw new TypeError("Every system must declare valid controls.");
+    }
+
+    const ids = controls.map(({ id }) => id);
+    if (new Set(ids).size !== ids.length) throw new TypeError("Control IDs must be unique within a system.");
+    controlsById.set(systemId, new Map(controls.map((control) => {
+      const canonicalControl = control.type === "segment"
+        ? Object.freeze({ ...control, options: Object.freeze([...control.options]) })
+        : Object.freeze({ ...control });
+      return [control.id, canonicalControl];
+    })));
+  }
+  return controlsById;
+}
+
+function validatePresetValues(valuesBySystem, systemIds, controlsById) {
+  if (!hasOnlyKeys(valuesBySystem, systemIds)) return false;
+
+  return systemIds.every((systemId) => {
+    const controls = controlsById.get(systemId);
+    const controlIds = [...controls.keys()];
+    const values = valuesBySystem[systemId];
+    return hasOnlyKeys(values, controlIds) && controlIds.every((controlId) => isControlValueValid(controls.get(controlId), values[controlId]));
+  });
+}
+
+function createCanonicalPresets(presetIds, systemIds, controlsById, presets) {
+  if (!hasOnlyKeys(presets, presetIds)) throw new TypeError("Canonical values must be declared for every preset.");
+
+  const canonicalPresets = new Map();
+  for (const presetId of presetIds) {
+    const values = presets[presetId];
+    if (!validatePresetValues(values, systemIds, controlsById)) {
+      throw new TypeError("Every preset must provide valid values for every control.");
+    }
+    canonicalPresets.set(presetId, freezeValues(values, systemIds));
+  }
+  return canonicalPresets;
 }
 
 /**
- * A deliberately small, pure state machine for the progressive-enhancement
- * adapter. The static HTML remains the source of truth for every summary.
+ * Pure state machine for the unified smart-home phone. The caller declares all
+ * controls and canonical preset values, keeping the model independent of DOM,
+ * storage, time, vendor integrations, and telemetry.
  */
-export function createScenarioMachine(scenarioIds, initialId, systemIds, primaryByScenario) {
-  if (
-    !hasUniqueIds(scenarioIds) ||
-    !hasUniqueIds(systemIds) ||
-    !isNonEmptyId(initialId) ||
-    !scenarioIds.includes(initialId)
-  ) {
-    throw new TypeError("Scenario and system IDs must be unique non-empty strings that include the initial scenario.");
+export function createSmartHomeMachine(config) {
+  if (!isRecord(config)) throw new TypeError("Smart-home machine configuration must be an object.");
+
+  const { systemIds, presetIds, initialPresetId, initialSystemId, controlsBySystem, presets } = config;
+  if (!hasExactIds(systemIds, REQUIRED_SYSTEM_IDS) || !hasExactIds(presetIds, REQUIRED_PRESET_IDS)) {
+    throw new TypeError("The unified phone requires its nine systems and seven presets.");
+  }
+  if (!presetIds.includes(initialPresetId) || !systemIds.includes(initialSystemId)) {
+    throw new TypeError("Initial system and preset IDs must be allowed.");
   }
 
-  const allowedScenarios = new Set(scenarioIds);
-  const allowedSystems = new Set(systemIds);
-  const primarySystems = new Map(
-    scenarioIds.map((scenarioId) => [scenarioId, readPrimarySystem(primaryByScenario, scenarioId)])
-  );
+  const canonicalSystemIds = Object.freeze([...systemIds]);
+  const canonicalPresetIds = Object.freeze([...presetIds]);
+  const allowedSystems = new Set(canonicalSystemIds);
+  const allowedPresets = new Set(canonicalPresetIds);
+  const controlsById = createControlIndex(canonicalSystemIds, controlsBySystem);
+  const canonicalPresets = createCanonicalPresets(canonicalPresetIds, canonicalSystemIds, controlsById, presets);
 
-  if ([...primarySystems.values()].some((systemId) => !isNonEmptyId(systemId) || !allowedSystems.has(systemId))) {
-    throw new TypeError("Every scenario must declare one allowed primary system.");
-  }
+  const makeState = (systemId, presetId, valuesBySystem, manual) =>
+    Object.freeze({ systemId, presetId, valuesBySystem, manual });
+  const initialState = makeState(initialSystemId, initialPresetId, canonicalPresets.get(initialPresetId), false);
 
-  const makeState = (scenarioId, systemId) => Object.freeze({ scenarioId, systemId });
-  const initialState = makeState(initialId, primarySystems.get(initialId));
   const isValidState = (state) =>
-    state !== null &&
-    typeof state === "object" &&
-    allowedScenarios.has(state.scenarioId) &&
-    allowedSystems.has(state.systemId);
+    isRecord(state) &&
+    allowedSystems.has(state.systemId) &&
+    allowedPresets.has(state.presetId) &&
+    typeof state.manual === "boolean" &&
+    validatePresetValues(state.valuesBySystem, canonicalSystemIds, controlsById);
 
   return Object.freeze({
     initialState,
     transition(state, action) {
       if (!isValidState(state)) return initialState;
-      if (action === null || typeof action !== "object") return state;
+      if (!isRecord(action)) return state;
 
-      if (action.type === "select" || action.type === "select-scenario") {
-        if (!isNonEmptyId(action.scenarioId) || !allowedScenarios.has(action.scenarioId)) return state;
-        const primarySystem = primarySystems.get(action.scenarioId);
-        if (state.scenarioId === action.scenarioId && state.systemId === primarySystem) return state;
-        return makeState(action.scenarioId, primarySystem);
+      if (action.type === "select-system") {
+        if (!allowedSystems.has(action.systemId) || action.systemId === state.systemId) return state;
+        return makeState(action.systemId, state.presetId, state.valuesBySystem, state.manual);
       }
 
-      if (action.type === "focus-system") {
-        if (!isNonEmptyId(action.systemId) || !allowedSystems.has(action.systemId) || action.systemId === state.systemId) {
-          return state;
-        }
-        return makeState(state.scenarioId, action.systemId);
+      if (action.type === "select-preset") {
+        if (!allowedPresets.has(action.presetId)) return state;
+        if (action.presetId === state.presetId && !state.manual) return state;
+        return makeState(state.systemId, action.presetId, canonicalPresets.get(action.presetId), false);
+      }
+
+      if (action.type === "set-control") {
+        if (!allowedSystems.has(action.systemId) || !isNonEmptyId(action.controlId)) return state;
+        const control = controlsById.get(action.systemId).get(action.controlId);
+        if (!control || !isControlValueValid(control, action.value)) return state;
+
+        const currentValue = state.valuesBySystem[action.systemId][action.controlId];
+        if (currentValue === action.value && state.manual) return state;
+
+        const valuesBySystem =
+          currentValue === action.value
+            ? state.valuesBySystem
+            : Object.freeze({
+                ...state.valuesBySystem,
+                [action.systemId]: Object.freeze({ ...state.valuesBySystem[action.systemId], [action.controlId]: action.value })
+              });
+        return makeState(state.systemId, state.presetId, valuesBySystem, true);
       }
 
       return state;
