@@ -27,7 +27,7 @@ function readPhysicalData(root) {
 }
 
 function controlsMatch(container, system) {
-  const controls = [...container.querySelectorAll("button[data-cinematic-physical-action='select-control']")];
+  const controls = [...container.querySelectorAll("button[data-cinematic-physical-action='select-control'], button[data-smart-home-physical-action='select-control']")];
   const expected = system.controls.flatMap((control) => control.choices.map((choice) => `${control.id}:${choice.id}`));
   const actual = controls.map((control) => `${text(control.dataset.physicalControlId)}:${text(control.dataset.physicalValueId)}`);
   return controls.length === expected.length && actual.every((id) => expected.includes(id)) && new Set(actual).size === actual.length;
