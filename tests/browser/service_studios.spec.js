@@ -183,6 +183,7 @@ test("lighting and low-voltage expose every owned relation through the shared ci
         const relatedLinks = stage.locator("[data-service-studio-panel]:visible [data-service-studio-related] a");
         const expectedRelated = index === 2 ? relation.related : studio.related[index];
         expect(await relatedLinks.evaluateAll((links) => links.map((link) => link.getAttribute("href")))).toEqual(expectedRelated);
+        expect((await new AxeBuilder({ page }).include("[data-service-studio-stage]").analyze()).violations).toEqual([]);
       }
     }
   }
@@ -284,4 +285,21 @@ test("invalid studio JSON, DOM, or non-owner relation keeps the complete fallbac
     await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
     await page.unroute("**/services/lighting/");
   }
+});
+
+test("an unknown rail action keeps the semantic fallback instead of enabling inert controls", async ({ page }) => {
+  await page.route("**/services/lighting/", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      'data-service-studio-action="select-focus" data-service-studio-control-state="focus"',
+      'data-service-studio-action="select-invented" data-service-studio-control-state="focus"'
+    );
+    await route.fulfill({ response, body, contentType: "text/html" });
+  });
+
+  await page.goto("/services/lighting/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
 });

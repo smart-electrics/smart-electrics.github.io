@@ -52,9 +52,16 @@ function enhance(root) {
   const scenes = [...stage.querySelectorAll("[data-service-studio-scene]")];
   const panels = [...stage.querySelectorAll("[data-service-studio-panel]")];
   const stateIds = ["assembled", "focus", "reassembled"];
-  const hasExactlyStates = (elements, attribute) =>
-    elements.length === stateIds.length && new Set(elements.map((element) => element.dataset[attribute])).size === stateIds.length &&
-    stateIds.every((stateId) => elements.some((element) => element.dataset[attribute] === stateId));
+  const expectedActions = {
+    assembled: "select-assembled",
+    focus: "select-focus",
+    reassembled: "select-reassembled"
+  };
+  const hasExactStateControls = controls.length === stateIds.length && stateIds.every((stateId) =>
+    controls.filter((control) =>
+      control.dataset.serviceStudioControlState === stateId && control.dataset.serviceStudioAction === expectedActions[stateId]
+    ).length === 1
+  );
   const hasExactlyVisuals = (elements, stateAttribute) =>
     elements.length === stateIds.length * relationIds.length && stateIds.every((stateId) =>
       relationIds.every((relationId) => elements.filter((element) =>
@@ -66,7 +73,7 @@ function enhance(root) {
     : relationControls.length === relationIds.length && relationIds.every((relationId) =>
       relationControls.filter((control) => control.dataset.serviceStudioRelationId === relationId).length === 1
     );
-  if (!hasExactlyStates(controls, "serviceStudioControlState") || !hasExactlyVisuals(scenes, "serviceStudioScene") || !hasExactlyVisuals(panels, "serviceStudioPanel") || !hasRelations) return;
+  if (!hasExactStateControls || !hasExactlyVisuals(scenes, "serviceStudioScene") || !hasExactlyVisuals(panels, "serviceStudioPanel") || !hasRelations) return;
 
   const panelFor = (stateId, relationId) => panels.find((panel) => panel.dataset.serviceStudioPanel === stateId && panel.dataset.serviceStudioRelationId === relationId);
   const sceneFor = (stateId, relationId) => scenes.find((scene) => scene.dataset.serviceStudioScene === stateId && scene.dataset.serviceStudioRelationId === relationId);
