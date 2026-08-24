@@ -96,7 +96,8 @@ async function assertRouteGeometry(page, scenarioId) {
 
 async function assertViewportBounds(page, label) {
   const bounds = await page.evaluate(() => {
-    const visible = (element) => {
+    const settledVisible = (element) => {
+      if (element.closest("[data-outgoing-snapshot]")) return false;
       const style = getComputedStyle(element);
       const rect = element.getBoundingClientRect();
       return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
@@ -105,10 +106,20 @@ async function assertViewportBounds(page, label) {
     return {
       overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
       children: [...document.querySelectorAll("main *")]
-        .filter(visible)
+        .filter(settledVisible)
         .map((element) => {
           const rect = element.getBoundingClientRect();
-          return { tag: element.tagName, left: rect.left, right: rect.right };
+          return {
+            tag: element.tagName,
+            className: element.getAttribute("class"),
+            dataAttributes: Object.fromEntries(
+              [...element.attributes]
+                .filter((attribute) => attribute.name.startsWith("data-"))
+                .map((attribute) => [attribute.name, attribute.value])
+            ),
+            left: rect.left,
+            right: rect.right
+          };
         })
         .filter((rect) => rect.left < -1 || rect.right > width + 1)
     };
@@ -501,6 +512,48 @@ test("scene imagery loads with meaningful alt text and leaves copy readable afte
   await expect(fallbackFigure.locator("figcaption")).toBeVisible();
   await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText("Розумний будинок");
   await expect(page.getByRole("main").getByText("Поточна конфігурація", { exact: true })).toBeVisible();
+});
+
+test("clipped outgoing snapshot does not create a visible bounds violation at deterministic disassemble progress", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 900 });
+  await page.goto(route);
+  const root = await rootFor(page);
+  await page.getByRole("radio", { name: "Повернення" }).check();
+  const snapshot = root.locator("[data-outgoing-snapshot]");
+  await expect(snapshot).toHaveCount(1);
+
+  const evidence = await snapshot.evaluate((element) => {
+    const animation = element.getAnimations().find((candidate) => candidate.animationName === "smart-home-disassemble");
+    if (!animation) return null;
+    animation.pause();
+    animation.currentTime = 858;
+
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    const clippingAncestor = element.closest(".smart-home__simulator.shell");
+    const hit = document.elementFromPoint(window.innerWidth - 1, Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2)));
+    return {
+      ariaHidden: element.getAttribute("aria-hidden"),
+      animationName: animation.animationName,
+      clippingOverflow: clippingAncestor ? getComputedStyle(clippingAncestor).overflow : null,
+      documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
+      hitIsSnapshot: hit === element || Boolean(hit?.closest("[data-outgoing-snapshot]")),
+      viewportWidth: window.innerWidth,
+      rawPredicateWouldFlag:
+        style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0 && rect.right > window.innerWidth + 1,
+      rect: { left: rect.left, right: rect.right }
+    };
+  });
+
+  expect(evidence).not.toBeNull();
+  expect(evidence.ariaHidden).toBe("true");
+  expect(evidence.animationName).toBe("smart-home-disassemble");
+  expect(evidence.clippingOverflow).toBe("clip");
+  expect(evidence.documentOverflow).toBe(0);
+  expect(evidence.hitIsSnapshot).toBe(false);
+  expect(evidence.viewportWidth).toBe(900);
+  expect(evidence.rawPredicateWouldFlag).toBe(true);
+  await assertViewportBounds(page, "outgoing snapshot at deterministic 858ms");
 });
 
 test("all required viewports retain document and actual child bounds", async ({ page }) => {
