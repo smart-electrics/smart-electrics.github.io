@@ -31,7 +31,7 @@ test("homepage exposes the six-link public navigation", async ({ page }) => {
   await expect(navigation.getByRole("link", { name: "Проєкти", exact: true })).toHaveCount(0);
 });
 
-test("hero explains the full electrical journey and exposes live scene controls", async ({ page }) => {
+test("hero explains the full electrical journey and exposes live engineering controls", async ({ page }) => {
   await page.goto("/");
 
   const main = page.getByRole("main");
@@ -48,8 +48,8 @@ test("hero explains the full electrical journey and exposes live scene controls"
   await expect(primaryCta).toBeDisabled();
   expect(await primaryCta.getAttribute("href")).toBeNull();
 
-  for (const label of ["Освітлення", "Клімат", "Безпека", "Живлення"]) {
-    const control = main.getByRole("button", { name: new RegExp(label, "i") });
+  for (const label of ["Електромонтажне проєктування", "Освітлення", "Резервне живлення", "Розумний будинок"]) {
+    const control = main.getByRole("button", { name: label, exact: true });
     await expect(control).toHaveCount(1);
     await expect(control).toBeVisible();
   }
@@ -58,14 +58,14 @@ test("hero explains the full electrical journey and exposes live scene controls"
   await expect(liveRegions).not.toHaveCount(0);
   await expect(liveRegions.first()).not.toHaveText("");
 
-  const security = main.getByRole("button", { name: "Безпека", exact: true });
-  await security.click();
-  await expect(security).toHaveAttribute("aria-pressed", "true");
-  await expect(main.getByRole("button", { name: "Освітлення", exact: true })).toHaveAttribute(
+  const lighting = main.getByRole("button", { name: "Освітлення", exact: true });
+  await lighting.click();
+  await expect(lighting).toHaveAttribute("aria-pressed", "true");
+  await expect(main.getByRole("button", { name: "Резервне живлення", exact: true })).toHaveAttribute(
     "aria-pressed",
     "false"
   );
-  await expect(liveRegions.first()).toContainText("контролю датчиків і доступу");
+  await expect(liveRegions.first()).toContainText("Групи світла");
 });
 
 test("hero secondary CTA reaches smart home and its visual has meaningful Ukrainian alt", async ({ page }) => {
@@ -118,8 +118,8 @@ test("static poster and scene explanation remain usable without WebGL", async ({
 
   const main = page.getByRole("main");
   await expect(main.getByRole("img").first()).toBeVisible();
-  await main.getByRole("button", { name: "Живлення", exact: true }).click();
-  await expect(main.locator('[aria-live]:visible').first()).toContainText("резервного живлення");
+  await main.getByRole("button", { name: "Резервне живлення", exact: true }).click();
+  await expect(main.locator('[aria-live]:visible').first()).toContainText("Пріоритети живлення");
 });
 
 test("reduced motion bypasses WebGL while preserving the complete hero", async ({ page }) => {

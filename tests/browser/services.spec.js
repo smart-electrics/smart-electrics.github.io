@@ -81,7 +81,7 @@ test("services index renders eight ordered destinations without placeholder copy
   const main = page.getByRole("main");
   await expect(main.getByRole("heading", { level: 1 })).toHaveText("Послуги");
 
-  const links = main.getByRole("link");
+  const links = main.locator("[data-cinematic-direction-link]");
   await expect(links).toHaveCount(8);
 
   for (const [index, service] of services.entries()) {

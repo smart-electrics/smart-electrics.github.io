@@ -1,0 +1,307 @@
+/* Shared progressive stage for the homepage and services index. Static links and relation copy remain the no-JS contract. */
+.cinematic {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(175, 93, 56, 0.07));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  min-width: 0;
+  padding: clamp(1rem, 2vw, 2rem);
+  position: relative;
+}
+
+.cinematic__heading h2 {
+  font-size: clamp(2rem, 3.2vw, 4.2rem);
+  margin-bottom: 0.75rem;
+  max-width: 15ch;
+}
+
+.cinematic__heading > p:last-child {
+  color: var(--text-soft);
+  max-width: 44rem;
+}
+
+.cinematic__topology {
+  display: grid;
+  gap: 1rem;
+  margin-top: clamp(1.5rem, 3vw, 3rem);
+  position: relative;
+}
+
+.cinematic__connectors {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+
+.cinematic__connectors path {
+  fill: none;
+  stroke: rgba(242, 166, 90, 0.2);
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  stroke-width: 0.55;
+}
+
+.cinematic__connectors path[data-active="true"] {
+  stroke: var(--amber);
+}
+
+.cinematic__directions,
+.cinematic__relations,
+.cinematic [data-cinematic-related] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.cinematic__directions {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  position: relative;
+}
+
+.cinematic__directions li,
+.cinematic__relations li {
+  min-width: 0;
+}
+
+.cinematic__scene {
+  border-radius: 0.55rem;
+  display: block;
+  height: 5.8rem;
+  overflow: hidden;
+}
+
+.cinematic__scene img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.cinematic__directions a,
+.cinematic__relations li,
+.cinematic__result {
+  background: rgba(9, 8, 7, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+}
+
+.cinematic__directions a {
+  color: var(--text);
+  display: grid;
+  gap: 0.45rem;
+  min-height: 7.7rem;
+  padding: 0.85rem;
+  text-decoration: none;
+}
+
+.cinematic__directions a:hover,
+.cinematic__directions a:focus-visible {
+  border-color: var(--amber);
+  background: rgba(175, 93, 56, 0.14);
+}
+
+.cinematic__directions a > span,
+.cinematic__relation-copy strong {
+  color: var(--amber-light);
+  font-size: 0.82rem;
+  letter-spacing: 0.045em;
+}
+
+.cinematic__directions small,
+.cinematic__relation-copy span {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.cinematic__directions button,
+.cinematic__relations button,
+.cinematic__return {
+  background: rgba(175, 93, 56, 0.14);
+  border: 1px solid var(--line-strong);
+  border-radius: 0.7rem;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  width: 100%;
+}
+
+.cinematic__directions button {
+  margin-top: 0.45rem;
+}
+
+.cinematic__directions button[aria-pressed="true"],
+.cinematic__directions button:hover,
+.cinematic__relations button:hover,
+.cinematic__return:hover {
+  background: rgba(242, 166, 90, 0.18);
+  border-color: var(--amber);
+}
+
+.cinematic__relations {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  position: relative;
+}
+
+.cinematic__relations li {
+  display: grid;
+  gap: 0.55rem;
+  min-height: 5.4rem;
+  padding: 0.85rem;
+}
+
+.cinematic__relation-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.cinematic__result {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  position: relative;
+}
+
+.cinematic__result p {
+  margin: 0;
+}
+
+.cinematic__result [data-cinematic-connector-copy] {
+  color: var(--amber-light);
+  font-size: 0.78rem;
+}
+
+.cinematic__result [data-cinematic-summary] {
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.cinematic__destination {
+  color: var(--amber-light);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.cinematic [data-cinematic-related] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cinematic [data-cinematic-related] a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text-soft);
+  display: block;
+  font-size: 0.72rem;
+  padding: 0.5rem 0.7rem;
+  text-decoration: none;
+}
+
+.cinematic [data-cinematic-related] a:hover,
+.cinematic [data-cinematic-related] a:focus-visible {
+  border-color: var(--amber);
+  color: var(--text);
+}
+
+.cinematic__outgoing-snapshot {
+  background: linear-gradient(90deg, transparent, rgba(242, 166, 90, 0.35), transparent);
+  height: 1px;
+  inset-inline: 8%;
+  pointer-events: none;
+  position: absolute;
+  top: 40%;
+  animation: cinematic-topology-out 480ms ease-out both;
+}
+
+@keyframes cinematic-topology-out {
+  from { clip-path: inset(0 0 0 0); transform: translateX(0) scaleX(1); }
+  to { clip-path: inset(0 0 0 100%); transform: translateX(1.25rem) scaleX(1.04); }
+}
+
+.home-hero__frame:has(.cinematic) {
+  grid-template-areas: "copy visual" "cinematic visual";
+  grid-template-rows: 1fr auto;
+}
+
+.home-hero__frame .cinematic {
+  grid-area: cinematic;
+  z-index: 2;
+}
+
+.home-hero__scene-label {
+  background: rgba(20, 14, 11, 0.65);
+  border: 1px solid rgba(255, 218, 178, 0.28);
+  border-radius: 999px;
+  color: #fff0df;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  margin: 0;
+  padding: 0.52rem 0.68rem;
+  position: absolute;
+  right: clamp(0.85rem, 1.7vw, 1.5rem);
+  text-transform: uppercase;
+  top: clamp(0.85rem, 1.7vw, 1.5rem);
+  z-index: 2;
+}
+
+.cinematic--services {
+  margin-block: clamp(2rem, 5vw, 6rem);
+}
+
+.cinematic--services .service-catalogue__list {
+  margin: 0;
+}
+
+.cinematic--services .service-catalogue__link {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.cinematic--services .service-catalogue__link:hover {
+  border-color: rgba(242, 166, 90, 0.64);
+}
+
+.cinematic--services .service-catalogue__link:active {
+  border-color: var(--amber-light);
+}
+
+.cinematic--services .service-catalogue__item > button {
+  margin-top: 0.45rem;
+}
+
+@media (max-width: 54rem) {
+  .home-hero__frame:has(.cinematic) {
+    grid-template-areas: "copy" "visual" "cinematic";
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .cinematic__directions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cinematic__relations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 36rem) {
+  .cinematic__directions,
+  .cinematic__relations { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic *,
+  .cinematic::before,
+  .cinematic::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

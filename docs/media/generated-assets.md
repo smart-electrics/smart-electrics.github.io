@@ -101,6 +101,72 @@ Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers,
 логотипи, UI, vendor-specific products, warped geometry, duplicated fixtures,
 random cables, exaggerated bloom і fantasy technology.
 
+## cinematic-engineering-scene-set
+
+- Дата: 2026-08-24
+- Інструмент: вбудований OpenAI image generation tool
+- Вхідні зображення для art direction:
+  `assets/images/smart-home/{shading,stairs,exterior,climate}-1536.webp`
+- Generated sources:
+  - panel: `exec-9cec0dde-d6fe-4da8-afd6-b9c6b86a784f.png`
+  - backup: `exec-316df47d-856d-4ad7-846d-6a229b8bdc65.png`
+  - surveillance: `exec-21c71941-2a55-4892-8f2a-428988bd621a.png` ->
+    `exec-dc2cecba-548c-431a-a237-0f9430bddeb2.png`
+  - audio: `exec-663684e2-72c4-46cf-8de3-862bd19f364a.png` ->
+    `exec-0fb05b21-9ae2-4e0b-8ebe-4f1af7c3de6d.png`
+  - diagnostics: `exec-ca981297-9931-43b4-95f4-18e13868c7d6.png`
+- Призначення: доповнити спільний кінематографічний граф окремими
+  фотореалістичними сценами щита, резервного живлення, слабкострумової мережі
+  й відеоспостереження, мультирум-аудіо та електричної діагностики
+- Публічне твердження: візуальна демонстрація логіки готових до адаптації
+  конфігурацій; не підтверджені клієнтські кейси, не конкретні моделі
+  обладнання й не твердження про vendor compatibility
+- Файли:
+  `assets/images/smart-home/{panel,backup,surveillance,audio,diagnostics}-768.webp`
+  та відповідні `-1536.webp`
+- Перетворення: WebP без метаданих, 768x512 px через `cwebp` quality 80 і
+  1536x1024 px через `cwebp` quality 84
+- Незалежний звіт: [`smart-home-scenes-visual-qa.md`](smart-home-scenes-visual-qa.md)
+- Результат: PASS для кожної сцени й набору загалом; для audio зафіксовано
+  лише низькопріоритетне зауваження про навмисно непомітну інтеграцію
+
+### Зафіксована візуальна мова
+
+П'ять нових кадрів продовжують ту саму резиденцію й camera language:
+темний горіх, графітовий камінь, стримана бронза, 2700K amber, синя година,
+прямі вертикалі, глибокі OLED-friendly тіні та реалістичні сервісні зазори.
+Кадри не містять людей, логотипів, читабельних написів або накладеного UI.
+Обладнання залишається vendor-neutral.
+
+### SHA-256
+
+- panel: `1c559ec878174984be3cf8f75b45f90ae5e24d6ee59c6287b17340aff66263ae`
+  (768), `e385b37ff17692c80a95da05ff0981e9db68dc34b7b8b37e7a4ef01ae2c95401`
+  (1536)
+- backup: `6fb48d507209e944328dfa97fcf4d55e5cc173a79566d72742e4c366ab8744c4`
+  (768), `128f4357b1e5e797edfcc06316d2cd10b4aff03faff9b2cbc865bc976f82ecf5`
+  (1536)
+- surveillance: `fa67fa3a55cb60e4e2c740d1f329a54c7703493f38a2022903099774854f80cc`
+  (768), `95c32771a1492d48267d38bb5c28f416c2f095613cc5c79517f2a8ba766364c0`
+  (1536)
+- audio: `05a38e925fef56fbf1867a214a3040179cc57d41270c0beddf3c930ad6b8bb3e`
+  (768), `c994039a02e5e711fabdd04c7ed3684ec187d5d426f7c7a32b3038e59a8ddf5a`
+  (1536)
+- diagnostics: `8add4f0341c7a4b809754c91a6e215463a6d6332a1a1fb5dac12aa99ca2ba912`
+  (768), `b9a5edcc990c545954e83aad0dc071d27c6745a75cb60ee2f7342009a110abf1`
+  (1536)
+
+### Prompt contract
+
+Усі генерації вимагали ту саму сучасну приватну резиденцію, матеріали,
+оптику, освітлення й колірний grade. Предмети сцен мали бути фізично
+змонтованими та інженерно зрозумілими: DIN-rail і кабельна ієрархія щита;
+батареї, inverter і transfer/protection cabinet; камера, вхід і low-voltage
+niche; приховані ceiling/in-wall speakers та audio matrix; щит, тестер,
+thermal camera й безпечні probes. Окремі редагування surveillance та audio
+прибрали псевдотекст і світні дисплеї. Заборонені люди, бренди, текст, UI,
+fake telemetry, sci-fi styling, impossible wiring і драматизація несправностей.
+
 ## apartment-comfort
 
 - Дата: 2026-08-23

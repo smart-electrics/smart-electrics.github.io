@@ -3,18 +3,28 @@
   const canvas = document.querySelector("[data-home-canvas]");
   const status = document.querySelector("[data-scene-status]");
   const controls = [...document.querySelectorAll("[data-scene-control]")];
+  const sceneLabel = document.querySelector("[data-home-scene-label]");
 
-  if (!scene || !status || !controls.length) return;
+  if (!scene) return;
 
   const setScene = (control) => {
     scene.dataset.state = control.dataset.scene;
-    status.textContent = control.dataset.sceneDescription;
+    if (status) status.textContent = control.dataset.sceneDescription;
     controls.forEach((candidate) => {
       candidate.setAttribute("aria-pressed", String(candidate === control));
     });
   };
 
-  controls.forEach((control) => control.addEventListener("click", () => setScene(control)));
+  if (status && controls.length) {
+    controls.forEach((control) => control.addEventListener("click", () => setScene(control)));
+  }
+
+  scene.addEventListener("cinematic:state-change", (event) => {
+    const detail = event.detail;
+    if (!detail || typeof detail !== "object") return;
+    scene.dataset.state = detail.selectedRelationId || detail.selectedDirectionId || "assembled";
+    if (sceneLabel) sceneLabel.textContent = detail.relationLabel || detail.directionLabel || "Повна система";
+  });
 
   if (!canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -96,8 +106,6 @@
   gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
   const modeOrder = ["lighting", "climate", "security", "power"];
-  let frame = 0;
-  let visible = true;
   let lost = false;
 
   const resize = () => {
@@ -108,40 +116,27 @@
     gl.viewport(0, 0, canvas.width, canvas.height);
   };
 
-  const render = (timestamp) => {
-    if (lost || !visible || document.hidden) {
-      frame = 0;
-      return;
-    }
+  const render = () => {
+    if (lost) return;
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniform2f(resolution, canvas.width, canvas.height);
-    gl.uniform1f(time, timestamp);
+    gl.uniform1f(time, 0);
     gl.uniform1f(mode, Math.max(0, modeOrder.indexOf(scene.dataset.state)));
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    frame = requestAnimationFrame(render);
   };
-
-  const start = () => {
-    if (!frame && !lost && visible && !document.hidden) frame = requestAnimationFrame(render);
-  };
-
-  const observer = new IntersectionObserver(([entry]) => {
-    visible = entry.isIntersecting;
-    start();
-  }, { threshold: 0.05 });
 
   resize();
   scene.dataset.webgl = "ready";
-  window.addEventListener("resize", resize, { passive: true });
-  document.addEventListener("visibilitychange", start);
+  window.addEventListener("resize", () => {
+    resize();
+    render();
+  }, { passive: true });
+  scene.addEventListener("cinematic:state-change", render);
   canvas.addEventListener("webglcontextlost", () => {
     lost = true;
     scene.dataset.webgl = "fallback";
-    if (frame) cancelAnimationFrame(frame);
-    frame = 0;
   });
-  observer.observe(scene);
-  start();
+  render();
 })();

@@ -1,66 +1,38 @@
 ---
 layout: default
 ---
+{% assign cinematic = site.data.cinematic_system %}
+{% assign ordered_services = site.services | sort: "order" %}
 <section class="home-hero" aria-labelledby="hero-title">
-  <div class="home-hero__frame" data-home-scene data-state="lighting" data-webgl="fallback">
+  <div class="home-hero__frame" data-home-scene data-state="assembled" data-webgl="fallback">
     <div class="home-hero__copy">
-      <p class="home-hero__eyebrow">
-        <span>{{ site.data.site.eyebrow }}</span>
-        <span>{{ site.data.site.location }}</span>
-      </p>
-      <h1 id="hero-title">
-        {% for line in site.data.site.hero_title %}<span class="home-hero__title-line home-hero__title-line--{{ line.tone }}">{{ line.text }}</span>{% unless forloop.last %}<br>{% endunless %}{% endfor %}
-      </h1>
+      <p class="home-hero__eyebrow"><span>{{ site.data.site.eyebrow }}</span><span>{{ site.data.site.location }}</span></p>
+      <h1 id="hero-title">{% for line in site.data.site.hero_title %}<span class="home-hero__title-line home-hero__title-line--{{ line.tone }}">{{ line.text }}</span>{% unless forloop.last %}<br>{% endunless %}{% endfor %}</h1>
       <p class="home-hero__lede">{{ site.data.site.hero_body }}</p>
-
       <div class="home-hero__actions">
-        {% if site.data.site.contact_cta.enabled %}
-          <a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
-        {% else %}
-          <button class="button button--primary" type="button" disabled aria-describedby="hero-contact-status">{{ site.data.site.contact_cta.label }}</button>
-        {% endif %}
+        {% if site.data.site.contact_cta.enabled %}<a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>{% else %}<button class="button button--primary" type="button" disabled aria-describedby="hero-contact-status">{{ site.data.site.contact_cta.label }}</button>{% endif %}
         <a class="button button--quiet" href="{{ '/smart-home/' | relative_url }}">{{ site.data.site.hero_secondary_cta }}</a>
       </div>
       <p class="home-hero__prelaunch" id="hero-contact-status">{{ site.data.site.contact_cta.status }}</p>
     </div>
 
     <div class="home-hero__visual">
-      <picture class="home-hero__poster">
-        <source media="(max-width: 767px)" srcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }}" width="768" height="512">
-        <source srcset="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024">
-        <img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 64vw" alt="{{ site.data.site.hero_visual_alt }}" loading="eager" fetchpriority="high">
-      </picture>
+      <picture class="home-hero__poster"><source media="(max-width: 767px)" srcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }}" width="768" height="512"><source srcset="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024"><img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 64vw" alt="{{ site.data.site.hero_visual_alt }}" loading="eager" fetchpriority="high"></picture>
       <canvas class="home-hero__canvas" data-home-canvas aria-hidden="true"></canvas>
-      <div class="home-hero__labels" aria-hidden="true">
-        {% for control in site.data.site.hero_controls %}<span data-label="{{ control.id }}">{{ control.visual_label }}</span>{% endfor %}
+      <p class="home-hero__scene-label" data-home-scene-label aria-hidden="true">Повна система</p>
+    </div>
+
+    <section class="cinematic cinematic--home" data-cinematic-root data-cinematic-state="assembled" aria-labelledby="home-system-title">
+      <div class="cinematic__heading"><p class="section-kicker">Напрями системи</p><h2 id="home-system-title">Оберіть напрям, щоб побачити його зв’язки.</h2></div>
+      <div class="cinematic__topology" data-cinematic-topology>
+        <svg class="cinematic__connectors" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">{% for relation in cinematic.relations %}<path data-cinematic-connector="{{ relation.id }}" d="M {{ forloop.index | times: 9 }},24 C {{ forloop.index | times: 9 | plus: 8 }},3 {{ forloop.index | times: 9 | plus: 13 }},3 {{ forloop.index | times: 9 | plus: 20 }},19" />{% endfor %}</svg>
+        <ol class="cinematic__directions" data-cinematic-directions>{% for direction in cinematic.directions %}{% assign service = ordered_services | where: 'slug', direction.service_slug | first %}<li data-cinematic-direction-item="{{ direction.id }}"><a href="{{ service.url | relative_url }}" data-cinematic-direction-link="{{ direction.id }}"><span>{{ direction.label }}</span><small>{{ direction.description }}</small></a><button type="button" hidden data-cinematic-action="select-direction" data-direction-id="{{ direction.id }}" aria-pressed="false">{{ direction.label }}</button></li>{% endfor %}</ol>
+        <ol class="cinematic__relations" data-cinematic-relations>{% for relation in cinematic.relations %}<li data-cinematic-relation-item="{{ relation.id }}"><picture class="cinematic__scene" data-cinematic-scene-family="{{ relation.scene_family }}"><source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512"><img src="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" alt="Візуальна концепція: {{ relation.child.label }}" loading="lazy"></picture><span class="cinematic__relation-copy"><strong>{{ relation.child.label }}</strong><span>{{ relation.child.description }}</span></span><button type="button" hidden data-cinematic-action="select-relation" data-relation-id="{{ relation.id }}">{{ relation.child.label }}</button></li>{% endfor %}</ol>
       </div>
-    </div>
-
-    <div class="home-hero__controls" role="group" aria-label="{{ site.data.site.hero_controls_aria_label }}">
-      {% for control in site.data.site.hero_controls %}
-        <button type="button" data-scene-control data-scene="{{ control.id }}" data-scene-description="{{ control.description }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ control.label }}</button>
-      {% endfor %}
-    </div>
-    <div class="home-hero__status">
-      <p data-scene-status aria-live="polite">{{ site.data.site.hero_controls.first.description }}</p>
-      <p>{{ site.data.site.hero_disclaimer }}</p>
-    </div>
+      <div class="cinematic__result"><p data-cinematic-connector-copy>Повна система: напрями розглядають у зв’язці, а не ізольовано.</p><p data-cinematic-summary aria-live="polite">Оберіть напрям або зв’язок, щоб побачити пояснення та суміжні роботи.</p><a class="cinematic__destination" data-cinematic-destination href="{{ '/services/' | relative_url }}">Переглянути всі напрями <span aria-hidden="true">↗</span></a><button class="cinematic__return" type="button" hidden data-cinematic-action="return-to-system">Повернутися до всієї системи</button><ul data-cinematic-related>{% for direction in cinematic.directions %}{% assign service = ordered_services | where: 'slug', direction.service_slug | first %}<li data-related-direction-id="{{ direction.id }}"><a href="{{ service.url | relative_url }}">{{ direction.label }} <span aria-hidden="true">↗</span></a></li>{% endfor %}</ul></div>
+      <script type="application/json" data-cinematic-graph>{{ cinematic | jsonify }}</script>
+    </section>
   </div>
 </section>
 
-<section class="audience-paths shell" aria-labelledby="audience-title">
-  <div class="audience-paths__intro">
-    <p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p>
-    <h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2>
-  </div>
-  <div class="audience-paths__grid">
-    {% for path in site.data.site.audience_paths %}
-      <a class="audience-card" href="{{ path.url | relative_url }}">
-        <span class="audience-card__number">0{{ forloop.index }}</span>
-        <h3>{{ path.title }}</h3>
-        <p>{{ path.body }}</p>
-        <span class="audience-card__link">{{ path.cta }} <span aria-hidden="true">↗</span></span>
-      </a>
-    {% endfor %}
-  </div>
-</section>
+<section class="audience-paths shell" aria-labelledby="audience-title"><div class="audience-paths__intro"><p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p><h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2></div><div class="audience-paths__grid">{% for path in site.data.site.audience_paths %}<a class="audience-card" href="{{ path.url | relative_url }}"><h3>{{ path.title }}</h3><p>{{ path.body }}</p><span class="audience-card__link">{{ path.cta }} <span aria-hidden="true">↗</span></span></a>{% endfor %}</div></section>
