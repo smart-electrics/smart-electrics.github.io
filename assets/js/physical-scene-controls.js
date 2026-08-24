@@ -12,6 +12,7 @@ function cssImage(value) {
 }
 
 function stateSignature(system, state) {
+  if (system.id === "room") return `${state.lighting}:${state.window_treatment}`;
   return `${system.id}:${system.controls.map((control) => `${control.id}=${state[control.id]}`).join(":")}`;
 }
 
