@@ -3415,8 +3415,14 @@
 }
 @keyframes smart-home-route-a { from { opacity: 0; stroke-dashoffset: 180; } to { opacity: 1; stroke-dashoffset: 0; } }
 @keyframes smart-home-route-b { from { opacity: 0; stroke-dashoffset: -180; } to { opacity: 1; stroke-dashoffset: 0; } }
-@keyframes smart-home-mask-a { from { clip-path: inset(0 100% 0 0); opacity: 0; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
-@keyframes smart-home-mask-b { from { clip-path: inset(0 0 0 100%); opacity: 0; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes smart-home-mask-a {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+@keyframes smart-home-mask-b {
+  from { clip-path: inset(0 0 0 100%); }
+  to { clip-path: inset(0); }
+}
 @keyframes smart-home-callout-a {
   from { clip-path: inset(0 100% 0 0); }
   to { clip-path: inset(0); }
@@ -3425,20 +3431,34 @@
   from { clip-path: inset(0 0 0 100%); }
   to { clip-path: inset(0); }
 }
+@keyframes smart-home-nodes-a {
+  from { clip-path: inset(0 100% 0 0); transform: translate3d(0, 1rem, 0) scale(0.985); }
+  to { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes smart-home-nodes-b {
+  from { clip-path: inset(0 0 0 100%); transform: translate3d(0, -1rem, 0) scale(1.018); }
+  to { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
+}
 @keyframes smart-home-zoom-a { from { opacity: 0; transform: scale(1.07); } to { opacity: 1; transform: scale(1); } }
 @keyframes smart-home-zoom-b { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-@keyframes smart-home-lens-a { from { opacity: 0; transform: translate3d(0, 38%, 0) scale(.96); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
-@keyframes smart-home-lens-b { from { opacity: 0; transform: translate3d(0, 46%, 0) scale(1.025); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes smart-home-lens-a {
+  from { clip-path: inset(100% 0 0 0); transform: translate3d(0, 38%, 0) scale(.96); }
+  to { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes smart-home-lens-b {
+  from { clip-path: inset(0 0 100% 0); transform: translate3d(0, 46%, 0) scale(1.025); }
+  to { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
+}
 @keyframes smart-home-disassemble {
-  0% { clip-path: inset(0); filter: brightness(1) contrast(1); opacity: 0.98; transform: translate3d(0, 0, 0) scale(1); }
-  48% { clip-path: polygon(0 0, 100% 0, 100% 64%, 75% 76%, 31% 67%, 0 84%); filter: brightness(1.18) contrast(1.08); opacity: 0.82; transform: translate3d(0, -0.5rem, 0) scale(1.025); }
-  100% { clip-path: inset(18% 0 36% 100%); filter: brightness(0.68) contrast(1.22); opacity: 0; transform: translate3d(2.4rem, -1.25rem, 0) scale(1.09); }
+  0% { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
+  48% { clip-path: polygon(0 0, 100% 0, 100% 64%, 75% 76%, 31% 67%, 0 84%); transform: translate3d(0, -0.5rem, 0) scale(1.025); }
+  100% { clip-path: inset(18% 0 36% 100%); transform: translate3d(2.4rem, -1.25rem, 0) scale(1.09); }
 }
 
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="background"] { animation: smart-home-zoom-a 1000ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="light"] { animation: smart-home-assemble-a 760ms 80ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="mask"] { animation: smart-home-mask-a 860ms 100ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="nodes"] { animation: smart-home-assemble-a 800ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="nodes"] { animation: smart-home-nodes-a 800ms 180ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="core"] { animation: smart-home-lens-a 800ms 150ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] .smart-home__route { animation: smart-home-route-a 820ms 180ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="initial"] [data-motion-layer="type"] { animation: smart-home-mask-a 840ms 140ms cubic-bezier(.2,.75,.2,1) both; }
@@ -3446,12 +3466,12 @@
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="background"] { animation: smart-home-zoom-a 1000ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="light"] { animation: smart-home-assemble-a 760ms 80ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="mask"] { animation: smart-home-mask-a 860ms 100ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="nodes"] { animation: smart-home-assemble-a 800ms 180ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="nodes"] { animation: smart-home-nodes-a 800ms 180ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] [data-motion-layer="core"] { animation: smart-home-lens-a 800ms 150ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="a"] .smart-home__route { animation: smart-home-route-a 820ms 180ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="background"] { animation: smart-home-zoom-b 1000ms cubic-bezier(.2,.75,.2,1) both; }
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="light"],
-[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="nodes"] { animation: smart-home-assemble-b 800ms 100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="light"] { animation: smart-home-assemble-b 800ms 100ms cubic-bezier(.2,.75,.2,1) both; }
+[data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="nodes"] { animation: smart-home-nodes-b 800ms 100ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="core"] { animation: smart-home-lens-b 780ms 180ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] [data-motion-layer="mask"] { animation: smart-home-mask-b 860ms 100ms cubic-bezier(.2,.75,.2,1) both; }
 [data-smart-home-simulator][data-enhanced="true"][data-motion-phase="b"] .smart-home__route { animation: smart-home-route-b 820ms 140ms cubic-bezier(.2,.75,.2,1) both; }

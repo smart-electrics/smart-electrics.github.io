@@ -290,6 +290,17 @@ test("each explicit scenario or system selection immediately updates state and d
   await expect(outgoingScenario).toHaveCount(1);
   await expect(outgoingScenario).toHaveAttribute("aria-hidden", "true");
   await expect(outgoingScenario).toHaveCSS("animation-name", "smart-home-disassemble");
+  const transitionalSnapshotStyles = await outgoingScenario.evaluate((snapshot) => {
+    const animation = snapshot.getAnimations().find((candidate) => candidate.animationName === "smart-home-disassemble");
+    if (!animation) return { opacity: getComputedStyle(snapshot).opacity, filter: getComputedStyle(snapshot).filter };
+    animation.pause();
+    animation.currentTime = 460;
+    const styles = getComputedStyle(snapshot);
+    const result = { opacity: styles.opacity, filter: styles.filter };
+    animation.finish();
+    return result;
+  });
+  expect(transitionalSnapshotStyles, "the outgoing scene must disassemble geometrically without dimming or filtering readable labels").toEqual({ opacity: "1", filter: "none" });
   const transitionalCalloutOpacity = await root.locator('button[data-system-control="climate"]').evaluate((button) => {
     const animation = button.getAnimations().find((candidate) => candidate.animationName.startsWith("smart-home-"));
     if (!animation) return getComputedStyle(button).opacity;
@@ -300,6 +311,16 @@ test("each explicit scenario or system selection immediately updates state and d
     return opacity;
   });
   expect(transitionalCalloutOpacity, "interactive callout text must remain fully opaque during its masked reveal").toBe("1");
+  const transitionalCoreOpacity = await root.locator('[data-motion-layer="core"]').evaluate((core) => {
+    const animation = core.getAnimations().find((candidate) => candidate.animationName.startsWith("smart-home-lens-"));
+    if (!animation) return getComputedStyle(core).opacity;
+    animation.pause();
+    animation.currentTime = 320;
+    const opacity = getComputedStyle(core).opacity;
+    animation.finish();
+    return opacity;
+  });
+  expect(transitionalCoreOpacity, "central engineering labels must remain fully opaque during their masked reveal").toBe("1");
   await expect(outgoingScenario).toHaveCount(0, { timeout: 1300 });
 
   await root.locator('button[data-system-control="climate"]').click();

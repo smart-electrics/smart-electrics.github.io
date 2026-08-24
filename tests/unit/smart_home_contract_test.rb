@@ -189,7 +189,8 @@ class SmartHomeContractTest < Minitest::Test
     spine = styles.match(/\.smart-home__control-spine\s*\{(?<rules>.*?)^\}/m)
     motion_styles = styles[styles.index("@keyframes smart-home-assemble-a")..]
     motion_declarations = styles.scan(/\banimation:\s*smart-home-[^;]+;/)
-    callout_motion = styles.scan(/@keyframes smart-home-callout-[ab]\s*\{(?<rules>.*?)^\}/m)
+    text_layer_motion = styles.scan(/@keyframes smart-home-(?:callout|lens|mask|nodes)-[ab]\s*\{(?<rules>.*?)^\}/m)
+    outgoing_motion = styles.match(/@keyframes smart-home-disassemble\s*\{(?<rules>.*?)^\}/m)
 
     assert_includes layout, "smart-home__control-spine"
     refute_includes layout, "smart-home__control-glass"
@@ -201,8 +202,10 @@ class SmartHomeContractTest < Minitest::Test
     assert_includes styles, '@keyframes smart-home-disassemble'
     refute_match(/infinite/, motion_styles)
     refute_empty motion_declarations
-    assert_equal 2, callout_motion.length
-    callout_motion.each { |rules| refute_match(/opacity:/, rules.first) }
+    assert_equal 8, text_layer_motion.length
+    text_layer_motion.each { |rules| refute_match(/opacity:/, rules.first) }
+    refute_nil outgoing_motion
+    refute_match(/(?:opacity|filter):/, outgoing_motion[:rules])
     motion_declarations.each do |declaration|
       duration = declaration.scan(/(\d+)ms/).flatten.map(&:to_i).sum
       assert_operator duration, :>=, 760, declaration
