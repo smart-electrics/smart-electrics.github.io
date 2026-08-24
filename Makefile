@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-js-unit test-browser verify-skills validate validate-services validate-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-quality-policy html check clean
+.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-js-unit test-browser verify-skills validate validate-services validate-service-studios validate-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-quality-policy html check clean
 
 help: ## Показати доступні команди
 	@awk 'BEGIN {FS = ":.*## "; printf "Smart Electrics\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -32,6 +32,7 @@ test-unit: ## Перевірити guard інтеграцій
 	bundle exec ruby -Itest tests/unit/smart_home_contract_test.rb
 	bundle exec ruby -Itest tests/unit/cinematic_contract_test.rb
 	bundle exec ruby -Itest tests/unit/physical_scene_contract_test.rb
+	bundle exec ruby -Itest tests/unit/service_studio_contract_test.rb
 	$(MAKE) test-js-unit
 
 test-js-unit: ## Перевірити pure state contracts
@@ -48,6 +49,9 @@ validate: ## Перевірити, що зовнішні інтеграції б
 
 validate-services: ## Перевірити контракт collection послуг
 	bundle exec ruby scripts/validate_services.rb
+
+validate-service-studios: ## Перевірити контракт кінематографічних studio сторінок
+	bundle exec ruby scripts/validate_service_studios.rb
 
 validate-solutions: ## Перевірити контракт collection готових рішень
 	bundle exec ruby scripts/validate_solutions.rb
@@ -67,7 +71,7 @@ validate-quality-policy: ## Перевірити fail-closed налаштува�
 html: build ## Перевірити згенерований HTML і внутрішні посилання
 	bundle exec htmlproofer ./_site --disable-external --no-enforce-https
 
-check: verify-skills test-unit validate-quality-policy validate-services validate-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states html test-browser ## Повний локальний quality gate
+check: verify-skills test-unit validate-quality-policy validate-services validate-service-studios validate-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states html test-browser ## Повний локальний quality gate
 
 clean: ## Прибрати лише згенеровані артефакти Jekyll
 	bundle exec jekyll clean

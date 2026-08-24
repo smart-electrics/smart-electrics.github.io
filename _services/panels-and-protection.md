@@ -20,4 +20,20 @@ related_services:
   - electrical-installation
   - backup-power
   - smart-home-integration
+service_studio:
+  direction_id: panels-and-protection
+  relation_id: panels-and-protection--panel-assembly
+  states:
+    assembled:
+      label: Ввід
+      title: Ввід живлення
+      summary: Ввід живлення розглядають разом із визначеними групами та межами об’єкта.
+    focus:
+      label: Захист
+      title: Захист груп
+      summary: Захист і комутацію узгоджують для визначеної структури електричних груп.
+    reassembled:
+      label: Розподіл і пріоритети
+      title: Розподіл і пріоритети
+      summary: Розподіл і пріоритети пов’язують із суміжними роботами в межах електромонтажного проєкту.
 ---
