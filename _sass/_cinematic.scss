@@ -815,6 +815,23 @@
     font-size: 0.68rem;
     padding-inline: 0.45rem;
   }
+
+  .residence-spine__physical-controls fieldset:last-child > div {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .residence-spine__physical-controls fieldset:last-child button:nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+
+  .residence-spine__physical-controls fieldset:last-child button:nth-child(n + 4) {
+    grid-column: span 3;
+  }
+
+  .residence-spine__physical-controls button {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
