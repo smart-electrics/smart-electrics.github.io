@@ -67,25 +67,29 @@ test("composition scales fluidly at intermediate widths", async ({ page }) => {
   }
 });
 
-test("tablet residence controls keep every word intact", async ({ page }) => {
-  await page.setViewportSize({ width: 768, height: 1000 });
-  await page.goto("/services/");
+test("compact residence controls keep every word intact", async ({ page }) => {
+  for (const width of [375, 768]) {
+    await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 });
+    for (const route of ["/", "/services/"]) {
+      await page.goto(route);
 
-  const splitWords = await page
-    .locator("[data-cinematic-physical-controls]:visible button")
-    .evaluateAll((buttons) => buttons.flatMap((button) => {
-      const node = button.firstChild;
-      if (!(node instanceof Text)) return [button.textContent.trim()];
+      const splitWords = await page
+        .locator("[data-cinematic-physical-controls]:visible button")
+        .evaluateAll((buttons) => buttons.flatMap((button) => {
+          const node = button.firstChild;
+          if (!(node instanceof Text)) return [button.textContent.trim()];
 
-      return [...node.data.matchAll(/\S+/gu)].flatMap((match) => {
-        const range = document.createRange();
-        range.setStart(node, match.index);
-        range.setEnd(node, match.index + match[0].length);
-        return range.getClientRects().length > 1 ? [match[0]] : [];
-      });
-    }));
+          return [...node.data.matchAll(/\S+/gu)].flatMap((match) => {
+            const range = document.createRange();
+            range.setStart(node, match.index);
+            range.setEnd(node, match.index + match[0].length);
+            return range.getClientRects().length > 1 ? [match[0]] : [];
+          });
+        }));
 
-  expect(splitWords, "physical-control labels should wrap only between words").toEqual([]);
+      expect(splitWords, `${route} at ${width}px should wrap labels only between words`).toEqual([]);
+    }
+  }
 });
 
 test("smart-home disassembly never expands the document", async ({ page }) => {
