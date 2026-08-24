@@ -104,26 +104,14 @@ test("service details keep the Services section active in both navigation varian
   ).toHaveAttribute("aria-current", "page");
 });
 
-test("service links communicate a pressed state", async ({ page }) => {
+test("residence-spine direction controls communicate a pressed state", async ({ page }) => {
   await page.goto("/services/");
 
-  const link = page.locator(".service-catalogue__link").first();
-  await link.scrollIntoViewIfNeeded();
-  const box = await link.boundingBox();
-  expect(box).not.toBeNull();
-
-  const borderTopColor = () =>
-    link.evaluate((element) => getComputedStyle(element).borderTopColor);
-
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await expect.poll(borderTopColor, { timeout: 1_000 }).toBe("rgba(242, 166, 90, 0.64)");
-
-  await page.mouse.down();
-  try {
-    await expect.poll(borderTopColor, { timeout: 1_000 }).toBe("rgb(255, 208, 161)");
-  } finally {
-    await page.mouse.up();
-  }
+  const control = page.locator("[data-cinematic-stage]").getByRole("button", { name: "Освітлення", exact: true });
+  await expect(control).toHaveAttribute("aria-pressed", "false");
+  await control.click();
+  await expect(control).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-direction", "lighting");
 });
 
 test("keyboard users can reach content and operate the responsive navigation", async ({ page }) => {

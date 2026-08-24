@@ -1,0 +1,192 @@
+{% assign cinematic = site.data.cinematic_system %}
+{% assign ordered_services = site.services | sort: "order" %}
+{% assign stage_variant = include.variant | default: "services" %}
+{% assign stage_id = "cinematic-" | append: stage_variant %}
+{% assign assembled_alt = include.assembled_alt | default: "Візуальна концепція цілісної електричної системи приватної резиденції" %}
+
+<div class="residence-spine residence-spine--{{ stage_variant }}" data-cinematic-root data-cinematic-state="assembled">
+  <section class="residence-spine__fallback" data-cinematic-fallback aria-labelledby="{{ stage_id }}-fallback-title">
+    <header class="residence-spine__fallback-intro">
+      <p class="section-kicker">Напрями системи</p>
+      <h2 id="{{ stage_id }}-fallback-title">{{ include.title }}</h2>
+      <p>{{ include.description }}</p>
+    </header>
+
+    <ol class="residence-spine__fallback-directions" data-cinematic-fallback-directions>
+      {% for direction in cinematic.directions %}
+        {% assign service = ordered_services | where: "slug", direction.service_slug | first %}
+        <li data-cinematic-fallback-direction="{{ direction.id }}">
+          <a data-cinematic-direction-link="{{ direction.id }}" href="{{ service.url | relative_url }}">{{ direction.label }}</a>
+          <p>{{ direction.description }}</p>
+        </li>
+      {% endfor %}
+    </ol>
+
+    <section class="residence-spine__fallback-relations" aria-labelledby="{{ stage_id }}-fallback-relations-title">
+      <h3 id="{{ stage_id }}-fallback-relations-title">Пов’язані складові системи</h3>
+      <ol>
+        {% for relation in cinematic.relations %}
+          {% assign owner = cinematic.directions | where: "id", relation.direction_id | first %}
+          {% assign owner_service = ordered_services | where: "slug", owner.service_slug | first %}
+          <li data-cinematic-fallback-relation="{{ relation.id }}">
+            <h4>{{ relation.child.label }}</h4>
+            <p>{{ relation.child.description }}</p>
+            <p><a href="{{ owner_service.url | relative_url }}">Напрям: {{ owner.label }}</a></p>
+            <ul>
+              {% for related_id in relation.related_direction_ids %}
+                {% assign related_direction = cinematic.directions | where: "id", related_id | first %}
+                {% assign related_service = ordered_services | where: "slug", related_direction.service_slug | first %}
+                <li><a href="{{ related_service.url | relative_url }}">Пов’язаний напрям: {{ related_direction.label }}</a></li>
+              {% endfor %}
+            </ul>
+          </li>
+        {% endfor %}
+      </ol>
+    </section>
+  </section>
+
+  <section class="residence-spine__stage" data-cinematic-stage hidden aria-labelledby="{{ stage_id }}-stage-title">
+    <header class="residence-spine__stage-heading">
+      <p class="section-kicker">Система резиденції</p>
+      <h2 id="{{ stage_id }}-stage-title">{{ include.title }}</h2>
+    </header>
+
+    <div class="residence-spine__composition" data-cinematic-composition>
+      <nav class="residence-spine__rail" aria-label="Напрями системи">
+        <ol>
+          {% for direction in cinematic.directions %}
+            <li>
+              <button
+                type="button"
+                data-cinematic-action="select-direction"
+                data-cinematic-direction-control
+                data-direction-id="{{ direction.id }}"
+                data-rail-index="{{ forloop.index }}"
+                aria-pressed="false"
+              >{{ direction.label }}</button>
+            </li>
+          {% endfor %}
+        </ol>
+      </nav>
+
+      <span class="residence-spine__connector-lane" data-cinematic-connector-lane aria-hidden="true"></span>
+
+      <div class="residence-spine__view" data-cinematic-view>
+        <div class="residence-spine__media" data-cinematic-media>
+          <figure
+            class="residence-spine__scene"
+            data-cinematic-scene
+            data-cinematic-scene-state="assembled"
+            data-cinematic-scene-key="assembled"
+            data-cinematic-scene-family="control-room"
+            data-cinematic-scene-image="url('{{ '/assets/images/home/control-room-1536.webp' | relative_url }}')"
+          >
+            <picture>
+              <source media="(max-width: 767px)" srcset="{{ '/assets/images/home/control-room-768.webp' | relative_url }}" width="768" height="512">
+              <img src="{{ '/assets/images/home/control-room-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ assembled_alt }}" loading="{% if stage_variant == 'home' %}eager{% else %}lazy{% endif %}"{% if stage_variant == 'home' %} fetchpriority="high"{% endif %}>
+            </picture>
+          </figure>
+
+          {% for direction in cinematic.directions %}
+            {% assign owned_relations = cinematic.relations | where: "direction_id", direction.id %}
+            {% assign focus_relation = owned_relations | first %}
+            {% if owned_relations.size == 0 %}
+              {% for candidate in cinematic.relations %}
+                {% if candidate.related_direction_ids contains direction.id %}
+                  {% assign focus_relation = candidate %}
+                  {% break %}
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+            {% if focus_relation %}
+              <figure
+                class="residence-spine__scene"
+                data-cinematic-scene
+                data-cinematic-focus-scene="{{ direction.id }}"
+                data-cinematic-scene-key="focus:{{ direction.id }}"
+                data-cinematic-scene-family="{{ focus_relation.scene_family }}"
+                data-cinematic-scene-image="url('{{ '/assets/images/smart-home/' | append: focus_relation.scene_family | append: '-1536.webp' | relative_url }}')"
+                hidden
+              >
+                <picture>
+                  <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: focus_relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
+                  <img src="{{ '/assets/images/smart-home/' | append: focus_relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="Візуальна концепція: {{ focus_relation.child.label }} у зв’язці з {{ direction.label }}" loading="lazy">
+                </picture>
+              </figure>
+            {% endif %}
+          {% endfor %}
+
+          {% for relation in cinematic.relations %}
+            <figure
+              class="residence-spine__scene"
+              data-cinematic-scene
+              data-cinematic-relation-scene="{{ relation.id }}"
+              data-cinematic-scene-key="relation:{{ relation.id }}"
+              data-cinematic-scene-family="{{ relation.scene_family }}"
+              data-cinematic-scene-image="url('{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-1536.webp' | relative_url }}')"
+              hidden
+            >
+              <picture>
+                <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
+                <img src="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="Візуальна концепція: {{ relation.child.label }}" loading="lazy">
+              </picture>
+            </figure>
+          {% endfor %}
+
+          <div class="residence-spine__outgoing-snapshot" data-cinematic-outgoing-snapshot aria-hidden="true" hidden></div>
+        </div>
+
+        <div class="residence-spine__panels" data-cinematic-panels>
+          <article class="residence-spine__panel" data-cinematic-panel="assembled">
+            <p class="residence-spine__panel-kicker">Повна система</p>
+            <h3>Рішення починається зі зв’язків між напрямами.</h3>
+            <p data-cinematic-summary aria-live="polite">Оберіть напрям, щоб побачити його місце в цілісній електричній системі та пов’язані складові.</p>
+          </article>
+
+          {% for direction in cinematic.directions %}
+            {% assign service = ordered_services | where: "slug", direction.service_slug | first %}
+            {% assign owned_relations = cinematic.relations | where: "direction_id", direction.id %}
+            <article class="residence-spine__panel" data-cinematic-panel="focus" data-cinematic-focus-panel="{{ direction.id }}" hidden>
+              <p class="residence-spine__panel-kicker">Напрям системи</p>
+              <h3>{{ direction.label }}</h3>
+              <p data-cinematic-summary aria-live="polite">{{ direction.description }}</p>
+              <a class="residence-spine__destination" data-cinematic-focus-destination="{{ direction.id }}" href="{{ service.url | relative_url }}">Відкрити напрям «{{ direction.label }}» <span aria-hidden="true">↗</span></a>
+              {% if owned_relations.size > 0 %}
+                <div class="residence-spine__relation-switcher" data-cinematic-relation-switcher="{{ direction.id }}">
+                  <p>Пов’язані складові</p>
+                  <div role="group" aria-label="Пов’язані складові напряму {{ direction.label }}">
+                    {% for relation in owned_relations %}
+                      <button type="button" data-cinematic-action="select-relation" data-cinematic-relation-control data-relation-id="{{ relation.id }}">Показати зв’язок: {{ relation.child.label }}</button>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+            </article>
+          {% endfor %}
+
+          {% for relation in cinematic.relations %}
+            {% assign owner = cinematic.directions | where: "id", relation.direction_id | first %}
+            {% assign owner_service = ordered_services | where: "slug", owner.service_slug | first %}
+            <article class="residence-spine__panel" data-cinematic-panel="reassembled" data-cinematic-reassembled-panel="{{ relation.id }}" hidden>
+              <p class="residence-spine__panel-kicker">{{ owner.label }}</p>
+              <h3>{{ relation.child.label }}</h3>
+              <p data-cinematic-summary aria-live="polite">{{ relation.child.description }}</p>
+              <a class="residence-spine__destination" data-cinematic-reassembled-destination="{{ relation.id }}" href="{{ owner_service.url | relative_url }}">Відкрити напрям «{{ owner.label }}» <span aria-hidden="true">↗</span></a>
+              <ul class="residence-spine__related" data-cinematic-related="{{ relation.id }}">
+                {% for related_id in relation.related_direction_ids %}
+                  {% assign related_direction = cinematic.directions | where: "id", related_id | first %}
+                  {% assign related_service = ordered_services | where: "slug", related_direction.service_slug | first %}
+                  <li><a href="{{ related_service.url | relative_url }}">Пов’язаний напрям: {{ related_direction.label }}</a></li>
+                {% endfor %}
+              </ul>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <button class="residence-spine__return" type="button" data-cinematic-action="return-to-system" data-cinematic-return hidden>Повернутися до всієї системи</button>
+  </section>
+
+  <script type="application/json" data-cinematic-graph>{{ cinematic | jsonify }}</script>
+</div>

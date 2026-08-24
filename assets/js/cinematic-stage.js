@@ -7,151 +7,168 @@ function one(root, selector) {
   return matches.length === 1 ? matches[0] : null;
 }
 
+function idsMatch(elements, attribute, expectedIds) {
+  const ids = elements.map((element) => text(element.dataset[attribute]));
+  return ids.length === expectedIds.length && ids.every((id) => expectedIds.includes(id)) && new Set(ids).size === ids.length;
+}
+
 function readGraph(root) {
   const source = one(root, "script[data-cinematic-graph]");
   if (!source) return null;
+
   try {
-    return createCinematicState(JSON.parse(source.textContent));
+    const graph = JSON.parse(source.textContent);
+    return { graph, machine: createCinematicState(graph) };
   } catch (_) {
     return null;
   }
 }
 
 function enhance(root) {
-  if (root.dataset.cinematicEnhanced) return;
-  const machine = readGraph(root);
-  const graph = one(root, "script[data-cinematic-graph]");
-  const summary = one(root, "[data-cinematic-summary]");
-  const connectorCopy = one(root, "[data-cinematic-connector-copy]");
-  const destination = one(root, "[data-cinematic-destination]");
-  const related = one(root, "[data-cinematic-related]");
-  const returnControl = one(root, 'button[data-cinematic-action="return-to-system"]');
-  const directionControls = [...root.querySelectorAll('button[data-cinematic-action="select-direction"]')];
-  const relationControls = [...root.querySelectorAll('button[data-cinematic-action="select-relation"]')];
-  const directionLinks = [...root.querySelectorAll("[data-cinematic-direction-link]")];
-  const relationItems = [...root.querySelectorAll("[data-cinematic-relation-item]")];
-  const relatedItems = [...related?.querySelectorAll("[data-related-direction-id]") ?? []];
-  const connectors = [...root.querySelectorAll("[data-cinematic-connector]")];
+  if (root.dataset.cinematicEnhanced === "true") return;
+
+  const source = readGraph(root);
+  const fallback = one(root, "[data-cinematic-fallback]");
+  const stage = one(root, "[data-cinematic-stage]");
+  const composition = one(root, "[data-cinematic-composition]");
+  const connectorLane = one(root, "[data-cinematic-connector-lane]");
+  const snapshot = one(root, "[data-cinematic-outgoing-snapshot]");
+  const returnControl = one(root, "button[data-cinematic-return]");
+  if (!source || !fallback || !stage || !composition || !connectorLane || !snapshot || !returnControl) return;
+
+  const { graph, machine } = source;
+  const directionIds = graph.directions.map((direction) => direction.id);
+  const relationIds = graph.relations.map((relation) => relation.id);
+  const relationById = new Map(graph.relations.map((relation) => [relation.id, relation]));
+  const directionIndex = new Map(directionIds.map((id, index) => [id, index + 1]));
+
+  const fallbackDirections = [...fallback.querySelectorAll("[data-cinematic-fallback-direction]")];
+  const fallbackRelations = [...fallback.querySelectorAll("[data-cinematic-fallback-relation]")];
+  const directionLinks = [...fallback.querySelectorAll("[data-cinematic-direction-link]")];
+  const directionControls = [...stage.querySelectorAll("button[data-cinematic-direction-control]")];
+  const relationControls = [...stage.querySelectorAll("button[data-cinematic-relation-control]")];
+  const scenes = [...stage.querySelectorAll("[data-cinematic-scene]")];
+  const panels = [...stage.querySelectorAll("[data-cinematic-panel]")];
+  const focusPanels = [...stage.querySelectorAll("[data-cinematic-focus-panel]")];
+  const reassembledPanels = [...stage.querySelectorAll("[data-cinematic-reassembled-panel]")];
+  const focusScenes = [...stage.querySelectorAll("[data-cinematic-focus-scene]")];
+  const relationScenes = [...stage.querySelectorAll("[data-cinematic-relation-scene]")];
+  const assembledScene = one(stage, '[data-cinematic-scene-key="assembled"]');
+  const assembledPanel = one(stage, '[data-cinematic-panel="assembled"]');
 
   if (
-    !machine || !graph || !summary || !connectorCopy || !destination || !related || !returnControl ||
-    directionControls.length !== directionLinks.length || directionControls.length === 0 ||
-    relationControls.length !== relationItems.length || relationControls.length === 0 ||
-    relatedItems.length !== directionControls.length || connectors.length !== relationControls.length
+    !assembledScene || !assembledPanel ||
+    !idsMatch(fallbackDirections, "cinematicFallbackDirection", directionIds) ||
+    !idsMatch(fallbackRelations, "cinematicFallbackRelation", relationIds) ||
+    !idsMatch(directionLinks, "cinematicDirectionLink", directionIds) ||
+    !idsMatch(directionControls, "directionId", directionIds) ||
+    !idsMatch(relationControls, "relationId", relationIds) ||
+    !idsMatch(focusPanels, "cinematicFocusPanel", directionIds) ||
+    !idsMatch(reassembledPanels, "cinematicReassembledPanel", relationIds) ||
+    !idsMatch(focusScenes, "cinematicFocusScene", directionIds) ||
+    !idsMatch(relationScenes, "cinematicRelationScene", relationIds) ||
+    scenes.length !== 1 + directionIds.length + relationIds.length ||
+    panels.length !== 1 + directionIds.length + relationIds.length
   ) return;
 
-  const rawGraph = JSON.parse(graph.textContent);
-  const directions = new Map(rawGraph.directions.map((direction) => [direction.id, direction]));
-  const relations = new Map(rawGraph.relations.map((relation) => [relation.id, relation]));
-  const directionHref = new Map(directionLinks.map((link) => [link.dataset.cinematicDirectionLink, link.getAttribute("href")]));
-  if (
-    directionControls.some((control) => !directions.has(control.dataset.directionId)) ||
-    relationControls.some((control) => !relations.has(control.dataset.relationId)) ||
-    directionLinks.some((link) => !directions.has(link.dataset.cinematicDirectionLink)) ||
-    relatedItems.some((item) => !directions.has(item.dataset.relatedDirectionId))
-  ) return;
+  const sceneByKey = new Map(scenes.map((scene) => [scene.dataset.cinematicSceneKey, scene]));
+  const panelByKey = new Map([
+    ["assembled", assembledPanel],
+    ...focusPanels.map((panel) => [`focus:${panel.dataset.cinematicFocusPanel}`, panel]),
+    ...reassembledPanels.map((panel) => [`relation:${panel.dataset.cinematicReassembledPanel}`, panel])
+  ]);
+  if (sceneByKey.size !== scenes.length || panelByKey.size !== panels.length) return;
 
-  const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let state = machine.initialState;
 
-  const removeOutgoingSnapshot = () => {
-    root.querySelectorAll("[data-cinematic-outgoing-snapshot]").forEach((snapshot) => snapshot.remove());
+  const clearTransition = () => {
+    snapshot.hidden = true;
+    snapshot.removeAttribute("data-cinematic-snapshot-active");
+    snapshot.style.removeProperty("--cinematic-snapshot-image");
+    root.removeAttribute("data-cinematic-transition");
   };
 
-  const createOutgoingSnapshot = () => {
-    removeOutgoingSnapshot();
-    if (motionPreference.matches) return;
-    const snapshot = document.createElement("div");
-    snapshot.className = "cinematic__outgoing-snapshot";
-    snapshot.dataset.cinematicOutgoingSnapshot = "true";
-    snapshot.setAttribute("aria-hidden", "true");
-    const remove = (event) => {
-      if (event.type === "animationend" && event.animationName !== "cinematic-topology-out") return;
-      snapshot.removeEventListener("animationend", remove);
-      snapshot.removeEventListener("animationcancel", remove);
-      motionPreference.removeEventListener("change", removeForReducedMotion);
-      snapshot.remove();
-    };
-    const removeForReducedMotion = (event) => { if (event.matches) remove(event); };
-    snapshot.addEventListener("animationend", remove);
-    snapshot.addEventListener("animationcancel", remove);
-    motionPreference.addEventListener("change", removeForReducedMotion);
-    root.querySelector("[data-cinematic-topology]")?.after(snapshot);
-  };
-
-  const relatedDirectionIds = (nextState) => {
-    if (nextState.state === "assembled") return [...directions.keys()];
-    if (nextState.state === "reassembled") return relations.get(nextState.selectedRelationId).related_direction_ids;
-    return [...new Set(rawGraph.relations
-      .filter((relation) => relation.direction_id === nextState.selectedDirectionId)
-      .flatMap((relation) => relation.related_direction_ids))];
+  const stateKey = (nextState) => {
+    if (nextState.state === "assembled") return "assembled";
+    if (nextState.state === "focus") return `focus:${nextState.selectedDirectionId}`;
+    return `relation:${nextState.selectedRelationId}`;
   };
 
   const synchronize = (announce) => {
-    const direction = state.selectedDirectionId ? directions.get(state.selectedDirectionId) : null;
-    const relation = state.selectedRelationId ? relations.get(state.selectedRelationId) : null;
-    const relatedIds = relatedDirectionIds(state);
-    root.dataset.cinematicState = state.state;
-    root.dataset.cinematicEnhanced = "true";
-    root.dataset.cinematicDirection = state.selectedDirectionId || "";
-    root.dataset.cinematicRelation = state.selectedRelationId || "";
+    const key = stateKey(state);
+    const activeScene = sceneByKey.get(key);
+    const activePanel = panelByKey.get(key);
+    if (!activeScene || !activePanel) return false;
+
+    scenes.forEach((scene) => { scene.hidden = scene !== activeScene; });
+    panels.forEach((panel) => { panel.hidden = panel !== activePanel; });
     directionControls.forEach((control) => {
-      control.hidden = false;
       control.setAttribute("aria-pressed", String(control.dataset.directionId === state.selectedDirectionId));
     });
-    relationControls.forEach((control) => { control.hidden = false; });
-    root.querySelectorAll(".cinematic__relation-copy").forEach((copy) => { copy.hidden = true; });
-    relationItems.forEach((item) => {
-      const id = item.dataset.cinematicRelationItem;
-      item.hidden = state.state === "focus" ? relations.get(id).direction_id !== state.selectedDirectionId :
-        state.state === "reassembled" ? id !== state.selectedRelationId : false;
-    });
-    relatedItems.forEach((item) => { item.hidden = !relatedIds.includes(item.dataset.relatedDirectionId); });
-    connectors.forEach((connector) => {
-      connector.dataset.active = String(
-        state.state === "assembled" || connector.dataset.cinematicConnector === state.selectedRelationId ||
-        (state.state === "focus" && relations.get(connector.dataset.cinematicConnector).direction_id === state.selectedDirectionId)
-      );
-    });
     returnControl.hidden = state.state === "assembled";
+    root.dataset.cinematicState = state.state;
+    root.dataset.cinematicDirection = state.selectedDirectionId || "";
+    root.dataset.cinematicRelation = state.selectedRelationId || "";
+    root.style.setProperty("--cinematic-rail-index", String(directionIndex.get(state.selectedDirectionId) || 1));
+    if (announce) root.dataset.cinematicAnnounced = "true";
 
-    if (!direction) {
-      summary.textContent = "Оберіть напрям або зв’язок, щоб побачити пояснення та суміжні роботи.";
-      connectorCopy.textContent = "Повна система: напрями розглядають у зв’язці, а не ізольовано.";
-      destination.setAttribute("href", "/services/");
-      destination.childNodes[0].textContent = "Переглянути всі напрями ";
-    } else {
-      summary.textContent = relation ? relation.child.description : direction.description;
-      connectorCopy.textContent = relation
-        ? `${relation.child.label} → ${direction.label}: ${relation.child.description}`
-        : `${direction.label}: показані суміжні напрями для цього елемента системи.`;
-      destination.setAttribute("href", directionHref.get(direction.id));
-      destination.childNodes[0].textContent = `Переглянути «${direction.label}» `;
-    }
     root.dispatchEvent(new CustomEvent("cinematic:state-change", {
       bubbles: true,
-      detail: { ...state, directionLabel: direction?.label || "Повна система", relationLabel: relation?.child.label || "" }
+      detail: {
+        ...state,
+        directionLabel: state.selectedDirectionId ? graph.directions.find((direction) => direction.id === state.selectedDirectionId)?.label || "" : "Повна система",
+        relationLabel: state.selectedRelationId ? relationById.get(state.selectedRelationId)?.child.label || "" : ""
+      }
     }));
-    if (announce) summary.setAttribute("data-cinematic-announced", "true");
+    return true;
+  };
+
+  const beginTransition = (outgoingScene) => {
+    clearTransition();
+    if (reducedMotion.matches) return;
+    const image = text(outgoingScene?.dataset.cinematicSceneImage);
+    if (!image) return;
+    snapshot.style.setProperty("--cinematic-snapshot-image", image);
+    snapshot.hidden = false;
+    snapshot.dataset.cinematicSnapshotActive = "true";
+    root.dataset.cinematicTransition = "true";
   };
 
   const transition = (action) => {
     const nextState = machine.reduce(state, action);
     if (nextState === state) return;
-    createOutgoingSnapshot();
+    const outgoingScene = sceneByKey.get(stateKey(state));
+    beginTransition(outgoingScene);
     state = nextState;
-    synchronize(true);
+    if (!synchronize(true)) clearTransition();
   };
+
+  snapshot.addEventListener("animationend", (event) => {
+    if (event.animationName === "residence-spine-outgoing") clearTransition();
+  });
+  snapshot.addEventListener("animationcancel", clearTransition);
+  reducedMotion.addEventListener("change", (event) => {
+    if (event.matches) clearTransition();
+  });
 
   root.addEventListener("click", (event) => {
     const control = event.target instanceof Element ? event.target.closest("button[data-cinematic-action]") : null;
-    if (!(control instanceof HTMLButtonElement) || !root.contains(control)) return;
-    if (control.dataset.cinematicAction === "select-direction") transition({ type: "select-direction", directionId: control.dataset.directionId });
-    if (control.dataset.cinematicAction === "select-relation") transition({ type: "select-relation", relationId: control.dataset.relationId });
-    if (control.dataset.cinematicAction === "return-to-system") transition({ type: "return-to-system" });
+    if (!(control instanceof HTMLButtonElement) || !stage.contains(control)) return;
+
+    if (control.dataset.cinematicAction === "select-direction") {
+      transition({ type: "select-direction", directionId: control.dataset.directionId });
+    } else if (control.dataset.cinematicAction === "select-relation") {
+      transition({ type: "select-relation", relationId: control.dataset.relationId });
+    } else if (control.dataset.cinematicAction === "return-to-system") {
+      transition({ type: "return-to-system" });
+    }
   });
-  motionPreference.addEventListener("change", (event) => { if (event.matches) removeOutgoingSnapshot(); });
-  synchronize(false);
+
+  if (!synchronize(false)) return;
+  fallback.hidden = true;
+  stage.hidden = false;
+  root.dataset.cinematicEnhanced = "true";
 }
 
 document.querySelectorAll("[data-cinematic-root]").forEach(enhance);
