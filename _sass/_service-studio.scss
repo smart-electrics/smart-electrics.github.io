@@ -1,0 +1,110 @@
+/* A local editorial studio for the first three service details. The stage uses
+ * the existing OLED/copper language and intentionally remains a single scene,
+ * rail and explanation rather than a dashboard. */
+.service-studio {
+  border-top: 1px solid var(--line-strong);
+  margin-top: clamp(3.5rem, 9vw, 9rem);
+  padding-top: clamp(1.5rem, 3vw, 3rem);
+}
+
+.service-studio [hidden] { display: none !important; }
+
+.service-studio__fallback {
+  display: grid;
+  gap: 1rem;
+  max-width: 65rem;
+}
+
+.service-studio__fallback > p { color: var(--text-soft); margin: 0; }
+.service-studio__fallback h2,
+.service-studio__fallback h3 { margin: 0; }
+.service-studio__fallback > ul,
+.service-studio__fallback-links,
+.service-studio__rail ol,
+.service-studio__panel ul { list-style: none; margin: 0; padding: 0; }
+
+.service-studio__fallback > ul {
+  border-block: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.service-studio__fallback > ul li { border-right: 1px solid var(--line); padding: 1rem; }
+.service-studio__fallback > ul li:last-child { border-right: 0; }
+.service-studio__fallback > ul p { color: var(--text-soft); line-height: 1.55; margin: 0.5rem 0 0; }
+.service-studio__fallback a,
+.service-studio__panel a { color: var(--amber-light); text-underline-offset: 0.2em; }
+.service-studio__fallback-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
+
+.service-studio__stage {
+  background: #12100d;
+  border: 1px solid rgba(255, 224, 192, 0.2);
+  box-shadow: 0 1.6rem 4rem rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  overflow: clip;
+  padding: clamp(0.8rem, 1.35vw, 1.3rem);
+}
+
+.service-studio__heading { align-items: baseline; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 0.9rem; }
+.service-studio__heading .section-kicker { margin: 0; }
+.service-studio__heading h2 { color: var(--text-soft); font-family: var(--font-body); font-size: clamp(0.74rem, 1vw, 0.9rem); font-weight: 600; letter-spacing: 0.04em; margin: 0; text-align: right; }
+.service-studio__live { border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
+
+.service-studio__composition { display: grid; grid-template-columns: clamp(10rem, 15vw, 13.5rem) minmax(0, 1.42fr) minmax(17rem, 0.78fr); min-height: clamp(25rem, 33vw, 34rem); }
+.service-studio__rail { background: #17120f; border-right: 1px solid #4c382c; min-width: 0; padding: 0.6rem; }
+.service-studio__rail ol { display: grid; gap: 0.45rem; grid-template-rows: repeat(3, minmax(2.75rem, 1fr)); height: 100%; }
+.service-studio button { font: inherit; }
+.service-studio__rail button { background: #1b1713; border: 1px solid #40352c; border-left: 2px solid #5f4534; border-radius: 0.2rem; color: #e9d8c6; cursor: pointer; display: block; font-size: clamp(0.72rem, 0.8vw, 0.86rem); font-weight: 650; height: 100%; line-height: 1.2; min-height: 2.75rem; padding: 0.6rem; text-align: left; width: 100%; }
+.service-studio__rail button:hover,
+.service-studio__rail button[aria-pressed="true"] { background: #2a1e16; border-color: var(--amber); color: #fff1df; }
+.service-studio__rail button:focus-visible { outline: 2px solid var(--amber-light); outline-offset: 2px; }
+
+.service-studio__media { background: #17120f; min-width: 0; overflow: hidden; position: relative; }
+.service-studio__scene,
+.service-studio__scene picture,
+.service-studio__scene img { height: 100%; margin: 0; width: 100%; }
+.service-studio__scene { inset: 0; position: absolute; }
+.service-studio__scene img { display: block; object-fit: cover; object-position: 65% center; }
+.service-studio__scene[data-service-studio-scene="assembled"] img { object-position: 53% center; }
+.service-studio__scene[data-service-studio-scene="focus"] img { object-position: 68% center; }
+.service-studio__scene[data-service-studio-scene="reassembled"] img { object-position: 82% center; }
+.service-studio__scene::after { background: linear-gradient(90deg, rgba(18, 16, 13, 0.1), rgba(18, 16, 13, 0.38)); content: ""; inset: 0; pointer-events: none; position: absolute; }
+.service-studio__outgoing-snapshot { background-image: var(--service-studio-snapshot-image, none); background-position: 65% center; background-size: cover; inset: 0; pointer-events: none; position: absolute; }
+.service-studio__outgoing-snapshot[data-service-studio-snapshot-active="true"] { animation: service-studio-outgoing 340ms cubic-bezier(.2, .72, .18, 1) both; }
+
+@keyframes service-studio-outgoing {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.025); }
+}
+
+.service-studio__panels { background: #15110e; border-left: 1px solid #4c382c; min-width: 0; padding: clamp(1rem, 2.2vw, 2.2rem); }
+.service-studio__panel { display: grid; gap: 1rem; }
+.service-studio__panel > * { margin: 0; }
+.service-studio__panel-kicker { color: var(--amber-light); font-size: 0.7rem; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; }
+.service-studio__panel h3 { font-size: clamp(1.8rem, 2.4vw, 3rem); line-height: 1.04; }
+.service-studio__panel [data-service-studio-summary] { color: var(--text-soft); line-height: 1.65; }
+.service-studio__panel ul { border-top: 1px solid var(--line); display: grid; gap: 0.55rem; padding-top: 1rem; }
+.service-studio__panel a { font-size: 0.88rem; font-weight: 700; }
+
+@media (max-width: 900px) {
+  .service-studio__composition { grid-template-columns: 1fr; }
+  .service-studio__rail { border-bottom: 1px solid #4c382c; border-right: 0; }
+  .service-studio__rail ol { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: none; }
+  .service-studio__rail button { min-height: 3.2rem; text-align: center; }
+  .service-studio__media { aspect-ratio: 3 / 2; }
+  .service-studio__panels { border-left: 0; border-top: 1px solid #4c382c; }
+}
+
+@media (max-width: 540px) {
+  .service-studio__fallback > ul { grid-template-columns: 1fr; }
+  .service-studio__fallback > ul li { border-bottom: 1px solid var(--line); border-right: 0; }
+  .service-studio__fallback > ul li:last-child { border-bottom: 0; }
+  .service-studio__heading { align-items: flex-start; flex-direction: column; }
+  .service-studio__heading h2 { text-align: left; }
+  .service-studio__rail { padding: 0.45rem; }
+  .service-studio__rail button { font-size: 0.68rem; padding: 0.45rem 0.25rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-studio,
+  .service-studio * { animation-duration: 0s !important; transition-duration: 0s !important; }
+}

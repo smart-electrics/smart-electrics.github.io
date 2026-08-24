@@ -1,0 +1,106 @@
+{% assign cinematic = site.data.cinematic_system %}
+{% assign studio = page.service_studio %}
+{% assign studio_direction = cinematic.directions | where: "id", studio.direction_id | first %}
+{% assign studio_relation = cinematic.relations | where: "id", studio.relation_id | first %}
+{% assign relation_owner = cinematic.directions | where: "id", studio_relation.direction_id | first %}
+{% assign relation_owner_service = site.services | where: "slug", relation_owner.service_slug | first %}
+{% assign studio_state_ids = "assembled,focus,reassembled" | split: "," %}
+
+<section class="service-studio" data-service-studio-root data-service-studio-state="assembled" aria-labelledby="service-studio-title">
+  <div class="service-studio__fallback" data-service-studio-fallback>
+    <p class="section-kicker">Логіка системи</p>
+    <h2 id="service-studio-title">Від рішення до розподілу</h2>
+    <p>Три взаємопов’язані кроки пояснюють місце цього напряму в електромонтажному проєкті.</p>
+    <ul>
+      {% for state_id in studio_state_ids %}
+        {% assign state = studio.states[state_id] %}
+        <li>
+          <h3>{{ state.label }}</h3>
+          <p>{{ state.summary }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+    <p><a href="{{ '/services/' | relative_url }}">Переглянути всі напрями</a></p>
+    <ul class="service-studio__fallback-links">
+      {% for related_slug in page.related_services %}
+        {% assign related_service = site.services | where: "slug", related_slug | first %}
+        {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="service-studio__stage" data-service-studio-stage hidden>
+    <header class="service-studio__heading">
+      <p class="section-kicker">Логіка системи</p>
+      <h2 id="service-studio-stage-title">Від рішення до розподілу</h2>
+    </header>
+    <p class="service-studio__live" data-service-studio-live aria-live="polite" aria-atomic="true"></p>
+
+    <div class="service-studio__composition">
+      <nav class="service-studio__rail" aria-label="Кроки логіки системи">
+        <ol>
+          {% for state_id in studio_state_ids %}
+            {% assign state = studio.states[state_id] %}
+            <li><button type="button" data-service-studio-control data-service-studio-action="select-{{ state_id }}" data-service-studio-control-state="{{ state_id }}" aria-pressed="{% if state_id == 'assembled' %}true{% else %}false{% endif %}">{{ state.label }}</button></li>
+          {% endfor %}
+        </ol>
+      </nav>
+
+      <div class="service-studio__media" aria-hidden="true">
+        <figure class="service-studio__scene" data-service-studio-scene="assembled">
+          <picture>
+            <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/panel-768.webp' | relative_url }}" width="768" height="512">
+            <img src="{{ '/assets/images/smart-home/panel-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 48vw" alt="" loading="lazy">
+          </picture>
+        </figure>
+        <figure class="service-studio__scene" data-service-studio-scene="focus" hidden>
+          <picture>
+            <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/panel-768.webp' | relative_url }}" width="768" height="512">
+            <img src="{{ '/assets/images/smart-home/panel-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 48vw" alt="" loading="lazy">
+          </picture>
+        </figure>
+        <span class="service-studio__outgoing-snapshot" data-service-studio-outgoing-snapshot aria-hidden="true" hidden></span>
+        <figure class="service-studio__scene" data-service-studio-scene="reassembled" hidden>
+          <picture>
+            <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: studio_relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
+            <img src="{{ '/assets/images/smart-home/' | append: studio_relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 48vw" alt="" loading="lazy">
+          </picture>
+        </figure>
+      </div>
+
+      <div class="service-studio__panels">
+        {% for state_id in studio_state_ids %}
+          {% assign state = studio.states[state_id] %}
+          <article class="service-studio__panel" data-service-studio-panel="{{ state_id }}"{% unless state_id == 'assembled' %} hidden{% endunless %}>
+            <p class="service-studio__panel-kicker">{{ state.label }}</p>
+            <h3>{{ state.title }}</h3>
+            <p data-service-studio-summary>{{ state.summary }}</p>
+            <ul data-service-studio-related>
+              {% if state_id == 'assembled' %}
+                {% for related_slug in page.related_services %}
+                  {% assign related_service = site.services | where: "slug", related_slug | first %}
+                  {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+                {% endfor %}
+              {% elsif state_id == 'focus' %}
+                {% for related_slug in page.related_services limit: 2 %}
+                  {% assign related_service = site.services | where: "slug", related_slug | first %}
+                  {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+                {% endfor %}
+              {% else %}
+                <li><a href="{{ relation_owner_service.url | relative_url }}">{{ relation_owner.label }}</a></li>
+                {% for related_direction_id in studio_relation.related_direction_ids %}
+                  {% assign related_direction = cinematic.directions | where: "id", related_direction_id | first %}
+                  {% assign related_service = site.services | where: "slug", related_direction.service_slug | first %}
+                  <li><a href="{{ related_service.url | relative_url }}">{{ related_direction.label }}</a></li>
+                {% endfor %}
+              {% endif %}
+            </ul>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" data-service-studio-config>{{ studio | jsonify }}</script>
+  <script type="application/json" data-service-studio-graph>{{ cinematic | jsonify }}</script>
+</section>

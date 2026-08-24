@@ -20,4 +20,20 @@ related_services:
   - electrical-installation
   - panels-and-protection
   - lighting
+service_studio:
+  direction_id: electrical-design
+  relation_id: panels-and-protection--panel-assembly
+  states:
+    assembled:
+      label: План
+      title: План об’єкта
+      summary: План об’єкта допомагає узгодити точки, траси та межі електромонтажного проєкту.
+    focus:
+      label: Групи й навантаження
+      title: Групи й навантаження
+      summary: Групи й навантаження формують логіку, яку надалі враховують для щита.
+    reassembled:
+      label: Рішення для щита
+      title: Рішення для щита
+      summary: Рішення для щита пов’язують із планом груп; це інженерний зв’язок, а не опис завершеного об’єкта.
 ---

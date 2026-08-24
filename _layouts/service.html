@@ -4,17 +4,18 @@ layout: default
 <article class="service-detail">
   <header class="service-detail__hero">
     <div class="service-detail__hero-inner shell">
-      <p class="service-detail__number" aria-hidden="true">{{ page.order | prepend: '0' | slice: -2, 2 }}</p>
       <div class="service-detail__hero-copy">
         <p class="section-kicker">{{ page.kicker }}</p>
         <h1>{{ page.title }}</h1>
         <p class="service-detail__lede">{{ page.description }}</p>
       </div>
-      <p class="service-detail__index" aria-hidden="true"><span>Напрям</span> {{ page.order | prepend: '0' | slice: -2, 2 }} / 08</p>
     </div>
   </header>
 
   <div class="service-detail__body shell">
+    {% if page.service_studio %}
+      {% include service-studio.html %}
+    {% endif %}
     <div class="service-detail__context">
       <section class="service-detail__panel service-detail__panel--role" aria-labelledby="service-role-title">
         <p class="section-kicker">Контекст</p>
@@ -32,7 +33,6 @@ layout: default
     <div class="service-detail__details">
       <section class="service-detail__section" aria-labelledby="service-scope-title">
         <div class="service-detail__section-heading">
-          <p class="section-kicker">01</p>
           <h2 id="service-scope-title">Що охоплює</h2>
         </div>
         <ul class="service-detail__list">
@@ -44,7 +44,6 @@ layout: default
 
       <section class="service-detail__section" aria-labelledby="service-inputs-title">
         <div class="service-detail__section-heading">
-          <p class="section-kicker">02</p>
           <h2 id="service-inputs-title">Що варто уточнити щодо об’єкта</h2>
         </div>
         <ul class="service-detail__list service-detail__list--inputs">
@@ -57,7 +56,6 @@ layout: default
 
     <section class="service-detail__related" aria-labelledby="related-services-title">
       <div class="service-detail__related-heading">
-        <p class="section-kicker">03</p>
         <h2 id="related-services-title">Пов’язані напрями</h2>
       </div>
       <ul class="service-detail__related-list">
@@ -66,7 +64,6 @@ layout: default
           {% if related_service %}
             <li>
               <a class="service-detail__related-link" href="{{ related_service.url | relative_url }}" aria-label="{{ related_service.title }}, переглянути напрям">
-                <span class="service-detail__related-number" aria-hidden="true">{{ related_service.order | prepend: '0' | slice: -2, 2 }}</span>
                 <span>
                   <span class="service-detail__related-title">{{ related_service.title }}</span>
                   <span class="service-detail__related-role">{{ related_service.role }}</span>

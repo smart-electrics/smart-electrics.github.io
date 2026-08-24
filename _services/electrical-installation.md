@@ -20,4 +20,20 @@ related_services:
   - panels-and-protection
   - lighting
   - low-voltage
+service_studio:
+  direction_id: electrical-installation
+  relation_id: panels-and-protection--panel-assembly
+  states:
+    assembled:
+      label: Траси й точки
+      title: Траси й точки
+      summary: Узгоджені траси й точки задають послідовність чорнового та чистового монтажу.
+    focus:
+      label: Підключення
+      title: Підключення груп
+      summary: Підключення поєднує виконані лінії й точки з логікою електромонтажного проєкту.
+    reassembled:
+      label: Розподіл
+      title: Розподіл у щиті
+      summary: Розподіл у щиті пов’язують із прокладеними групами; це інженерний зв’язок, а не опис завершеного об’єкта.
 ---
