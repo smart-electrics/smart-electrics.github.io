@@ -1,4 +1,4 @@
-/* A local editorial studio for the first three service details. The stage uses
+/* A local editorial studio for declared service details. The stage uses
  * the existing OLED/copper language and intentionally remains a single scene,
  * rail and explanation rather than a dashboard. */
 .service-studio {
@@ -47,6 +47,11 @@
 .service-studio__heading { align-items: baseline; display: flex; gap: 1rem; justify-content: space-between; margin-bottom: 0.9rem; }
 .service-studio__heading .section-kicker { margin: 0; }
 .service-studio__heading h2 { color: var(--text-soft); font-family: var(--font-body); font-size: clamp(0.74rem, 1vw, 0.9rem); font-weight: 600; letter-spacing: 0.04em; margin: 0; text-align: right; }
+.service-studio__relations { display: flex; flex-wrap: wrap; gap: 0.45rem; justify-content: flex-end; }
+.service-studio__relations button { background: transparent; border: 1px solid #4c382c; border-radius: 999px; color: var(--text-soft); cursor: pointer; font-size: 0.7rem; font-weight: 700; min-height: 44px; padding: 0.45rem 0.65rem; }
+.service-studio__relations button[aria-pressed="true"],
+.service-studio__relations button:hover { border-color: var(--amber); color: #fff1df; }
+.service-studio__relations button:focus-visible { outline: 2px solid var(--amber-light); outline-offset: 2px; }
 .service-studio__live { border: 0; clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; white-space: nowrap; width: 1px; }
 
 .service-studio__composition { display: grid; grid-template-columns: clamp(10rem, 15vw, 13.5rem) minmax(0, 1.42fr) minmax(17rem, 0.78fr); min-height: clamp(25rem, 33vw, 34rem); }
@@ -100,6 +105,7 @@
   .service-studio__fallback > ul li:last-child { border-bottom: 0; }
   .service-studio__heading { align-items: flex-start; flex-direction: column; }
   .service-studio__heading h2 { text-align: left; }
+  .service-studio__relations { justify-content: flex-start; }
   .service-studio__rail { padding: 0.45rem; }
   .service-studio__rail button { font-size: 0.68rem; padding: 0.45rem 0.25rem; }
 }

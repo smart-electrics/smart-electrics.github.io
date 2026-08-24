@@ -19,4 +19,22 @@ related_services:
   - electrical-design
   - electrical-installation
   - smart-home-integration
+service_studio:
+  direction_id: low-voltage
+  relation_ids:
+    - low-voltage--cctv
+    - low-voltage--audio
+  states:
+    assembled:
+      label: Топологія
+      title: Лінії та зони
+      summary: Слабкострумові лінії пов’язують мережу, доступ, домофон, датчики та точки відеоконтролю.
+    focus:
+      label: Вузол
+      title: Обраний вузол
+      summary: Для обраного вузла уточнюють трасу, зону та зв’язок із суміжними електромонтажними роботами.
+    reassembled:
+      label: Маршрутизація
+      title: Логіка зв’язків
+      summary: Відеоконтроль описує покриття й події, а аудіо — запланований шлях від джерела до зони й групи.
 ---
