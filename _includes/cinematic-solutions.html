@@ -1,0 +1,138 @@
+{% assign cinematic = site.data.cinematic_system %}
+{% assign solution_mapping = site.data.cinematic_solutions %}
+{% assign ordered_solutions = site.solutions | sort: "order" %}
+{% assign state_ids = "assembled,focus,reassembled" | split: "," %}
+{% if page.solutions_catalogue %}
+  {% assign cinematic_solutions = ordered_solutions %}
+  {% assign cinematic_solutions_mode = "atlas" %}
+  {% assign selected_solution_id = ordered_solutions.first.slug %}
+  {% assign is_solution_detail = false %}
+{% else %}
+  {% assign cinematic_solutions = site.solutions | where: "slug", page.slug %}
+  {% assign cinematic_solutions_mode = "detail" %}
+  {% assign selected_solution_id = page.slug %}
+  {% assign is_solution_detail = true %}
+{% endif %}
+{% assign cinematic_solution_ids = cinematic_solutions | map: "slug" %}
+{% assign cinematic_mapping_ids = ordered_solutions | map: "slug" %}
+
+<section class="cinematic-solutions" data-cinematic-solutions-root data-cinematic-solutions-mode="{{ cinematic_solutions_mode }}" data-cinematic-solutions-selected-solution-id="{{ selected_solution_id }}" data-cinematic-solutions-state="assembled" aria-labelledby="{% if cinematic_solutions_mode == 'atlas' %}cinematic-solutions-title{% else %}cinematic-solution-title{% endif %}">
+  <div class="cinematic-solutions__fallback" data-cinematic-solutions-fallback>
+    {% if cinematic_solutions_mode == "atlas" %}
+      <header class="cinematic-solutions__fallback-intro">
+        <p class="section-kicker">Атлас конфігурацій</p>
+        <h1 id="cinematic-solutions-title">Починаємо з потреби об’єкта, а не з переліку технологій.</h1>
+        <p>Кожна конфігурація поєднує складові електричної системи, які можна адаптувати до конкретного електромонтажного проєкту.</p>
+      </header>
+    {% endif %}
+    {% for solution in cinematic_solutions %}
+      {% include cinematic-solution-fallback.html solution=solution detail=is_solution_detail %}
+    {% endfor %}
+  </div>
+
+  <div class="cinematic-solutions__stage" data-cinematic-solutions-stage hidden>
+    <header class="cinematic-solutions__heading">
+      <div>
+        <p class="section-kicker">{% if cinematic_solutions_mode == "atlas" %}Атлас конфігурацій{% else %}Готове рішення{% endif %}</p>
+        {% if cinematic_solutions_mode == "atlas" %}
+          <h1 id="cinematic-solutions-stage-title">Готові до адаптації конфігурації</h1>
+        {% else %}
+          <h1 id="cinematic-solution-stage-title">{{ page.title }}</h1>
+        {% endif %}
+        <p>{% if cinematic_solutions_mode == "atlas" %}Оберіть конфігурацію, щоб побачити її системи та зв’язок із канонічним графом послуг.{% else %}Три стани показують склад конфігурації, її напрямки та один зв’язок у системі.{% endif %}</p>
+      </div>
+      {% if cinematic_solutions_mode == "atlas" %}
+        <nav class="cinematic-solutions__selector" aria-label="Готові рішення">
+          {% for solution in cinematic_solutions %}
+            <button type="button" data-cinematic-solutions-solution-control data-cinematic-solutions-solution-id="{{ solution.slug }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ solution.title }}</button>
+          {% endfor %}
+        </nav>
+      {% endif %}
+    </header>
+
+    <p class="cinematic-solutions__live" data-cinematic-solutions-live aria-live="polite" aria-atomic="true"></p>
+    <div class="cinematic-solutions__composition">
+      <nav class="cinematic-solutions__rail" aria-label="Стани конфігурації">
+        <ol>
+          {% for state_id in state_ids %}
+            {% case state_id %}
+              {% when "assembled" %}{% assign state_label = "Склад" %}
+              {% when "focus" %}{% assign state_label = "У фокусі" %}
+              {% when "reassembled" %}{% assign state_label = "Зв’язок" %}
+            {% endcase %}
+            <li><button type="button" data-cinematic-solutions-control data-cinematic-solutions-action="select-{{ state_id }}" data-cinematic-solutions-control-state="{{ state_id }}" aria-pressed="{% if state_id == "assembled" %}true{% else %}false{% endif %}">{{ state_label }}</button></li>
+          {% endfor %}
+        </ol>
+      </nav>
+
+      <div class="cinematic-solutions__media" aria-hidden="true">
+        {% for solution in cinematic_solutions %}
+          {% for state_id in state_ids %}
+            {% assign scene_config = solution_mapping[solution.slug] %}
+            <figure class="cinematic-solutions__scene" data-cinematic-solutions-scene="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ scene_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ scene_config.direction_ids | join: '|' }}"{% unless forloop.parentloop.first and forloop.first %} hidden{% endunless %}>
+              <picture>
+                <source media="(max-width: 767px)" srcset="{{ solution.image_768 | relative_url }}" width="768" height="512">
+                <source srcset="{{ solution.image_1536 | relative_url }}" width="1536" height="1024">
+                <img src="{{ solution.image_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, min(68vw, 1536px)" alt="" loading="lazy" decoding="async"{% if solution.image_focus %} style="object-position: {{ solution.image_focus }}"{% endif %}>
+              </picture>
+            </figure>
+          {% endfor %}
+        {% endfor %}
+        <span class="cinematic-solutions__outgoing-snapshot" data-cinematic-solutions-outgoing-snapshot aria-hidden="true" hidden></span>
+      </div>
+
+      <div class="cinematic-solutions__panels">
+        {% for solution in cinematic_solutions %}
+          {% assign solution_config = solution_mapping[solution.slug] %}
+          {% assign relation = cinematic.relations | where: "id", solution_config.relation_id | first %}
+          {% assign relation_owner = cinematic.directions | where: "id", relation.direction_id | first %}
+          {% assign relation_owner_service = site.services | where: "slug", relation_owner.service_slug | first %}
+          {% for state_id in state_ids %}
+            {% case state_id %}
+              {% when "assembled" %}
+                {% assign state_label = "Склад конфігурації" %}
+                {% assign state_summary = solution.description %}
+              {% when "focus" %}
+                {% assign state_label = "У фокусі" %}
+                {% assign state_summary = solution.focus %}
+              {% when "reassembled" %}
+                {% assign state_label = "Зв’язок у системі" %}
+                {% capture state_summary %}{{ relation.child.label }}: {{ relation.child.description }}{% endcapture %}
+            {% endcase %}
+            <article class="cinematic-solutions__panel" data-cinematic-solutions-panel="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ solution_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ solution_config.direction_ids | join: '|' }}"{% unless forloop.parentloop.first and forloop.first %} hidden{% endunless %}>
+              <p class="cinematic-solutions__panel-kicker">{{ state_label }}</p>
+              <h2>{{ solution.title }}</h2>
+              <p data-cinematic-solutions-summary>{{ state_summary | strip }}</p>
+              <ul data-cinematic-solutions-related>
+                {% if state_id == "assembled" %}
+                  {% for related_slug in solution.related_solutions %}
+                    {% assign related_solution = site.solutions | where: "slug", related_slug | first %}
+                    {% if related_solution %}<li><a href="{{ related_solution.url | relative_url }}">{{ related_solution.title }}</a></li>{% endif %}
+                  {% endfor %}
+                {% elsif state_id == "focus" %}
+                  {% for direction_id in solution_config.direction_ids %}
+                    {% assign direction = cinematic.directions | where: "id", direction_id | first %}
+                    {% assign service = site.services | where: "slug", direction.service_slug | first %}
+                    {% if service %}<li><a href="{{ service.url | relative_url }}">{{ direction.label }}</a></li>{% endif %}
+                  {% endfor %}
+                {% else %}
+                  {% if relation_owner_service %}<li><a href="{{ relation_owner_service.url | relative_url }}">{{ relation_owner.label }}</a></li>{% endif %}
+                  {% for related_direction_id in relation.related_direction_ids %}
+                    {% assign related_direction = cinematic.directions | where: "id", related_direction_id | first %}
+                    {% assign related_service = site.services | where: "slug", related_direction.service_slug | first %}
+                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_direction.label }}</a></li>{% endif %}
+                  {% endfor %}
+                {% endif %}
+              </ul>
+              {% if cinematic_solutions_mode == "atlas" %}<p><a class="cinematic-solutions__detail-link" href="{{ solution.url | relative_url }}">Переглянути конфігурацію</a></p>{% endif %}
+            </article>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <script type="application/json" data-cinematic-solutions-config>{"mode":{{ cinematic_solutions_mode | jsonify }},"mapping_ids":{{ cinematic_mapping_ids | jsonify }},"solution_ids":{{ cinematic_solution_ids | jsonify }},"selected_solution_id":{{ selected_solution_id | jsonify }}}</script>
+  <script type="application/json" data-cinematic-solutions-mapping>{{ solution_mapping | jsonify }}</script>
+  <script type="application/json" data-cinematic-solutions-graph>{{ cinematic | jsonify }}</script>
+</section>
