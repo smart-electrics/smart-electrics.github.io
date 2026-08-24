@@ -103,6 +103,33 @@ Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers,
 - Result: 20/20 source combinations documented; 40/40 production WebPs pass
   decode, dimensions, metadata and byte-budget checks.
 
+## residence-stairs-and-exterior-physical-controls
+
+- Дата: 2026-08-24
+- Інструмент: OpenAI image generation tool / built-in imagegen, taxonomy
+  `lighting-weather`; це візуальні концепції готових до адаптації
+  конфігурацій, не підтверджені клієнтські об’єкти чи портали керування.
+- Базові кадри: `assets/images/smart-home/stairs-1536.webp` та
+  `assets/images/smart-home/exterior-1536.webp`. Для кожної трійки збережено
+  той самий camera/crop, blue hour, матеріали й 2700K amber/copper language.
+- Edit-only source PNG, 1536×1024: `stairs-off` —
+  `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-0c414bf5-45f6-4508-9677-a78b905a5088.png`;
+  `stairs-route` — `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-b9cd260c-e5d6-48af-b362-b31a1dbaba43.png`;
+  `exterior-approach` — `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-8f9d9ba1-31c5-44b1-9ca4-544202cf0d70.png`;
+  `exterior-reduced-night` — `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-e8a992e1-2eef-4ebb-a72d-a70f74791bf5.png`.
+  `stairs-full` є точною копією approved stair base, `exterior-evening` —
+  approved exterior base.
+- Перетворення: desktop `cwebp -q 86 -m 6 -sharp_yuv`; mobile — детермінований
+  resize до 768×512 тим самим encoder. Production WebP навмисно без metadata.
+- Файли: `assets/images/cinematic/residence/stairs-{off,route,full}-{768,1536}.webp`
+  та `assets/images/cinematic/residence/exterior-{approach,evening,reduced-night}-{768,1536}.webp`.
+- Prompt summary: порожня сучасна резиденція, прямолінійна 24–28 mm
+  архітектурна камера, physically plausible stair/gate/path/facade geometry;
+  змінюється лише specified lighting state. Без людей, тексту, брендів,
+  логотипів, UI, watermark, неону або AI-артефактів.
+- Незалежний visual QA, виробничі SHA-256 і browser pixel verification:
+  [`stairs-exterior-controls-visual-qa.md`](stairs-exterior-controls-visual-qa.md).
+
 ## smart-home-scenario-set
 
 - Дата: 2026-08-23
