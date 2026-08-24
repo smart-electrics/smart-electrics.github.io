@@ -112,7 +112,7 @@ function exactControls(stage, solutionIds, mode) {
     : null;
 }
 
-function exactVisuals(stage, solutionIds, mapping) {
+function exactVisuals(stage, fallback, solutionIds, mapping, graph, relationsById) {
   const scenes = [...stage.querySelectorAll("[data-cinematic-solutions-scene]")];
   const panels = [...stage.querySelectorAll("[data-cinematic-solutions-panel]")];
   const expectedCount = solutionIds.length * STATE_IDS.length;
@@ -125,10 +125,51 @@ function exactVisuals(stage, solutionIds, mapping) {
     ).length === 1)
   );
   const readableScene = scenes.every((scene) => scene.querySelectorAll("picture").length === 1 && scene.querySelectorAll("img").length === 1);
+  const directionsById = new Map(graph.directions.map((direction) => [direction.id, direction]));
+  const linkHrefs = (element) => [...element.querySelectorAll("a[href]")].map((link) => link.getAttribute("href"));
+  const fallbackSolutionLinks = new Map(solutionIds.map((solutionId) => {
+    const fallbackItems = fallback.querySelectorAll(`[id="solution-${solutionId}"]`);
+    const groups = fallbackItems.length === 1
+      ? fallbackItems[0].querySelectorAll(`[aria-labelledby="solution-${solutionId}-solutions"]`)
+      : [];
+    return [solutionId, groups.length === 1 ? linkHrefs(groups[0]) : null];
+  }));
   const readablePanel = panels.every((panel) => {
     const summary = panel.querySelectorAll("[data-cinematic-solutions-summary]");
-    const related = panel.querySelectorAll("[data-cinematic-solutions-related] a[href]");
-    return summary.length === 1 && summary[0].textContent.trim() && related.length > 0 && [...related].every((link) => link.getAttribute("href")?.startsWith("/"));
+    const stateId = panel.dataset.cinematicSolutionsPanel;
+    const relation = relationsById.get(panel.dataset.cinematicSolutionsRelationId);
+    const related = [...panel.querySelectorAll("[data-cinematic-solutions-related] a[href]")];
+    if (summary.length !== 1 || !summary[0].textContent.trim() || related.length === 0 || related.some((link) => !link.getAttribute("href")?.startsWith("/"))) return false;
+    if (stateId !== "reassembled") {
+      return panel.querySelectorAll("[data-cinematic-solutions-relation-label], [data-cinematic-solutions-service-links], [data-cinematic-solutions-solution-links]").length === 0 && panel.querySelectorAll("[data-cinematic-solutions-related]").length === 1;
+    }
+
+    const label = panel.querySelectorAll("[data-cinematic-solutions-relation-label]");
+    const serviceGroups = panel.querySelectorAll("section[data-cinematic-solutions-service-links]");
+    const solutionGroups = panel.querySelectorAll("section[data-cinematic-solutions-solution-links]");
+    const expectedSolutions = fallbackSolutionLinks.get(panel.dataset.cinematicSolutionsSolutionId);
+    const expectedServices = relation && Array.isArray(relation.related_direction_ids)
+      ? [relation.direction_id, ...relation.related_direction_ids].map((directionId) => directionsById.get(directionId)?.service_slug).map((serviceSlug) => serviceSlug ? `/services/${serviceSlug}/` : null)
+      : null;
+    const readableGroup = (groups, heading, expectedLinks = null) => groups.length === 1 &&
+      groups[0].querySelectorAll("h4").length === 1 &&
+      groups[0].querySelector("h4")?.textContent.trim() === heading &&
+      groups[0].querySelectorAll("ul[data-cinematic-solutions-related]").length === 1 &&
+      linkHrefs(groups[0]).length > 0 &&
+      linkHrefs(groups[0]).every((href) => href?.startsWith("/")) &&
+      (expectedLinks === null || sameIds(linkHrefs(groups[0]), expectedLinks));
+    return relation &&
+      typeof relation.child?.label === "string" &&
+      typeof relation.child?.description === "string" &&
+      label.length === 1 &&
+      label[0].textContent.trim() === relation.child.label &&
+      summary[0].textContent.trim() === relation.child.description &&
+      expectedServices?.every(Boolean) &&
+      Array.isArray(expectedSolutions) &&
+      expectedSolutions.length > 0 &&
+      panel.querySelectorAll("[data-cinematic-solutions-related]").length === 2 &&
+      readableGroup(serviceGroups, "Пов’язані послуги", expectedServices) &&
+      readableGroup(solutionGroups, "Пов’язані готові рішення", expectedSolutions);
   });
   return exact(scenes, "cinematicSolutionsScene") && exact(panels, "cinematicSolutionsPanel") && readableScene && readablePanel
     ? { scenes, panels }
@@ -153,7 +194,7 @@ function enhance(root) {
   const relationsById = validMapping(graph, mapping, config.mapping_ids);
   if (!relationsById || config.solution_ids.some((solutionId) => !mapping[solutionId])) return;
   const controls = exactControls(stage, config.solution_ids, mode);
-  const visuals = exactVisuals(stage, config.solution_ids, mapping);
+  const visuals = exactVisuals(stage, fallback, config.solution_ids, mapping, graph, relationsById);
   if (!controls || !visuals) return;
 
   const localMapping = Object.fromEntries(config.solution_ids.map((solutionId) => [solutionId, mapping[solutionId]]));

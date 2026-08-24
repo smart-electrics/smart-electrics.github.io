@@ -17,8 +17,11 @@ const solutions = [
     slug: "apartment-comfort-and-control",
     route: "/solutions/apartment-comfort-and-control/",
     title: "Квартира: комфорт і контроль",
+    description: "Поєднує освітлення, клімат, доступ і вибрані споживачі в узгоджену конфігурацію електричної системи квартири.",
     directions: ["electrical-design", "lighting", "smart-home-integration", "panels-and-protection", "low-voltage"],
     relation: "smart-home-integration--climate",
+    relationLabel: "Клімат",
+    relationDescription: "Комфорт у зонах пов’язують із керуванням, живленням і ручним коригуванням.",
     relationLinks: ["smart-home-integration", "panels-and-protection", "low-voltage"],
     relatedSolutions: ["private-house-full-automation", "architectural-lighting", "security-and-access-control"],
     image: "apartment-comfort"
@@ -27,8 +30,11 @@ const solutions = [
     slug: "private-house-full-automation",
     route: "/solutions/private-house-full-automation/",
     title: "Приватний будинок: повна автоматизація",
+    description: "Узгоджує живлення, захист, освітлення, доступ і сценарії автоматизації в одній конфігурації приватного будинку.",
     directions: ["electrical-design", "panels-and-protection", "backup-power", "lighting", "smart-home-integration", "low-voltage"],
     relation: "backup-power--backup",
+    relationLabel: "Резерв",
+    relationDescription: "Резервні групи визначають разом із щитом, захистом і пріоритетами об’єкта.",
     relationLinks: ["backup-power", "panels-and-protection", "diagnostics-and-service"],
     relatedSolutions: ["apartment-comfort-and-control", "energy-autonomy", "security-and-access-control"],
     image: "private-house"
@@ -37,8 +43,11 @@ const solutions = [
     slug: "architectural-lighting",
     route: "/solutions/architectural-lighting/",
     title: "Архітектурне освітлення",
+    description: "Планує світлові точки й групи керування так, щоб освітлення відповідало плану приміщень і могло працювати у сценаріях автоматизації.",
     directions: ["lighting", "electrical-design", "electrical-installation", "smart-home-integration"],
     relation: "lighting--stair-lighting",
+    relationLabel: "Освітлення сходів",
+    relationDescription: "Маршрутне світло для сходів розглядають разом із групами освітлення.",
     relationLinks: ["lighting", "electrical-design", "smart-home-integration"],
     relatedSolutions: ["apartment-comfort-and-control", "private-house-full-automation", "commercial-space"],
     image: "architectural-lighting"
@@ -47,8 +56,11 @@ const solutions = [
     slug: "energy-autonomy",
     route: "/solutions/energy-autonomy/",
     title: "Енергетична автономність",
+    description: "Визначає, які групи мають залишатися доступними без основного живлення, і як врахувати це у структурі електричної системи.",
     directions: ["backup-power", "panels-and-protection", "electrical-design", "diagnostics-and-service", "smart-home-integration"],
     relation: "backup-power--backup",
+    relationLabel: "Резерв",
+    relationDescription: "Резервні групи визначають разом із щитом, захистом і пріоритетами об’єкта.",
     relationLinks: ["backup-power", "panels-and-protection", "diagnostics-and-service"],
     relatedSolutions: ["private-house-full-automation", "apartment-comfort-and-control", "commercial-space"],
     image: "energy-autonomy"
@@ -57,8 +69,11 @@ const solutions = [
     slug: "security-and-access-control",
     route: "/solutions/security-and-access-control/",
     title: "Безпека та контроль доступу",
+    description: "Передбачає підготовку слабкострумової інфраструктури для доступу, мережі та спостереження, а також можливий зв’язок з освітленням і сценаріями автоматизації.",
     directions: ["low-voltage", "electrical-design", "electrical-installation", "lighting", "smart-home-integration"],
     relation: "low-voltage--cctv",
+    relationLabel: "Відеоконтроль",
+    relationDescription: "Точки відеоконтролю узгоджують із доступом, трасами та потрібними зонами.",
     relationLinks: ["low-voltage", "electrical-installation", "diagnostics-and-service"],
     relatedSolutions: ["private-house-full-automation", "apartment-comfort-and-control", "commercial-space"],
     image: "security-access"
@@ -67,8 +82,11 @@ const solutions = [
     slug: "commercial-space",
     route: "/solutions/commercial-space/",
     title: "Комерційний простір",
+    description: "Узгоджує електричні групи, освітлення, клімат і доступ із призначенням та графіком комерційного простору.",
     directions: ["electrical-design", "panels-and-protection", "lighting", "low-voltage", "smart-home-integration"],
     relation: "smart-home-integration--climate",
+    relationLabel: "Клімат",
+    relationDescription: "Комфорт у зонах пов’язують із керуванням, живленням і ручним коригуванням.",
     relationLinks: ["smart-home-integration", "panels-and-protection", "low-voltage"],
     relatedSolutions: ["architectural-lighting", "security-and-access-control", "energy-autonomy"],
     image: "commercial-space"
@@ -77,6 +95,7 @@ const solutions = [
 const atlasRoute = "/solutions/";
 const allRoutes = [atlasRoute, ...solutions.map((solution) => solution.route)];
 const serviceHref = (slug) => `/services/${slug}/`;
+const noJsBaseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000";
 
 async function studioFor(page) {
   const root = page.locator("[data-cinematic-solutions-root]");
@@ -92,8 +111,8 @@ async function studioFor(page) {
   return { root, stage };
 }
 
-async function visibleHrefs(stage) {
-  return stage.locator("[data-cinematic-solutions-panel]:visible [data-cinematic-solutions-related] a").evaluateAll(
+async function hrefs(scope, selector) {
+  return scope.locator(`${selector} a`).evaluateAll(
     (links) => links.map((link) => link.getAttribute("href"))
   );
 }
@@ -105,13 +124,23 @@ async function assertState(page, root, stage, solution, stateId) {
   await expect(root).toHaveAttribute("data-cinematic-solutions-relation-id", stateId === "reassembled" ? solution.relation : "");
   await expect(stage.locator("[data-cinematic-solutions-scene]:visible")).toHaveCount(1);
   await expect(stage.locator("[data-cinematic-solutions-panel]:visible")).toHaveCount(1);
-  await expect(stage.locator("[data-cinematic-solutions-panel]:visible [data-cinematic-solutions-summary]")).not.toHaveText("");
-  await expect(stage.locator("[data-cinematic-solutions-panel]:visible .cinematic-solutions__panel-kicker")).toHaveText(PANEL_LABEL_BY_STATE[stateId]);
+  const panel = stage.locator("[data-cinematic-solutions-panel]:visible");
+  await expect(panel.locator("[data-cinematic-solutions-summary]")).not.toHaveText("");
+  await expect(panel.locator(".cinematic-solutions__panel-kicker")).toHaveText(PANEL_LABEL_BY_STATE[stateId]);
   await expect(stage.locator(`button[data-cinematic-solutions-action="${ACTION_BY_STATE[stateId]}"]`)).toHaveAttribute("aria-pressed", "true");
-  const expectedLinks = stateId === "assembled"
-    ? solution.relatedSolutions.map((slug) => `/solutions/${slug}/`)
-    : (stateId === "reassembled" ? solution.relationLinks : solution.directions).map(serviceHref);
-  expect(await visibleHrefs(stage)).toEqual(expectedLinks);
+  if (stateId === "reassembled") {
+    await expect(panel.locator("[data-cinematic-solutions-relation-label]")).toHaveText(solution.relationLabel);
+    await expect(panel.locator("[data-cinematic-solutions-summary]")).toHaveText(solution.relationDescription);
+    await expect(panel.getByRole("heading", { name: "Пов’язані послуги", exact: true })).toBeVisible();
+    await expect(panel.getByRole("heading", { name: "Пов’язані готові рішення", exact: true })).toBeVisible();
+    expect(await hrefs(panel, "[data-cinematic-solutions-service-links]")).toEqual(solution.relationLinks.map(serviceHref));
+    expect(await hrefs(panel, "[data-cinematic-solutions-solution-links]")).toEqual(solution.relatedSolutions.map((slug) => `/solutions/${slug}/`));
+  } else {
+    const expectedLinks = stateId === "assembled"
+      ? solution.relatedSolutions.map((slug) => `/solutions/${slug}/`)
+      : solution.directions.map(serviceHref);
+    expect(await hrefs(panel, "[data-cinematic-solutions-related]")).toEqual(expectedLinks);
+  }
   const image = stage.locator("[data-cinematic-solutions-scene]:visible img");
   await expect.poll(() => image.evaluate((element) => element.complete && element.naturalWidth > 0)).toBe(true);
   const currentSrc = await image.evaluate((element) => element.currentSrc);
@@ -156,7 +185,7 @@ async function prependAdapterMutation(page, source) {
   });
 }
 
-test("all seven solution routes keep a complete semantic source order without JavaScript", async ({ page }) => {
+test("an aborted cinematic-solutions adapter keeps the complete semantic fallback", async ({ page }) => {
   await page.route("**/assets/js/cinematic-solutions.js", (route) => route.abort());
 
   for (const route of allRoutes) {
@@ -180,6 +209,47 @@ test("all seven solution routes keep a complete semantic source order without Ja
       await expect(fallback.locator("dd")).toHaveCount(terms);
       await expect(fallback.getByRole("link", { name: "До всіх готових рішень", exact: true })).toHaveAttribute("href", atlasRoute);
     }
+  }
+});
+
+test("all seven solution routes keep complete semantic content in a browser with JavaScript disabled", async ({ browser }) => {
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    locale: "uk-UA",
+    baseURL: noJsBaseURL
+  });
+  const page = await context.newPage();
+
+  try {
+    for (const route of allRoutes) {
+      await page.goto(new URL(route, noJsBaseURL).href);
+      const root = page.locator("[data-cinematic-solutions-root]");
+      const fallback = root.locator("[data-cinematic-solutions-fallback]");
+      await expect(fallback).toBeVisible();
+      await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+      await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+      if (route === atlasRoute) {
+        await expect(fallback.locator(".cinematic-solutions__fallback-item")).toHaveCount(solutions.length);
+        for (const solution of solutions) {
+          await expect(fallback.locator(`#solution-${solution.slug}`).getByRole("link", { name: solution.title, exact: true })).toHaveAttribute("href", solution.route);
+        }
+      } else {
+        const solution = solutions.find((candidate) => candidate.route === route);
+        await expect(fallback.getByRole("heading", { name: solution.title, exact: true })).toBeVisible();
+        await expect(fallback.locator("h1 + p")).toHaveText(solution.description);
+        for (const title of ["Для кого та що у фокусі", "Що поєднується в системі", "Приклади сценаріїв", "Що уточнити щодо об’єкта", "Пов’язані послуги", "Пов’язані готові рішення"]) {
+          await expect(fallback.getByRole("heading", { name: title, exact: true })).toBeVisible();
+        }
+        const terms = await fallback.locator("dt").count();
+        expect(terms, `${route} keeps scenario terms in the no-JS reading order`).toBeGreaterThan(0);
+        await expect(fallback.locator("dd")).toHaveCount(terms);
+        expect(await hrefs(fallback.getByRole("heading", { name: "Пов’язані послуги", exact: true }).locator(".."), "ul")).toEqual(solution.directions.map(serviceHref));
+        expect(await hrefs(fallback.getByRole("heading", { name: "Пов’язані готові рішення", exact: true }).locator(".."), "ul")).toEqual(solution.relatedSolutions.map((slug) => `/solutions/${slug}/`));
+        await expect(fallback.getByRole("link", { name: "До всіх готових рішень", exact: true })).toHaveAttribute("href", atlasRoute);
+      }
+    }
+  } finally {
+    await context.close();
   }
 });
 
@@ -277,6 +347,8 @@ test("invalid JSON, action/DOM drift, and valid-but-swapped mapping data fail cl
     "document.querySelector('[data-cinematic-solutions-config]').textContent = '{invalid';",
     "document.querySelector('[data-cinematic-solutions-control-state=focus]').dataset.cinematicSolutionsAction = 'select-invented';",
     "document.querySelector('[data-cinematic-solutions-stage]').insertAdjacentHTML('beforeend', '<button type=button>Зайва кнопка</button>');",
+    "document.querySelector('[data-cinematic-solutions-relation-label]').remove();",
+    "document.querySelector('[data-cinematic-solutions-solution-links] a').setAttribute('href', '/solutions/energy-autonomy/');",
     "{ const testMapping = JSON.parse(document.querySelector('[data-cinematic-solutions-mapping]').textContent); testMapping['energy-autonomy'].relation_id = 'smart-home-integration--climate'; document.querySelector('[data-cinematic-solutions-mapping]').textContent = JSON.stringify(testMapping); document.querySelectorAll('[data-cinematic-solutions-stage] [data-cinematic-solutions-relation-id]').forEach((element) => { element.dataset.cinematicSolutionsRelationId = 'smart-home-integration--climate'; }); }",
     "{ const testMapping = JSON.parse(document.querySelector('[data-cinematic-solutions-mapping]').textContent); testMapping['energy-autonomy'].direction_ids.reverse(); document.querySelector('[data-cinematic-solutions-mapping]').textContent = JSON.stringify(testMapping); document.querySelectorAll('[data-cinematic-solutions-stage] [data-cinematic-solutions-direction-ids]').forEach((element) => { element.dataset.cinematicSolutionsDirectionIds = testMapping['energy-autonomy'].direction_ids.join('|'); }); }"
   ];
