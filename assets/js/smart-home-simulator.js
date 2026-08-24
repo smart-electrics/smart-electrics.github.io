@@ -1,361 +1,335 @@
-import { createScenarioMachine } from "./smart-home-simulator-state.js";
+import { createSmartHomeMachine } from "./smart-home-simulator-state.js";
 
 const isNonEmpty = (value) => typeof value === "string" && value.trim().length > 0;
-const hasUniqueIds = (ids) => ids.length > 0 && ids.every(isNonEmpty) && new Set(ids).size === ids.length;
+const sameIds = (left, right) => left.length === right.length && left.every((value, index) => value === right[index]);
+const uniqueIds = (values) => values.length > 0 && values.every(isNonEmpty) && new Set(values).size === values.length;
+const only = (root, selector) => {
+  const values = [...root.querySelectorAll(selector)];
+  return values.length === 1 ? values[0] : null;
+};
+const text = (element) => element?.textContent?.trim() || "";
 
-function singleElement(root, selector) {
-  const elements = [...root.querySelectorAll(selector)];
-  return elements.length === 1 ? elements[0] : null;
+function controlDefinition(panel, systemId) {
+  const controls = [...panel.querySelectorAll("[data-phone-control]")];
+  if (controls.length === 0) return null;
+
+  const definitions = [];
+  for (const control of controls) {
+    const [declaredSystemId, controlId] = (control.dataset.phoneControl || "").split(":");
+    const type = control.dataset.controlType;
+    if (declaredSystemId !== systemId || !isNonEmpty(controlId) || !["range", "segment", "toggle"].includes(type)) return null;
+
+    const output = only(control, `[data-control-output="${CSS.escape(systemId)}:${CSS.escape(controlId)}"]`);
+    if (!output || !text(output)) return null;
+
+    if (type === "range") {
+      const input = only(control, `input[type="range"][data-phone-range][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"]`);
+      if (!input || !input.min || !input.max || !input.step || Number(input.min) >= Number(input.max) || Number.isNaN(Number(input.value))) return null;
+      definitions.push({ id: controlId, type, min: Number(input.min), max: Number(input.max), step: Number(input.step), defaultValue: Number(input.value) });
+      continue;
+    }
+
+    if (type === "segment") {
+      const options = [...control.querySelectorAll(`button[data-phone-segment][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"][data-control-value]`)];
+      const ids = options.map((option) => option.dataset.controlValue);
+      if (!uniqueIds(ids) || options.some((option) => !text(option))) return null;
+      definitions.push({ id: controlId, type, options: ids, defaultValue: options.find((option) => option.getAttribute("aria-pressed") === "true")?.dataset.controlValue });
+      continue;
+    }
+
+    const toggle = only(control, `button[data-phone-toggle][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"]`);
+    if (!toggle || !text(toggle) || !["true", "false"].includes(toggle.getAttribute("aria-pressed"))) return null;
+    definitions.push({ id: controlId, type, defaultValue: toggle.getAttribute("aria-pressed") === "true" });
+  }
+  return uniqueIds(definitions.map((control) => control.id)) ? definitions : null;
 }
 
-function textOf(element) {
-  return element?.textContent?.trim() || "";
-}
+function readPresetValues(panel, systemIds, controlsBySystem) {
+  const valueRoot = only(panel, `[data-preset-values="${CSS.escape(panel.dataset.presetPanel || "")}"]`);
+  if (!valueRoot) return null;
+  const values = [...valueRoot.querySelectorAll("[data-preset-control-value]")];
+  const expected = systemIds.flatMap((systemId) => controlsBySystem[systemId].map((control) => `${systemId}:${control.id}`));
+  const actual = values.map((item) => `${item.dataset.controlSystem}:${item.dataset.controlId}`);
+  if (!sameIds(actual, expected)) return null;
 
-function hasStaticText(element) {
-  return Boolean(element && !element.hidden && textOf(element));
-}
-
-function sameIds(left, right) {
-  return left.length === right.length && left.every((id, index) => id === right[index]);
-}
-
-function systemControlFromEvent(target) {
-  return target instanceof Element ? target.closest("button[data-system-control]") : null;
-}
-
-function scenarioSource(panel) {
-  const title = panel.querySelector("h3");
-  const eyebrow = panel.querySelector(".section-kicker");
-  const event = panel.querySelector(".smart-home__scenario-event p:last-child");
-  const routeItems = [...panel.querySelectorAll("[data-route-zone]")];
-
-  if (![title, eyebrow, event, ...routeItems].every(hasStaticText)) return null;
-  return {
-    title: textOf(title),
-    eyebrow: textOf(eyebrow),
-    event: textOf(event),
-    route: routeItems.map(textOf).join(" · ")
-  };
+  const output = {};
+  for (const item of values) {
+    const systemId = item.dataset.controlSystem;
+    const control = controlsBySystem[systemId].find((candidate) => candidate.id === item.dataset.controlId);
+    const raw = item.dataset.controlValue;
+    let value;
+    if (control.type === "range") {
+      value = Number(raw);
+      if (!Number.isFinite(value)) return null;
+    } else if (control.type === "toggle") {
+      if (!["true", "false"].includes(raw)) return null;
+      value = raw === "true";
+    } else {
+      value = raw;
+    }
+    output[systemId] ||= {};
+    output[systemId][control.id] = value;
+  }
+  return output;
 }
 
 function validateMarkup(root) {
-  if (
-    !root ||
-    root.dataset.enhanced ||
-    root.hasAttribute("data-scenario") ||
-    root.hasAttribute("data-system") ||
-    root.hasAttribute("data-zone") ||
-    root.hasAttribute("data-visual") ||
-    root.hasAttribute("data-motion-phase")
-  ) {
-    return null;
-  }
+  if (!root || root.dataset.enhanced || root.hasAttribute("data-preset") || root.hasAttribute("data-system") || root.hasAttribute("data-visual")) return null;
 
-  const radios = [...root.querySelectorAll('input[type="radio"][data-scenario-radio][value]')];
-  const allRadios = [...root.querySelectorAll('input[type="radio"]')];
-  const scenarioIds = radios.map((radio) => radio.value);
-  const checkedRadios = radios.filter((radio) => radio.checked);
-  const panels = [...root.querySelectorAll("[data-scenario-panel]")];
-  const panelIds = panels.map((panel) => panel.dataset.scenarioPanel);
-  const routes = [...root.querySelectorAll("[data-route-layer]")];
-  const routeIds = routes.map((route) => route.dataset.routeLayer);
-  const initiallyVisibleRoutes = routes.filter((route) => !route.hasAttribute("hidden"));
-  const zoneNodes = [...root.querySelectorAll("[data-zone-node]")];
-  const zoneIds = zoneNodes.map((node) => node.dataset.zoneNode);
-  const systemLabels = [...root.querySelectorAll("[data-system-label]")];
-  const systemControls = [...root.querySelectorAll("button[data-system-control]")];
-  const systemIds = systemControls.map((button) => button.dataset.systemControl);
-  const labelIds = systemLabels.map((label) => label.dataset.systemLabel);
-  const pictures = [...root.querySelectorAll("picture[data-scene-picture]")];
-  const visualIds = pictures.map((picture) => picture.dataset.scenePicture);
-  const initiallyVisiblePicture = pictures.filter((picture) => !picture.hidden);
-  const sceneLabel = singleElement(root, "[data-scenario-scene-label]");
-  const sceneTitle = singleElement(root, "[data-scene-title]");
-  const sceneEyebrow = singleElement(root, "[data-scene-eyebrow]");
-  const routeSummary = singleElement(root, "[data-route-summary]");
-  const activeSystemLabel = singleElement(root, "[data-active-system-label]");
-  const activeZoneLabel = singleElement(root, "[data-active-zone-label]");
-  const activeSystemSummary = singleElement(root, "[data-active-system-summary]");
-  const logicChain = singleElement(root, "[data-logic-chain]");
-  const live = singleElement(root, '[data-scenario-live][aria-live="polite"]');
-  const stage = singleElement(root, "[data-spatial-stage][data-selected-system-prefix]");
-  const scene = singleElement(root, "[data-scenario-scene]");
-  const panelById = new Map(panels.map((panel) => [panel.dataset.scenarioPanel, panel]));
-  const primaryByScenario = Object.fromEntries(panels.map((panel) => [panel.dataset.scenarioPanel, panel.dataset.primarySystem]));
-
-  const panelDetailsAreComplete = panels.every((panel) => {
-    const details = [...panel.querySelectorAll("[data-system-detail]")];
-    const detailIds = details.map((detail) => detail.dataset.systemDetail);
-    const routeZones = [...panel.querySelectorAll("[data-route-zone]")].map((item) => item.dataset.routeZone);
-    const primary = details.find((detail) => detail.dataset.systemDetail === panel.dataset.primarySystem);
-    return (
-      sameIds(detailIds, systemIds) &&
-      details.every(
-        (detail) =>
-          !detail.hidden &&
-          zoneIds.includes(detail.dataset.zoneId) &&
-          ["focus", "support", "quiet"].includes(detail.dataset.role) &&
-          isNonEmpty(detail.dataset.summary) &&
-          visualIds.includes(detail.dataset.visualId)
-      ) &&
-      routeZones.length >= 2 &&
-      routeZones.length <= 4 &&
-      hasUniqueIds(routeZones) &&
-      routeZones.every((zoneId) => zoneIds.includes(zoneId)) &&
-      primary?.dataset.role === "focus" &&
-      Boolean(scenarioSource(panel))
-    );
-  });
-
-  const initialScenarioId = checkedRadios[0]?.value;
-  const initialPanel = panelById.get(initialScenarioId);
-  const initialDetail = initialPanel
-    ? [...initialPanel.querySelectorAll("[data-system-detail]")].find(
-        (detail) => detail.dataset.systemDetail === initialPanel.dataset.primarySystem
-      )
-    : null;
-
-  if (
-    allRadios.length !== radios.length ||
-    !hasUniqueIds(scenarioIds) ||
-    !sameIds(panelIds, scenarioIds) ||
-    !sameIds(routeIds, scenarioIds) ||
-    initiallyVisibleRoutes.length !== 1 ||
-    initiallyVisibleRoutes[0]?.dataset.routeLayer !== checkedRadios[0]?.value ||
-    checkedRadios.length !== 1 ||
-    !hasUniqueIds(zoneIds) ||
-    !hasUniqueIds(systemIds) ||
-    !sameIds(labelIds, systemIds) ||
-    !hasUniqueIds(visualIds) ||
-    initiallyVisiblePicture.length !== 1 ||
-    initiallyVisiblePicture[0]?.dataset.scenePicture !== initialDetail?.dataset.visualId ||
-    systemLabels.some((label) => label.hidden || !textOf(label)) ||
-    systemControls.some((button) => !button.hidden || !textOf(button)) ||
-    !systemControls.every((button, index) => textOf(button) === textOf(systemLabels[index])) ||
-    !scenarioIds.every((scenarioId) => systemIds.includes(primaryByScenario[scenarioId])) ||
-    !panelDetailsAreComplete ||
-    !isNonEmpty(stage?.dataset.selectedSystemPrefix) ||
-    ![
-      sceneLabel,
-      sceneTitle,
-      sceneEyebrow,
-      routeSummary,
-      activeSystemLabel,
-      activeZoneLabel,
-      activeSystemSummary,
-      logicChain,
-      live,
-      scene
-    ].every(hasStaticText)
-  ) {
-    return null;
-  }
-
-  return {
-    radios,
-    scenarioIds,
-    panels,
-    panelById,
-    routes,
-    zoneNodes,
-    systemLabels,
-    systemControls,
-    systemIds,
-    pictures,
-    primaryByScenario,
-    sceneTitle,
-    sceneEyebrow,
-    sceneLabel,
-    routeSummary,
-    activeSystemLabel,
-    activeZoneLabel,
-    activeSystemSummary,
-    logicChain,
-    live,
-    scene,
-    selectedSystemPrefix: stage.dataset.selectedSystemPrefix
+  const phone = only(root, "[data-smart-home-phone][hidden]");
+  const experience = only(root, "[data-smart-home-experience]");
+  const staticExplainer = only(root, "[data-static-explainer]");
+  const scene = only(root, "[data-scenario-scene]");
+  const scenePreview = only(root, "[data-scene-preview]");
+  const sceneTitle = only(root, "[data-scene-title]");
+  const sceneEyebrow = only(root, "[data-scene-eyebrow]");
+  const sceneLabel = only(root, "[data-active-scene-label]");
+  const live = only(root, "[data-phone-live][aria-live='polite']");
+  const signature = only(root, "[data-phone-signature]");
+  const activeLabel = only(root, "[data-phone-system-label]");
+  const activeSummary = only(root, "[data-phone-system-summary]");
+  const topologyLabel = only(root, "[data-phone-topology-label]");
+  const topologyDetail = only(root, "[data-phone-topology-detail]");
+  const sceneTopology = only(root, "[data-scene-topology]");
+  const topologySource = only(root, "[data-topology-source]");
+  const topologyLogic = only(root, "[data-topology-logic]");
+  const topologyResult = only(root, "[data-topology-result]");
+  const topologyConnectors = [...root.querySelectorAll("[data-topology-connector][aria-hidden='true']")];
+  const staticLabels = [...root.querySelectorAll("[data-system-label]")];
+  const systemButtons = [...root.querySelectorAll("button[data-phone-system]")];
+  const systemIds = systemButtons.map((button) => button.dataset.phoneSystem);
+  const panels = [...root.querySelectorAll("[data-preset-panel]")];
+  const presetIds = panels.map((panel) => panel.dataset.presetPanel);
+  const radios = [...root.querySelectorAll("input[type='radio'][data-preset-radio][value]")];
+  const allRadios = [...root.querySelectorAll("input[type='radio']")];
+  const checked = radios.filter((radio) => radio.checked);
+  const picture = [...root.querySelectorAll("picture[data-scene-picture]")];
+  const visualIds = picture.map((candidate) => candidate.dataset.scenePicture);
+  const visiblePicture = picture.filter((candidate) => !candidate.hidden);
+  const controlPanels = [...root.querySelectorAll("[data-phone-control-panel]")];
+  const controlPanelIds = controlPanels.map((panel) => panel.dataset.phoneControlPanel);
+  const panelById = new Map(panels.map((panel) => [panel.dataset.presetPanel, panel]));
+  const systemButtonById = new Map(systemButtons.map((button) => [button.dataset.phoneSystem, button]));
+  const controlPanelById = new Map(controlPanels.map((panel) => [panel.dataset.phoneControlPanel, panel]));
+  const controlsBySystem = {};
+  const hasInvalidDiagnostics = (button) => {
+    const values = [button.dataset.diagnosticObservation, button.dataset.diagnosticIsolation, button.dataset.diagnosticNextStep];
+    const populated = values.filter(isNonEmpty).length;
+    return populated !== 0 && populated !== values.length;
   };
+
+  if (
+    !phone || !experience || !staticExplainer || !scene || !scenePreview || !live || !signature ||
+    !sceneTopology || topologyConnectors.length !== 2 || ![sceneTitle, sceneEyebrow, sceneLabel, activeLabel, activeSummary, topologyLabel, topologyDetail, topologySource, topologyLogic, topologyResult].every((item) => isNonEmpty(text(item))) ||
+    allRadios.length !== radios.length || checked.length !== 1 || !uniqueIds(presetIds) || !sameIds(radios.map((radio) => radio.value), presetIds) ||
+    !uniqueIds(systemIds) || !sameIds(staticLabels.map((label) => label.dataset.systemLabel), systemIds) ||
+    !sameIds(controlPanelIds, systemIds) || !uniqueIds(visualIds) || !sameIds(visualIds, systemButtons.map((button) => button.dataset.systemVisual)) ||
+    visiblePicture.length !== 1 || visiblePicture[0]?.dataset.scenePicture !== systemButtons[0]?.dataset.systemVisual ||
+    systemButtons.some((button) => !isNonEmpty(text(button)) || !isNonEmpty(button.dataset.systemSummary) || !isNonEmpty(button.dataset.topologyLabel) || !isNonEmpty(button.dataset.topologyDetail) || hasInvalidDiagnostics(button))
+  ) return null;
+
+  for (const systemId of systemIds) {
+    const definition = controlDefinition(controlPanelById.get(systemId), systemId);
+    if (!definition) return null;
+    controlsBySystem[systemId] = definition;
+  }
+
+  const presets = {};
+  for (const panel of panels) {
+    const detailItems = [...panel.querySelectorAll("[data-system-detail]")];
+    if (
+      !isNonEmpty(panel.dataset.liveSummary) || !isNonEmpty(panel.dataset.sceneLabel) ||
+      !sameIds(detailItems.map((detail) => detail.dataset.systemDetail), systemIds) ||
+      detailItems.some((detail) => !isNonEmpty(detail.dataset.zoneId) || !isNonEmpty(detail.dataset.summary) || !visualIds.includes(detail.dataset.visualId))
+    ) return null;
+    const values = readPresetValues(panel, systemIds, controlsBySystem);
+    if (!values) return null;
+    presets[panel.dataset.presetPanel] = values;
+  }
+
+  const initialPresetId = checked[0].value;
+  const initialSystemId = systemIds[0];
+  if (!panelById.has(initialPresetId) || !presets[initialPresetId]) return null;
+  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, controlPanels, controlPanelById, controlsBySystem, presets, initialPresetId, initialSystemId };
 }
 
 function enhanceSimulator(root) {
   const markup = validateMarkup(root);
   if (!markup) return;
-
-  const machine = createScenarioMachine(
-    markup.scenarioIds,
-    markup.scenarioIds[0],
-    markup.systemIds,
-    markup.primaryByScenario
-  );
+  let machine;
+  try {
+    machine = createSmartHomeMachine({
+      systemIds: markup.systemIds,
+      presetIds: markup.presetIds,
+      initialPresetId: markup.initialPresetId,
+      initialSystemId: markup.initialSystemId,
+      controlsBySystem: markup.controlsBySystem,
+      presets: markup.presets
+    });
+  } catch (_) {
+    return;
+  }
   let state = machine.initialState;
   let motionPhase = null;
-  const selectedPanel = () => markup.panelById.get(state.scenarioId);
-  const selectedDetail = () =>
-    [...selectedPanel().querySelectorAll("[data-system-detail]")].find(
-      (detail) => detail.dataset.systemDetail === state.systemId
-    );
+  const activePanel = () => markup.panelById.get(state.presetId);
+  const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
 
-  const removeOutgoingSnapshot = () => {
-    root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => {
-      snapshot.dispatchEvent(new Event("smart-home:snapshot-remove"));
-    });
-  };
-
+  const removeSnapshots = () => root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => snapshot.dispatchEvent(new Event("smart-home:snapshot-remove")));
   const createOutgoingSnapshot = () => {
-    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (motionPreference.matches) return;
-
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (preference.matches) return;
     const image = markup.scene.querySelector("picture[data-scene-picture]:not([hidden]) img");
     if (!image) return;
-
-    removeOutgoingSnapshot();
+    removeSnapshots();
     const snapshot = document.createElement("div");
     snapshot.className = "smart-home__outgoing-snapshot";
     snapshot.dataset.outgoingSnapshot = "true";
     snapshot.setAttribute("aria-hidden", "true");
     snapshot.style.backgroundImage = `url("${image.currentSrc || image.src}")`;
-    const removeAfterMotion = (event) => {
-      if (event.type === "animationend" && event.animationName !== "smart-home-disassemble") return;
-      snapshot.removeEventListener("animationend", removeAfterMotion);
-      snapshot.removeEventListener("animationcancel", removeAfterMotion);
-      snapshot.removeEventListener("smart-home:snapshot-remove", removeAfterMotion);
-      motionPreference.removeEventListener("change", removeForReducedMotion);
+    const remove = () => {
+      snapshot.removeEventListener("animationend", onAnimationEnd);
+      snapshot.removeEventListener("animationcancel", remove);
+      snapshot.removeEventListener("smart-home:snapshot-remove", remove);
+      preference.removeEventListener("change", onPreference);
       snapshot.remove();
     };
-    const removeForReducedMotion = (event) => {
-      if (event.matches) removeAfterMotion(event);
-    };
-    snapshot.addEventListener("animationend", removeAfterMotion);
-    snapshot.addEventListener("animationcancel", removeAfterMotion);
-    snapshot.addEventListener("smart-home:snapshot-remove", removeAfterMotion);
-    motionPreference.addEventListener("change", removeForReducedMotion);
-    markup.scene.after(snapshot);
+    const onPreference = (event) => { if (event.matches) remove(); };
+    const onAnimationEnd = (event) => { if (event.animationName === "smart-home-disassemble") remove(); };
+    snapshot.addEventListener("animationend", onAnimationEnd);
+    snapshot.addEventListener("animationcancel", remove);
+    snapshot.addEventListener("smart-home:snapshot-remove", remove);
+    preference.addEventListener("change", onPreference);
+    markup.scene.append(snapshot);
   };
 
-  const synchronize = ({ announce = false, replay = false, scenarioChanged = false, initialEntry = false } = {}) => {
-    const panel = selectedPanel();
-    const detail = selectedDetail();
-    const source = scenarioSource(panel);
-    const zoneId = detail.dataset.zoneId;
-    const visualId = detail.dataset.visualId;
-    const systemButton = markup.systemControls.find((button) => button.dataset.systemControl === state.systemId);
-    const zoneNode = markup.zoneNodes.find((node) => node.dataset.zoneNode === zoneId);
-    const routeZoneIds = new Set(
-      [...panel.querySelectorAll("[data-route-zone]")].map((item) => item.dataset.routeZone)
-    );
+  const controlValueLabel = (systemId, controlId, value) => {
+    const control = markup.controlsBySystem[systemId].find((candidate) => candidate.id === controlId);
+    if (control.type === "toggle") return value ? "Враховано" : "Не враховано";
+    if (control.type === "range") return `${value}${root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] output`)?.textContent?.includes("%") ? "%" : ""}`;
+    return text(root.querySelector(`[data-phone-segment][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"][data-control-value="${CSS.escape(value)}"]`));
+  };
+  const controlLabel = (systemId, controlId) => text(root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] label, [data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] .smart-home__phone-control-label`));
 
-    if (initialEntry) motionPhase = "initial";
-    else if (replay || scenarioChanged) motionPhase = motionPhase === "a" ? "b" : "a";
+  const updateControls = () => {
+    markup.systemIds.forEach((systemId) => {
+      markup.controlPanelById.get(systemId).hidden = systemId !== state.systemId;
+      for (const control of markup.controlsBySystem[systemId]) {
+        const value = state.valuesBySystem[systemId][control.id];
+        const controlRoot = root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(control.id)}"]`);
+        const output = controlRoot.querySelector("[data-control-output] span");
+        if (control.type === "range") controlRoot.querySelector("input").value = String(value);
+        if (control.type === "segment") controlRoot.querySelectorAll("[data-phone-segment]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.controlValue === value)));
+        if (control.type === "toggle") controlRoot.querySelector("[data-phone-toggle]").setAttribute("aria-pressed", String(value));
+        output.textContent = control.type === "range" ? String(value) : controlValueLabel(systemId, control.id, value);
+      }
+    });
+  };
 
-    markup.systemLabels.forEach((label) => {
-      label.hidden = true;
-    });
-    markup.systemControls.forEach((button) => {
-      button.hidden = false;
-      button.setAttribute("aria-pressed", String(button === systemButton));
-    });
+  const normalizedControlValue = (control, value) => {
+    if (control.type === "toggle") return value ? 1 : 0;
+    if (control.type === "segment") return control.options.length < 2 ? 0 : control.options.indexOf(value) / (control.options.length - 1);
+    return (value - control.min) / (control.max - control.min);
+  };
+
+  const synchronize = ({ announce = false, cinematic = false, initial = false, changedControlId = null } = {}) => {
+    const panel = activePanel();
+    const button = markup.systemButtonById.get(state.systemId);
+    const detail = detailFor(state.systemId);
+    const controls = markup.controlsBySystem[state.systemId];
+    const changedControl = controls.find((control) => control.id === changedControlId) || controls[0];
+    const changedValue = state.valuesBySystem[state.systemId][changedControl.id];
+    if (initial) motionPhase = "initial";
+    else if (cinematic) motionPhase = motionPhase === "a" ? "b" : "a";
     root.dataset.enhanced = "true";
-    root.dataset.scenario = state.scenarioId;
+    root.dataset.preset = state.presetId;
     root.dataset.system = state.systemId;
-    root.dataset.zone = zoneId;
-    root.dataset.visual = visualId;
+    root.dataset.visual = button.dataset.systemVisual;
+    root.dataset.manual = String(state.manual);
     if (motionPhase) root.dataset.motionPhase = motionPhase;
-    markup.radios.forEach((radio) => {
-      radio.checked = radio.value === state.scenarioId;
-    });
-    markup.panels.forEach((candidate) => {
-      candidate.hidden = candidate !== panel;
-    });
-    markup.routes.forEach((route) => {
-      route.toggleAttribute("hidden", route.dataset.routeLayer !== state.scenarioId);
-    });
-    markup.pictures.forEach((picture) => {
-      picture.hidden = picture.dataset.scenePicture !== visualId;
-    });
-    markup.zoneNodes.forEach((node) => {
-      node.dataset.active = String(node === zoneNode);
-      node.dataset.route = String(routeZoneIds.has(node.dataset.zoneNode));
-    });
-
-    markup.sceneTitle.textContent = source.title;
-    markup.sceneEyebrow.textContent = source.eyebrow;
+    markup.phone.hidden = false;
+    markup.staticExplainer.hidden = true;
+    markup.radios.forEach((radio) => { radio.checked = radio.value === state.presetId; });
+    markup.panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
+    markup.systemButtons.forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
+    markup.pictures.forEach((candidate) => { candidate.hidden = candidate.dataset.scenePicture !== button.dataset.systemVisual; });
+    markup.sceneTitle.textContent = text(panel.querySelector("h3"));
+    markup.sceneEyebrow.textContent = text(panel.querySelector(".section-kicker"));
     markup.sceneLabel.textContent = panel.dataset.sceneLabel;
-    markup.routeSummary.textContent = source.route;
-    markup.activeSystemLabel.textContent = textOf(systemButton);
-    markup.activeZoneLabel.textContent = textOf(zoneNode);
-    markup.activeSystemSummary.textContent = detail.dataset.summary;
-    markup.logicChain.textContent = `${source.event} → ${textOf(zoneNode)} → ${textOf(systemButton)} → ${detail.dataset.summary}`;
-
-    if (announce) {
-      markup.live.textContent = `${markup.selectedSystemPrefix} «${textOf(systemButton)}»: ${detail.dataset.summary}`;
-    } else if (scenarioChanged) {
-      markup.live.textContent = panel.dataset.liveSummary;
+    markup.activeLabel.textContent = text(button);
+    markup.activeSummary.textContent = detail.dataset.summary || button.dataset.systemSummary;
+    markup.topologyLabel.textContent = button.dataset.topologyLabel;
+    markup.topologyDetail.textContent = button.dataset.topologyDetail;
+    markup.scenePreview.dataset.system = state.systemId;
+    markup.scenePreview.dataset.control = changedControl.id;
+    markup.scenePreview.dataset.value = String(changedValue);
+    const previewSignature = controls.map((control) => `${control.id}:${state.valuesBySystem[state.systemId][control.id]}`).join("|");
+    markup.scenePreview.dataset.previewSignature = previewSignature;
+    root.dataset.previewSignature = previewSignature;
+    for (let index = 1; index <= 3; index += 1) {
+      markup.scenePreview.style.setProperty(`--smart-home-preview-control-${index}`, "0");
+      root.style.setProperty(`--smart-home-preview-control-${index}`, "0");
     }
+    controls.slice(0, 3).forEach((control, index) => {
+      markup.scenePreview.style.setProperty(`--smart-home-preview-control-${index + 1}`, String(normalizedControlValue(control, state.valuesBySystem[state.systemId][control.id])));
+      root.style.setProperty(`--smart-home-preview-control-${index + 1}`, String(normalizedControlValue(control, state.valuesBySystem[state.systemId][control.id])));
+    });
+    const diagnostics = isNonEmpty(button.dataset.diagnosticObservation);
+    markup.topologySource.textContent = diagnostics ? button.dataset.diagnosticObservation : text(panel.querySelector("[data-preset-event]"));
+    markup.topologyLogic.textContent = diagnostics ? button.dataset.diagnosticIsolation : button.dataset.topologyLabel;
+    markup.topologyResult.textContent = diagnostics
+      ? `${button.dataset.diagnosticNextStep}: ${controlLabel(state.systemId, changedControl.id)}, ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`
+      : `${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`;
+    updateControls();
+    const status = state.manual
+      ? `Ручне коригування на основі «${panel.querySelector("h3").textContent.trim()}»: ${text(button)}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
+      : panel.dataset.liveSummary;
+    markup.signature.textContent = status;
+    if (announce || cinematic || initial) markup.live.textContent = status;
   };
 
-  // Attributes that trigger enhanced styling are written only after complete validation.
-  synchronize({ initialEntry: true });
+  synchronize({ initial: true });
 
-  const selectScenario = (scenarioId) => {
-    const nextState = machine.transition(state, { type: "select-scenario", scenarioId });
-    const scenarioChanged = nextState.scenarioId !== state.scenarioId;
-    if (scenarioChanged) createOutgoingSnapshot();
-    state = nextState;
-    if (scenarioChanged) synchronize({ scenarioChanged, replay: true });
+  const selectPreset = (presetId) => {
+    const next = machine.transition(state, { type: "select-preset", presetId });
+    if (next === state) return;
+    createOutgoingSnapshot();
+    state = next;
+    synchronize({ announce: true, cinematic: true });
   };
-
-  const focusSystem = (systemId, announce = false, forceReplay = false) => {
-    const nextState = machine.transition(state, { type: "focus-system", systemId });
-    const changed = nextState.systemId !== state.systemId;
-    if (changed || forceReplay) createOutgoingSnapshot();
-    state = nextState;
-    if (changed || forceReplay) synchronize({ announce, replay: true });
+  const selectSystem = (systemId) => {
+    const next = machine.transition(state, { type: "select-system", systemId });
+    if (next === state) return;
+    createOutgoingSnapshot();
+    state = next;
+    synchronize({ announce: true, cinematic: true });
+  };
+  const setControl = (systemId, controlId, value) => {
+    const next = machine.transition(state, { type: "set-control", systemId, controlId, value });
+    if (next === state) return;
+    state = next;
+    synchronize({ announce: true, changedControlId: controlId });
   };
 
   root.addEventListener("change", (event) => {
-    const radio = event.target;
-    if (!(radio instanceof HTMLInputElement) || radio.type !== "radio" || !markup.radios.includes(radio)) return;
-    selectScenario(radio.value);
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.matches("[data-preset-radio]")) selectPreset(target.value);
+    if (target instanceof HTMLInputElement && target.matches("[data-phone-range]")) setControl(target.dataset.controlSystem, target.dataset.controlId, Number(target.value));
   });
-
-  root.addEventListener("keydown", (event) => {
-    const radio = event.target;
-    if (
-      event.key !== "Enter" ||
-      !(radio instanceof HTMLInputElement) ||
-      radio.type !== "radio" ||
-      !markup.radios.includes(radio)
-    ) {
+  root.addEventListener("input", (event) => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.matches("[data-phone-range]")) setControl(target.dataset.controlSystem, target.dataset.controlId, Number(target.value));
+  });
+  root.addEventListener("click", (event) => {
+    const target = event.target instanceof Element ? event.target.closest("button") : null;
+    const radio = event.target instanceof HTMLInputElement ? event.target.closest("[data-preset-radio]") : null;
+    if (radio) {
+      selectPreset(radio.value);
       return;
     }
-    event.preventDefault();
-    selectScenario(radio.value);
-  });
-
-  root.addEventListener("focusin", (event) => {
-    const button = systemControlFromEvent(event.target);
-    if (button instanceof HTMLButtonElement && markup.systemControls.includes(button)) {
-      focusSystem(button.dataset.systemControl);
-    }
-  });
-
-  root.addEventListener(
-    "pointerenter",
-    (event) => {
-      const button = systemControlFromEvent(event.target);
-      if (button instanceof HTMLButtonElement && markup.systemControls.includes(button)) {
-        focusSystem(button.dataset.systemControl);
-      }
-    },
-    true
-  );
-
-  root.addEventListener("click", (event) => {
-    const button = systemControlFromEvent(event.target);
-    if (button instanceof HTMLButtonElement && markup.systemControls.includes(button)) {
-      focusSystem(button.dataset.systemControl, true, true);
-    }
+    if (!target) return;
+    if (target.matches("[data-phone-system]")) selectSystem(target.dataset.phoneSystem);
+    if (target.matches("[data-phone-segment]")) setControl(target.dataset.controlSystem, target.dataset.controlId, target.dataset.controlValue);
+    if (target.matches("[data-phone-toggle]")) setControl(target.dataset.controlSystem, target.dataset.controlId, target.getAttribute("aria-pressed") !== "true");
   });
 }
 

@@ -1,0 +1,1006 @@
+/*
+ * Smart-home product demo: loaded after the legacy component sheet on purpose.
+ * The semantic document remains available without JavaScript; the enhanced state
+ * turns the right-hand explanatory surface into a single, tactile controller.
+ */
+
+.smart-home {
+  --phone-ink: #080605;
+  --phone-surface: #15100d;
+  --phone-edge: rgba(255, 222, 189, 0.34);
+  --phone-line: rgba(255, 223, 191, 0.15);
+  --phone-muted: #bda78f;
+  --phone-copper: #db8d5c;
+  --scene-strength: 0.62;
+  --scene-shift: 0px;
+  overflow: clip;
+  padding-block: clamp(1.25rem, 2vw, 1.75rem) clamp(4.5rem, 9vw, 10rem);
+}
+
+.smart-home__hero {
+  min-height: clamp(22rem, 33svh, 29rem);
+  padding-block: clamp(2.35rem, 4.3vw, 4.35rem) clamp(1.65rem, 2.7vw, 2.85rem);
+}
+
+.smart-home__hero-copy {
+  max-width: 57rem;
+}
+
+.smart-home__hero h1 {
+  font-size: clamp(3.6rem, 9vw, 10.8rem);
+  max-width: 7.6ch;
+}
+
+.smart-home__simulator {
+  gap: clamp(1.75rem, 3.4vw, 4.3rem);
+  isolation: isolate;
+  margin-inline: auto;
+  max-width: none;
+  padding: clamp(1.1rem, 2.65vw, 3.1rem);
+  width: min(calc(100% - 1.25rem), 120rem);
+}
+
+.smart-home__simulator-heading {
+  grid-template-columns: minmax(15rem, 0.8fr) minmax(18rem, 1.2fr);
+  max-width: 78rem;
+}
+
+.smart-home__simulator-heading h2 {
+  max-width: 9.5ch;
+}
+
+.smart-home__experience {
+  align-items: stretch;
+  display: grid;
+  gap: clamp(1rem, 2vw, 2.5rem);
+  grid-template-columns: minmax(0, 3.15fr) minmax(21.75rem, 0.95fr);
+  min-width: 0;
+  position: relative;
+}
+
+.smart-home__scene {
+  aspect-ratio: auto;
+  background: #100b08;
+  border-color: rgba(255, 222, 189, 0.3);
+  border-radius: clamp(1.15rem, 1.7vw, 2rem);
+  box-shadow: inset 0 0 0 1px rgba(255, 245, 231, 0.035), 0 2.5rem 6rem rgba(0, 0, 0, 0.42);
+  min-height: clamp(34rem, 45vw, 51rem);
+  isolation: isolate;
+}
+
+.smart-home__scene > .smart-home__outgoing-snapshot {
+  aspect-ratio: auto;
+  height: 100%;
+  width: 100%;
+}
+
+.smart-home__scene::before {
+  background:
+    linear-gradient(90deg, transparent 0 48%, rgba(255, 220, 183, 0.11) 50%, transparent 52%) center / 100% 1px no-repeat,
+    linear-gradient(180deg, rgba(255, 223, 190, 0.12), transparent 25%, transparent 74%, rgba(255, 223, 190, 0.08));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+
+.smart-home__scene-background,
+.smart-home__scene-background img {
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.smart-home__scene-background {
+  z-index: 0;
+}
+
+.smart-home__scene-background img {
+  filter: saturate(0.84) contrast(1.05) brightness(calc(0.72 + var(--scene-strength) * 0.28));
+  object-position: 60% 50%;
+  transform: translate3d(var(--scene-shift), 0, 0) scale(1.012);
+  transition: filter 220ms ease-out, transform 220ms ease-out;
+}
+
+.smart-home__scene-wash {
+  background:
+    linear-gradient(104deg, rgba(2, 1, 1, 0.83) 0%, rgba(5, 3, 2, 0.44) 39%, transparent 72%),
+    linear-gradient(0deg, rgba(4, 2, 1, 0.68), transparent 48%, rgba(4, 2, 1, 0.12));
+  mix-blend-mode: multiply;
+  opacity: 0.88;
+  z-index: 1;
+}
+
+.smart-home__scene-preview {
+  --smart-home-preview-control-1: 0.5;
+  --smart-home-preview-control-2: 0.5;
+  --smart-home-preview-control-3: 0.5;
+  background:
+    radial-gradient(circle at calc(23% + var(--smart-home-preview-control-2) * 54%) calc(17% + var(--smart-home-preview-control-3) * 55%), rgba(255, 205, 142, calc(0.12 + var(--smart-home-preview-control-1) * 0.3)), transparent calc(15% + var(--smart-home-preview-control-2) * 13%)),
+    linear-gradient(90deg, rgba(226, 127, 75, 0.22), transparent 26% 74%, rgba(245, 184, 116, 0.12));
+  inset: 0;
+  mix-blend-mode: screen;
+  opacity: calc(0.46 + var(--smart-home-preview-control-1) * 0.54);
+  pointer-events: none;
+  position: absolute;
+  transition: background 220ms ease-out, opacity 220ms ease-out;
+  z-index: 3;
+}
+
+.smart-home__scene-preview::before,
+.smart-home__scene-preview::after {
+  border: 1px solid rgba(255, 220, 184, 0.2);
+  content: "";
+  opacity: 0;
+  position: absolute;
+  transition: opacity 220ms ease-out, transform 220ms ease-out;
+}
+
+.smart-home__scene-preview::before {
+  border-inline: 0;
+  inset: calc(11% + var(--smart-home-preview-control-3) * 26%) calc(6% + var(--smart-home-preview-control-2) * 7%) auto;
+  transform: scaleX(calc(0.72 + var(--smart-home-preview-control-1) * 0.28));
+}
+
+.smart-home__scene-preview::after {
+  border-block: 0;
+  inset: calc(6% + var(--smart-home-preview-control-2) * 8%) calc(12% + var(--smart-home-preview-control-3) * 24%) calc(7% + var(--smart-home-preview-control-1) * 9%) auto;
+  transform: scaleY(calc(0.72 + var(--smart-home-preview-control-2) * 0.28));
+}
+
+[data-smart-home-simulator][data-system="lighting"] .smart-home__scene-preview,
+[data-smart-home-simulator][data-system="audio"] .smart-home__scene-preview {
+  opacity: 1;
+}
+
+[data-smart-home-simulator][data-system="shading"] .smart-home__scene-preview::before,
+[data-smart-home-simulator][data-system="low-voltage"] .smart-home__scene-preview::after,
+[data-smart-home-simulator][data-system="panel"] .smart-home__scene-preview::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+[data-smart-home-simulator][data-system="security"] .smart-home__scene-preview,
+[data-smart-home-simulator][data-system="backup-power"] .smart-home__scene-preview {
+  background: linear-gradient(122deg, rgba(102, 49, 31, 0.28), transparent 48%, rgba(235, 144, 73, 0.14));
+}
+
+.smart-home__scene-copy {
+  display: grid;
+  gap: 0.55rem;
+  inset: clamp(1.2rem, 3vw, 3.5rem) auto auto clamp(1.2rem, 3vw, 3.5rem);
+  max-width: min(31rem, 54%);
+  position: absolute;
+  z-index: 4;
+}
+
+.smart-home__scene-copy > span:first-child {
+  color: var(--amber-light);
+  font-size: clamp(0.62rem, 0.74vw, 0.76rem);
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.smart-home__scene-copy > strong {
+  color: #fff2e6;
+  font-size: clamp(1.55rem, 3.35vw, 4.25rem);
+  font-weight: 300;
+  letter-spacing: -0.065em;
+  line-height: 0.97;
+}
+
+.smart-home__scene-copy > span:last-child {
+  border-inline-start: 1px solid var(--phone-copper);
+  color: #ead7c5;
+  font-size: clamp(0.72rem, 0.82vw, 0.9rem);
+  line-height: 1.45;
+  margin-top: 0.25rem;
+  padding-inline-start: 0.7rem;
+}
+
+.smart-home__scene figcaption {
+  border-top: 1px solid rgba(255, 220, 187, 0.18);
+  bottom: 0;
+  color: rgba(246, 228, 211, 0.72);
+  font-size: 0.72rem;
+  letter-spacing: 0.025em;
+  line-height: 1.5;
+  max-width: none;
+  padding: 0.7rem 1rem;
+  width: 100%;
+  z-index: 4;
+}
+
+.smart-home__scene:has(.smart-home__scene-topology) figcaption {
+  bottom: clamp(5rem, 5.5vw, 5.5rem);
+}
+
+.smart-home__scene-topology {
+  align-items: stretch;
+  background: linear-gradient(90deg, rgba(6, 4, 3, 0.83), rgba(20, 12, 8, 0.56), rgba(6, 4, 3, 0.1));
+  border-top: 1px solid rgba(255, 220, 187, 0.22);
+  bottom: 0;
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  inset-inline: 0;
+  padding: 0.68rem clamp(0.85rem, 1.6vw, 1.5rem);
+  position: absolute;
+  z-index: 5;
+}
+
+.smart-home__scene-topology [data-topology-source],
+.smart-home__scene-topology [data-topology-logic],
+.smart-home__scene-topology [data-topology-result] {
+  color: #f1d8bf;
+  font-size: clamp(0.75rem, 0.7vw, 0.86rem);
+  font-weight: 750;
+  line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 10px #000;
+}
+
+.smart-home__scene-topology [data-topology-logic] {
+  color: var(--amber-light);
+  text-align: center;
+}
+
+.smart-home__scene-topology [data-topology-result] {
+  text-align: end;
+}
+
+.smart-home__scene-topology [data-topology-connector] {
+  align-self: center;
+  background: linear-gradient(90deg, rgba(226, 140, 87, 0.7), rgba(255, 221, 185, 0.16));
+  height: 1px;
+  margin-inline: 0.45rem;
+  min-width: clamp(0.8rem, 1.8vw, 1.8rem);
+  position: relative;
+}
+
+.smart-home__scene-topology [data-topology-connector]::after {
+  border: solid rgba(255, 218, 177, 0.78);
+  border-width: 0 1px 1px 0;
+  content: "";
+  height: 0.26rem;
+  inset: 50% 0 auto auto;
+  position: absolute;
+  transform: translateY(-50%) rotate(-45deg);
+  width: 0.26rem;
+}
+
+.smart-home__static-explainer,
+.smart-home__phone {
+  background:
+    linear-gradient(145deg, rgba(255, 232, 205, 0.09), transparent 17%),
+    linear-gradient(180deg, #1b130f 0%, #0b0806 100%);
+  border: 1px solid var(--phone-edge);
+  border-radius: clamp(1.15rem, 1.5vw, 1.7rem);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 239, 0.09), 0 2rem 4.5rem rgba(0, 0, 0, 0.42);
+  min-width: 0;
+}
+
+.smart-home__static-explainer {
+  align-self: stretch;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  padding: clamp(1.3rem, 2vw, 2rem);
+}
+
+.smart-home__static-explainer h3 {
+  font-size: clamp(1.65rem, 2.2vw, 2.5rem);
+  letter-spacing: -0.055em;
+  line-height: 1;
+  margin: 0.75rem 0;
+}
+
+.smart-home__static-explainer > p:not(.section-kicker) {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  line-height: 1.56;
+  margin: 0;
+}
+
+.smart-home__static-systems {
+  align-content: end;
+  border-top: 1px solid var(--phone-line);
+  display: grid;
+  font-size: 0.72rem;
+  gap: 0;
+  grid-template-columns: 1fr;
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0.75rem 0 0;
+}
+
+.smart-home__static-systems li {
+  border-bottom: 1px solid rgba(255, 223, 190, 0.08);
+  color: var(--phone-muted);
+  line-height: 1.4;
+  padding: 0.52rem 0.2rem;
+}
+
+.smart-home__static-systems li strong {
+  color: #f1dac2;
+  display: block;
+  font-size: 0.78rem;
+}
+
+.smart-home__static-systems li p {
+  font-size: 0.7rem;
+  margin: 0.16rem 0 0;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__static-explainer {
+  display: none;
+}
+
+.smart-home__phone {
+  align-self: stretch;
+  display: grid;
+  gap: 1rem;
+  grid-auto-rows: max-content;
+  min-height: 0;
+  overflow: hidden;
+  padding: clamp(0.85rem, 1.45vw, 1.15rem);
+  position: relative;
+}
+
+.smart-home__phone::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 223, 188, 0.62), transparent);
+  content: "";
+  height: 0.18rem;
+  inset: 0 32% auto;
+  position: absolute;
+}
+
+.smart-home__phone-header {
+  border-bottom: 1px solid var(--phone-line);
+  display: flex;
+  gap: 0.7rem;
+  justify-content: space-between;
+  padding: 0.55rem 0.35rem 0.85rem;
+}
+
+.smart-home__phone-kicker {
+  color: var(--phone-copper);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  line-height: 1.35;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.smart-home__phone-header h3 {
+  color: #fff0e1;
+  font-size: clamp(1rem, 1.15vw, 1.18rem);
+  font-weight: 650;
+  line-height: 1.2;
+  margin: 0;
+  text-align: end;
+}
+
+.smart-home__preset-picker {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.smart-home__preset-picker legend {
+  color: var(--phone-muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.3;
+  padding: 0 0 0.55rem;
+  text-transform: uppercase;
+}
+
+.smart-home__preset-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.smart-home__preset-choice {
+  flex: 1 1 6.4rem;
+  min-width: 0;
+  position: relative;
+}
+
+.smart-home__preset-choice input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.smart-home__preset-choice label {
+  align-items: center;
+  border: 1px solid rgba(255, 223, 190, 0.14);
+  border-radius: 0.45rem;
+  color: #cbb49b;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 700;
+  justify-content: center;
+  line-height: 1.1;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.55rem;
+  text-align: center;
+  transition: background-color 180ms ease-out, border-color 180ms ease-out, color 180ms ease-out;
+}
+
+.smart-home__preset-choice label:hover,
+.smart-home__preset-choice input:checked + label {
+  background: linear-gradient(120deg, rgba(223, 141, 92, 0.26), rgba(255, 222, 190, 0.06));
+  border-color: rgba(255, 210, 169, 0.7);
+  color: #fff0e2;
+}
+
+.smart-home__preset-choice input:focus-visible + label {
+  outline: 0.18rem solid var(--focus);
+  outline-offset: 0.14rem;
+}
+
+.smart-home__phone-system-rail {
+  border-block: 1px solid var(--phone-line);
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-block: 0.55rem;
+}
+
+.smart-home__phone-system {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #cdb9a6;
+  cursor: pointer;
+  display: grid;
+  font-size: clamp(0.58rem, 0.72vw, 0.69rem);
+  font-weight: 700;
+  gap: 0.28rem;
+  grid-template-columns: 1.05rem minmax(0, 1fr);
+  line-height: 1.17;
+  min-height: 3rem;
+  overflow-wrap: normal;
+  padding: 0.35rem 0.28rem;
+  text-align: start;
+  transition: background-color 180ms ease-out, border-color 180ms ease-out, color 180ms ease-out;
+  word-break: normal;
+}
+
+.smart-home__phone-system::before {
+  background-color: currentColor;
+  content: "";
+  display: block;
+  height: 0.95rem;
+  justify-self: center;
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  opacity: 0.7;
+  width: 0.95rem;
+}
+
+.smart-home__phone-system:hover,
+.smart-home__phone-system[aria-pressed="true"] {
+  background: rgba(222, 139, 88, 0.12);
+  border-color: rgba(255, 211, 169, 0.35);
+  color: #fff0e1;
+}
+
+.smart-home__phone-system[aria-pressed="true"]::before {
+  color: var(--amber-light);
+  opacity: 1;
+}
+
+.smart-home__phone-system:focus-visible {
+  outline: 0.18rem solid var(--focus);
+  outline-offset: -0.18rem;
+}
+
+/* SVG masks remain local and inherit the restrained copper/ivory state. */
+.smart-home__phone-system[data-phone-system="lighting"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M9 21h6v-2H9v2m3-19a7 7 0 0 0-4 12.74V17h8v-2.26A7 7 0 0 0 12 2m0 2a5 5 0 0 1 2.86 9.1l-.86.59V15h-4v-1.31l-.86-.59A5 5 0 0 1 12 4Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="climate"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 2a3 3 0 0 1 3 3v8.18A4 4 0 1 1 9 13.18V5a3 3 0 0 1 3-3m0 2a1 1 0 0 0-1 1v9.08a2 2 0 1 0 2 0V5a1 1 0 0 0-1-1Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="access"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 10V7a5 5 0 0 1 10 0v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1m2 0h6V7a3 3 0 0 0-6 0v3m3 4a2 2 0 0 1 1 3.73V19h-2v-1.27A2 2 0 0 1 12 14Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="security"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 2 4 5v6c0 5.25 3.41 9.85 8 11 4.59-1.15 8-5.75 8-11V5l-8-3m0 3.12 5 1.88v4c0 3.79-2.34 7.37-5 8.58-2.66-1.21-5-4.79-5-8.58V7l5-1.88Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="panel"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 3h16v18H4V3m2 2v14h12V5H6m2 2h3v3H8V7m5 0h3v3h-3V7M8 12h3v5H8v-5m5 0h3v5h-3v-5Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="low-voltage"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 3h10v6h-2V5H9v4H7V3m2 8h6v4h2v6H7v-6h2v-4m2 2v2h2v-2h-2m-2 4v2h6v-2H9Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="backup-power"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 4h10v3h2v10h-2v3H7v-3H5V7h2V4m2 2v2h6V6H9m-2 4v5h10v-5H7m5 1-3 4h2v3l4-5h-2v-2Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="audio"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M3 10v4h4l5 4V6l-5 4H3m12.5 2a3.5 3.5 0 0 0-2.06-3.19v6.38A3.5 3.5 0 0 0 15.5 12m0-7.3v2.06A5.5 5.5 0 0 1 19 12a5.5 5.5 0 0 1-3.5 5.24v2.06A7.5 7.5 0 0 0 21 12a7.5 7.5 0 0 0-5.5-7.3Z'/%3E%3C/svg%3E"); }
+.smart-home__phone-system[data-phone-system="shading"]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 3h16v18h-2V5H6v16H4V3m4 4h8v2H8V7m0 4h8v2H8v-2m0 4h8v2H8v-2Z'/%3E%3C/svg%3E"); }
+
+.smart-home__phone-active {
+  border-inline-start: 1px solid var(--phone-copper);
+  display: grid;
+  gap: 0.28rem;
+  padding-inline-start: 0.75rem;
+}
+
+.smart-home__phone-active-kicker {
+  color: var(--phone-copper);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.25;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.smart-home__phone-active h4 {
+  color: #fff0e1;
+  font-size: clamp(1.15rem, 1.35vw, 1.45rem);
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.smart-home__phone-active p:not(.smart-home__phone-active-kicker) {
+  color: var(--phone-muted);
+  font-size: 0.74rem;
+  line-height: 1.48;
+  margin: 0;
+}
+
+.smart-home__phone-topology {
+  color: #dbc4ac !important;
+}
+
+.smart-home__phone-controls {
+  border-top: 1px solid var(--phone-line);
+  padding-top: 0.8rem;
+}
+
+.smart-home__phone-control-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.smart-home__phone-control-panel > h4 {
+  color: #f0dcca;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.smart-home__phone-control {
+  border-bottom: 1px solid rgba(255, 223, 190, 0.1);
+  display: grid;
+  gap: 0.45rem;
+  padding-bottom: 0.72rem;
+}
+
+.smart-home__phone-control-label,
+.smart-home__phone-range-label {
+  color: #e8d2bc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
+}
+
+[data-control-type="range"] .smart-home__phone-control-label {
+  display: none;
+}
+
+.smart-home__phone-control input[type="range"] {
+  accent-color: var(--phone-copper);
+  cursor: pointer;
+  min-height: 2.75rem;
+  width: 100%;
+}
+
+.smart-home__phone-control output {
+  color: var(--phone-muted);
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+.smart-home__phone-control output > span {
+  color: #f9dfc6;
+  font-weight: 800;
+}
+
+.smart-home__phone-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+}
+
+.smart-home__phone-segments button,
+.smart-home__phone-toggle {
+  background: rgba(255, 235, 212, 0.035);
+  border: 1px solid rgba(255, 222, 189, 0.16);
+  color: #cdb79f;
+  cursor: pointer;
+  font-size: 0.69rem;
+  font-weight: 700;
+  line-height: 1.2;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.62rem;
+  transition: background-color 180ms ease-out, border-color 180ms ease-out, color 180ms ease-out;
+}
+
+.smart-home__phone-segments button {
+  flex: 1 1 4.65rem;
+}
+
+.smart-home__phone-segments button:hover,
+.smart-home__phone-segments button[aria-pressed="true"],
+.smart-home__phone-toggle:hover,
+.smart-home__phone-toggle[aria-pressed="true"] {
+  background: rgba(217, 129, 79, 0.2);
+  border-color: rgba(255, 213, 173, 0.62);
+  color: #fff0e1;
+}
+
+.smart-home__phone-toggle {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.55rem;
+  justify-self: start;
+  text-align: start;
+}
+
+.smart-home__phone-toggle > span {
+  background: #665043;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 0.7rem;
+  position: relative;
+  transition: background-color 180ms ease-out;
+  width: 1.25rem;
+}
+
+.smart-home__phone-toggle > span::after {
+  background: #f9dfc6;
+  border-radius: 50%;
+  content: "";
+  height: 0.46rem;
+  inset: 0.12rem auto auto 0.12rem;
+  position: absolute;
+  transform: translateX(0);
+  transition: transform 180ms ease-out;
+  width: 0.46rem;
+}
+
+.smart-home__phone-toggle[aria-pressed="true"] > span {
+  background: var(--phone-copper);
+}
+
+.smart-home__phone-toggle[aria-pressed="true"] > span::after {
+  transform: translateX(0.55rem);
+}
+
+.smart-home__phone-signature,
+.smart-home__phone-live {
+  border-top: 1px solid var(--phone-line);
+  color: #d7bea4;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  margin: 0;
+  padding: 0.75rem 0.25rem 0.1rem;
+}
+
+.smart-home__phone-live {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+/* The document after the demo uses editorial rules and columns, never an app-card stack. */
+.smart-home__preset-explanations {
+  border-top: 1px solid var(--line-strong);
+  display: grid;
+  gap: clamp(1.2rem, 3vw, 4rem);
+  grid-template-columns: minmax(14rem, 0.55fr) minmax(0, 1.45fr);
+  padding-top: clamp(2rem, 4vw, 4.5rem);
+}
+
+.smart-home__configuration-heading h2 {
+  font-size: clamp(2.05rem, 4vw, 4.6rem);
+}
+
+.smart-home__preset-panel {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  border-radius: 0;
+  display: grid;
+  gap: 1rem clamp(1rem, 2.4vw, 3rem);
+  grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.25fr);
+  padding: 1.25rem 0 0;
+}
+
+.smart-home__preset-panel > div:first-child h3 {
+  font-size: clamp(1.45rem, 2vw, 2.25rem);
+  letter-spacing: -0.05em;
+  line-height: 1.04;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.smart-home__preset-panel > div:first-child > p:last-child,
+.smart-home__preset-explanation > p:last-child {
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.smart-home__preset-explanation {
+  border-inline-start: 1px solid rgba(242, 166, 95, 0.52);
+  display: grid;
+  gap: 0.55rem;
+  padding-inline-start: clamp(0.85rem, 1.5vw, 1.35rem);
+}
+
+.smart-home__preset-explanation ul {
+  display: grid;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0 0 0.45rem;
+  padding: 0;
+}
+
+.smart-home__preset-explanation li {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(6.5rem, 0.5fr) minmax(0, 1.5fr);
+  padding: 0.45rem 0;
+}
+
+.smart-home__preset-explanation li strong {
+  color: #f1ddc8;
+  font-size: 0.75rem;
+}
+
+.smart-home__preset-explanation li span {
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.smart-home__preset-related {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  grid-column: 1 / -1;
+}
+
+.smart-home__preset-related a {
+  align-items: center;
+  color: #e9c29b;
+  display: inline-flex;
+  min-height: 2.75rem;
+  text-decoration-color: rgba(233, 194, 155, 0.42);
+  text-underline-offset: 0.24em;
+}
+
+.smart-home__formation,
+.smart-home__related {
+  grid-template-columns: minmax(13rem, 0.52fr) minmax(0, 1.48fr);
+}
+
+.smart-home__formation-list {
+  border-top: 1px solid var(--line-strong);
+  gap: 0;
+}
+
+.smart-home__formation-list li {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: clamp(1.1rem, 2vw, 1.65rem) 0;
+}
+
+.smart-home__formation-list li h3 {
+  font-size: clamp(1.15rem, 1.55vw, 1.6rem);
+}
+
+@media (min-width: 122rem) {
+  .smart-home__simulator {
+    width: min(calc(100% - 2rem), 126rem);
+  }
+
+  .smart-home__experience {
+    grid-template-columns: minmax(0, 3.45fr) minmax(25rem, 0.95fr);
+  }
+
+  .smart-home__scene {
+    min-height: 52rem;
+  }
+}
+
+@media (min-width: 54.01rem) {
+  .smart-home__hero {
+    min-height: 0;
+    padding-block: clamp(1.6rem, 2.2vw, 2.25rem) clamp(1.1rem, 1.5vw, 1.5rem);
+  }
+
+  .smart-home__hero h1 {
+    font-size: clamp(3.6rem, 7.5vw, 7rem);
+    margin-bottom: clamp(0.9rem, 1.4vw, 1.35rem);
+    max-width: 8.5ch;
+  }
+
+  .smart-home__lede {
+    font-size: clamp(1rem, 1.35vw, 1.25rem);
+    margin-bottom: 1rem;
+  }
+
+  .smart-home__simulator {
+    gap: clamp(1.25rem, 2vw, 1.6rem);
+    padding-block: clamp(1.1rem, 1.6vw, 1.35rem);
+  }
+
+  .smart-home__simulator-heading {
+    grid-template-columns: minmax(26rem, 1.1fr) minmax(18rem, 0.9fr);
+  }
+
+  .smart-home__simulator-heading h2 {
+    font-size: clamp(2.75rem, 3.5vw, 3.4rem);
+    max-width: 13ch;
+  }
+}
+
+@media (max-width: 54rem) {
+  .smart-home__simulator {
+    border-radius: 1.1rem;
+    width: min(calc(100% - 0.8rem), 100%);
+  }
+
+  .smart-home__simulator-heading,
+  .smart-home__preset-explanations,
+  .smart-home__formation,
+  .smart-home__related {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-home__simulator-heading {
+    gap: 0.6rem;
+  }
+
+  .smart-home__simulator-heading h2 {
+    font-size: clamp(2rem, 9vw, 2.75rem);
+    max-width: 14ch;
+  }
+
+  .smart-home__simulator-heading > p:last-child {
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .smart-home__experience {
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .smart-home__scene {
+    aspect-ratio: 1.17 / 1;
+    min-height: 0;
+  }
+
+  .smart-home__phone,
+  .smart-home__static-explainer {
+    min-height: auto;
+  }
+
+  .smart-home__scene-copy {
+    max-width: 74%;
+  }
+
+  .smart-home__preset-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 36rem) {
+  .smart-home__simulator {
+    padding: 0.85rem;
+  }
+
+  .smart-home__scene {
+    aspect-ratio: 0.9 / 1;
+  }
+
+  .smart-home__scene:has(.smart-home__scene-topology) figcaption {
+    display: none;
+  }
+
+  .smart-home__scene-topology {
+    gap: 0.18rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.58rem 0.8rem;
+  }
+
+  .smart-home__scene-topology [data-topology-source],
+  .smart-home__scene-topology [data-topology-logic],
+  .smart-home__scene-topology [data-topology-result] {
+    font-size: 0.75rem;
+    text-align: start;
+  }
+
+  .smart-home__scene-topology [data-topology-connector] {
+    background: linear-gradient(180deg, rgba(226, 140, 87, 0.7), rgba(255, 221, 185, 0.16));
+    height: 0.65rem;
+    justify-self: start;
+    margin: 0 0 0 0.18rem;
+    min-width: 0;
+    width: 1px;
+  }
+
+  .smart-home__scene-topology [data-topology-connector]::after {
+    inset: auto auto 0 50%;
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .smart-home__scene-copy {
+    inset: 1rem auto auto 1rem;
+    max-width: 78%;
+  }
+
+  .smart-home__scene-copy > strong {
+    font-size: clamp(1.45rem, 8.5vw, 2.25rem);
+  }
+
+  .smart-home__phone-system {
+    font-size: 0.58rem;
+    gap: 0.2rem;
+    grid-template-columns: 0.84rem minmax(0, 1fr);
+    padding-inline: 0.18rem;
+  }
+
+  .smart-home__phone-system::before {
+    height: 0.78rem;
+    width: 0.78rem;
+  }
+
+  .smart-home__preset-choice {
+    flex-basis: 5.45rem;
+  }
+
+  .smart-home__preset-choice label {
+    font-size: 0.65rem;
+  }
+
+  .smart-home__preset-explanation li {
+    grid-template-columns: 1fr;
+    gap: 0.16rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .smart-home [data-motion-layer],
+  .smart-home .smart-home__outgoing-snapshot,
+  .smart-home .smart-home__scene-background img,
+  .smart-home .smart-home__scene-preview,
+  .smart-home .smart-home__scene-preview::before,
+  .smart-home .smart-home__scene-preview::after,
+  .smart-home .smart-home__phone *,
+  .smart-home .smart-home__preset-panel * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

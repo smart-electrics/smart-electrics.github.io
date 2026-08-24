@@ -1,21 +1,21 @@
 hero:
   kicker: Автоматизація без прив’язки до бренду
   title: Розумний будинок
-  description: Сценарії автоматизації поєднують світло, клімат, доступ, безпеку й живлення під ритм конкретного простору.
+  description: Сценарії поєднують світло, клімат, доступ, безпеку й живлення відповідно до планування та щоденного користування простором.
   disclosure: Це демонстрація логіки, а не керування обладнанням. Для кожного електромонтажного проєкту сценарій налаштовують окремо.
   scene_alt: Тепло освітлена вітальня з багаторівневим світлом і зонами комфорту
-  scene_caption: Сцена показує шлях у просторі, потрібні зони та системи, які формують результат сценарію.
+  scene_caption: Сцена показує подію, інженерну логіку та зміни в об’єкті.
 simulator:
-  kicker: Сценарії автоматизації
-  title: Один простір, сім моментів
-  description: Оберіть звичний момент дня, щоб побачити, які рішення проєктують і налаштовують разом.
-  legend: Оберіть момент для сценарію автоматизації
-  scene_label: Просторова схема сценарію
-  active_connection_label: Активний зв’язок
-  logic_kicker: Логіка сценарію
+  kicker: Панель керування простором
+  title: Один простір, дев’ять систем
+  description: Оберіть конфігурацію для адаптації та вручну уточніть логіку кожної системи.
+  legend: Оберіть готову конфігурацію
+  scene_label: Схема обраної системи в просторі
+  active_connection_label: Активна система
+  logic_kicker: Логіка конфігурації
   route_label: Маршрут у просторі
-  controls_label: Системи просторової схеми
-  related_aria_prefix: Пов’язані напрями для сценарію
+  controls_label: Системи панелі керування
+  related_aria_prefix: Пов’язані послуги й рішення для конфігурації
   selected_system_prefix: Обрано систему
 spatial:
   zones:
@@ -27,21 +27,151 @@ spatial:
     - { id: stairs, label: Сходи, x: 48, y: 29 }
     - { id: exterior, label: Двір, x: 90, y: 73 }
   systems:
-    - { id: lighting, label: Освітлення, x: 26, y: 33, side: left }
-    - { id: climate, label: Клімат-контроль, x: 84, y: 23, side: right }
-    - { id: access, label: Доступ, x: 2, y: 49, side: left }
-    - { id: security, label: Безпека й відео, x: 83, y: 44, side: right }
-    - { id: panel, label: Щит і захист, x: 4, y: 72, side: left }
-    - { id: low-voltage, label: Слабкострумна інфраструктура, x: 23, y: 84, side: left }
-    - { id: backup-power, label: Резервне живлення, x: 78, y: 72, side: right }
-    - { id: audio, label: Аудіо, x: 64, y: 84, side: right }
-    - { id: shading, label: Сонцезахист, x: 48, y: 12, side: center }
+    - id: lighting
+      label: Освітлення
+      x: 26
+      y: 33
+      side: left
+      visual: lighting
+      summary: Рівні світла, маршрутні точки й акценти визначають за планом простору.
+      topology: { label: Логіка світла, detail: Групи й точки керування об’єднують у послідовність для конкретної зони. }
+      controls:
+        - { id: brightness, type: range, label: Рівень світла, output_label: Яскравість, output_suffix: "%", min: 0, max: 100, step: 1 }
+        - { id: layer, type: segment, label: Активна група, output_label: Група світла, options: [{ id: route, label: Маршрут }, { id: evening, label: Вечір }, { id: full, label: Усі групи }] }
+    - id: climate
+      label: Клімат-контроль
+      x: 84
+      y: 23
+      side: right
+      visual: climate
+      summary: Опалення, охолодження й вентиляцію розглядають разом із зонами перебування.
+      topology: { label: Логіка комфорту, detail: Схему клімату узгоджують із потребами конкретної зони. }
+      controls:
+        - id: comfort
+          type: segment
+          label: Стан комфорту
+          output_label: Обраний стан
+          options: [{ id: warm, label: Тепліше }, { id: balanced, label: Збалансовано }, { id: cool, label: Прохолодніше }]
+        - { id: operation, type: segment, label: Намір системи, output_label: Намір, options: [{ id: auto, label: Автоматично }, { id: heating, label: Обігрів }, { id: cooling, label: Охолодження }] }
+    - id: access
+      label: Доступ
+      x: 2
+      y: 49
+      side: left
+      visual: access
+      summary: Події входу й правила доступу узгоджують із маршрутом і межами конкретного об’єкта.
+      topology:
+        label: Логіка входу
+        detail: Подію доступу пов’язують із потрібною дією без дистанційного керування точкою входу.
+      controls:
+        - { id: arrival_route, type: toggle, label: Підготувати маршрут входу, output_label: Маршрут входу }
+        - { id: entry_zone, type: segment, label: Точка маршруту, output_label: Обрана точка, options: [{ id: gate, label: Хвіртка }, { id: entry, label: Вхід }, { id: garage, label: Гараж }] }
+    - id: security
+      label: Безпека й відео
+      x: 83
+      y: 44
+      side: right
+      visual: security
+      summary: Для зон відеоконтролю й технічних сигналів визначають окремі межі та реакції.
+      topology:
+        label: Логіка контролю
+        detail: Обраний контур визначає, які точки враховують у проєктній логіці.
+      controls:
+        - id: coverage
+          type: segment
+          label: Контур контролю
+          output_label: Обраний контур
+          options: [{ id: entry, label: Вхід }, { id: perimeter, label: Периметр }, { id: quiet, label: Тихий контур }]
+        - { id: event_path, type: segment, label: Технічний шлях, output_label: Обраний шлях, options: [{ id: video, label: Відео }, { id: sensors, label: Сигнали }, { id: quiet, label: Тихий контур }] }
+    - id: panel
+      label: Щит і захист
+      x: 4
+      y: 72
+      side: left
+      visual: panel
+      summary: Групи живлення й захисту задають електричну схему для узгодженої роботи систем.
+      topology:
+        label: Логіка щита
+        detail: Розподіл, захист і пріоритети розглядають як одну електричну схему.
+      diagnostics:
+        observation: Обрана ділянка електричної схеми
+        isolation: Ізоляція шару схеми
+        next_step: Наступна інженерна перевірка
+      controls:
+        - id: layer
+          type: segment
+          label: Шар схеми
+          output_label: Обраний шар
+          options: [{ id: protection, label: Захист }, { id: groups, label: Групи }, { id: priorities, label: Пріоритети }]
+        - { id: priority_groups, type: toggle, label: Врахувати пріоритетні групи, output_label: Пріоритетні групи }
+    - id: low-voltage
+      label: Слабкострумна інфраструктура
+      x: 23
+      y: 84
+      side: left
+      visual: low-voltage
+      summary: Лінії зв’язку й точки керування проєктують там, де вони потрібні для сценаріїв.
+      topology:
+        label: Логіка слабкоструму
+        detail: Окремий маршрут поєднує точки керування з мережею або технічними сигналами.
+      diagnostics:
+        observation: Обрана лінія або точка
+        isolation: Ізоляція маршруту
+        next_step: Наступна інженерна перевірка
+      controls:
+        - id: route
+          type: segment
+          label: Шлях інфраструктури
+          output_label: Обраний шлях
+          options: [{ id: network, label: Мережа }, { id: video, label: Відео }, { id: signals, label: Сигнали }]
+        - { id: topology_focus, type: segment, label: Фокус схеми, output_label: Фокус схеми, options: [{ id: routes, label: Траси }, { id: points, label: Точки }, { id: interfaces, label: Зв’язки }] }
+    - id: backup-power
+      label: Резервне живлення
+      x: 78
+      y: 72
+      side: right
+      visual: backup-power
+      summary: Пріоритетні споживачі та межі резерву узгоджують зі щитом і захистом.
+      topology: { label: Логіка резерву, detail: Пріоритетні групи визначають у схемі конкретного електромонтажного проєкту. }
+      controls:
+        - { id: priority_groups, type: toggle, label: Врахувати пріоритетні групи, output_label: Пріоритетні групи }
+        - { id: restore_intent, type: segment, label: Порядок відновлення, output_label: Послідовність, options: [{ id: essential, label: Критичні групи }, { id: staged, label: Поетапно }, { id: manual, label: Вручну }] }
+    - id: audio
+      label: Аудіо
+      x: 64
+      y: 84
+      side: right
+      visual: audio
+      summary: Аудіо враховують у сценарії лише для зон, де воно потрібне.
+      topology:
+        label: Логіка аудіо
+        detail: Рівень для зони задають у сценарії; ця панель не відтворює аудіо.
+      controls:
+        - { id: level, type: range, label: Рівень для зони, output_label: Рівень аудіо, output_suffix: "%", min: 0, max: 100, step: 1 }
+        - { id: source, type: segment, label: Джерело сигналу, output_label: Обране джерело, options: [{ id: local, label: Локальний вхід }, { id: media, label: Медіацентр }, { id: scenario, label: Сценарій }] }
+        - { id: zone, type: segment, label: Зона аудіо, output_label: Обрана зона, options: [{ id: living, label: Вітальня }, { id: terrace, label: Тераса }, { id: private, label: Приватна зона }] }
+        - { id: muted, type: toggle, label: Тихий стан, output_label: Тихий стан }
+    - id: shading
+      label: Сонцезахист
+      x: 48
+      y: 12
+      side: center
+      visual: shading
+      summary: Штори, тюль і ролети пов’язують зі світлом, приватністю й сонячним навантаженням.
+      topology: { label: Логіка сонцезахисту, detail: "Для кожної зони визначають положення, яке можна скоригувати вручну." }
+      controls:
+        - { id: position, type: range, label: Положення сонцезахисту, output_label: Відкриття, output_suffix: "%", min: 0, max: 100, step: 1 }
+        - { id: treatment, type: segment, label: Тип сонцезахисту, output_label: Обраний тип, options: [{ id: tulle, label: Тюль }, { id: blinds, label: Жалюзі }, { id: curtains, label: Штори }, { id: rollers, label: Ролети }] }
   visuals:
-    - { id: interior, desktop: /assets/images/home/control-room-1536.webp, mobile: /assets/images/home/control-room-768.webp, alt: Тепло освітлена сучасна вітальня з природними матеріалами ввечері }
+    - { id: lighting, desktop: /assets/images/home/control-room-1536.webp, mobile: /assets/images/home/control-room-768.webp, alt: Тепло освітлена сучасна вітальня з природними матеріалами ввечері }
+    - { id: climate, desktop: /assets/images/smart-home/climate-1536.webp, mobile: /assets/images/smart-home/climate-768.webp, alt: Житлова зона з інтегрованими системами клімату у вечірньому світлі }
+    - { id: access, desktop: /assets/images/smart-home/exterior-1536.webp, mobile: /assets/images/smart-home/exterior-768.webp, alt: Вечірній фасад сучасного будинку з освітленою доріжкою та входом }
+    - { id: security, desktop: /assets/images/smart-home/surveillance-1536.webp, mobile: /assets/images/smart-home/surveillance-768.webp, alt: Вхідна зона сучасного будинку з точками відеоконтролю }
+    - { id: panel, desktop: /assets/images/smart-home/panel-1536.webp, mobile: /assets/images/smart-home/panel-768.webp, alt: Електричний щит у технічній зоні будинку }
+    - { id: low-voltage, desktop: /assets/images/smart-home/electrical-installation-1536.webp, mobile: /assets/images/smart-home/electrical-installation-768.webp, alt: Підготовлені електричні та слабкострумні траси в технічній зоні об’єкта }
+    - { id: backup-power, desktop: /assets/images/smart-home/backup-1536.webp, mobile: /assets/images/smart-home/backup-768.webp, alt: Технічна зона з місцем для резервного живлення й пріоритетних груп }
+    - { id: audio, desktop: /assets/images/smart-home/audio-1536.webp, mobile: /assets/images/smart-home/audio-768.webp, alt: Житлова зона з інтегрованими аудіоточками та теплим вечірнім світлом }
     - { id: shading, desktop: /assets/images/smart-home/shading-1536.webp, mobile: /assets/images/smart-home/shading-768.webp, alt: Сучасна вітальня з опущеними шторами та м’яким вечірнім світлом }
-    - { id: stairs, desktop: /assets/images/smart-home/stairs-1536.webp, mobile: /assets/images/smart-home/stairs-768.webp, alt: Сходи сучасного будинку з делікатним маршрутним освітленням }
-    - { id: exterior, desktop: /assets/images/smart-home/exterior-1536.webp, mobile: /assets/images/smart-home/exterior-768.webp, alt: Вечірній фасад сучасного будинку з освітленою доріжкою та входом }
-    - { id: climate, desktop: /assets/images/smart-home/climate-1536.webp, mobile: /assets/images/smart-home/climate-768.webp, alt: Тепло освітлена житлова зона з непомітно інтегрованими системами клімату }
 configuration:
   title: Поточна конфігурація
   event_label: Подія
@@ -50,14 +180,14 @@ configuration:
 systems:
   kicker: Взаємодія систем
   title: Системи, що узгоджуються між собою
-  description: Кожен сценарій автоматизації поєднує лише ті функції, які справді потрібні плану, звичкам мешканців і технічним межам.
+  description: Сценарій визначають планування об’єкта, спосіб користування ним і технічні межі.
   items:
     - { id: lighting, title: Освітлення, description: "Групи світла, маршрутні точки та акценти закладаємо в план приміщень і щоденні дії.", service: lighting }
     - { id: climate, title: Клімат-контроль, description: "Опалення, охолодження та вентиляцію розглядаємо разом із зонами перебування і звичним ритмом дня.", service: smart-home-integration }
     - { id: shading, title: Сонцезахист, description: "Штори, тюль і ролети пов’язуємо зі світлом, приватністю та сонячним навантаженням конкретного простору.", service: smart-home-integration }
     - { id: access, title: Доступ, description: "Події входу, хвіртку або гараж розбираємо разом із маршрутами, точками керування та правилами простору.", service: low-voltage }
-    - { id: security, title: Безпека й відео, description: "Зони відеоконтролю та технічні сигнали — зокрема протікання — проєктуємо з окремими межами, реакціями й ручним сценарієм.", service: low-voltage }
-    - { id: panel, title: Щит і захист, description: "Групи живлення й захисту формують основу для сценаріїв, що залежать від електричної схеми.", service: panels-and-protection }
+    - { id: security, title: Безпека й відео, description: "Зони відеоконтролю та технічні сигнали, зокрема протікання, проєктуємо з окремими межами, реакціями й ручним сценарієм.", service: low-voltage }
+    - { id: panel, title: Щит і захист, description: "Групи живлення й захисту закладаємо в електричну схему разом із потрібними сценаріями.", service: panels-and-protection }
     - { id: low-voltage, title: Слабкострумна інфраструктура, description: "Лінії зв’язку та точки керування проєктують там, де вони справді потрібні сценарію.", service: low-voltage }
     - { id: backup-power, title: Резервне живлення, description: "Пріоритети споживачів і межі резерву проєктуємо разом зі щитом, захистом і потребами простору.", service: backup-power }
     - { id: audio, title: Аудіо, description: "Аудіо додають до сценарію лише для тих зон, де воно доречне в повсякденному користуванні.", service: smart-home-integration }
@@ -74,19 +204,19 @@ formation:
 related:
   kicker: Наступний крок у системі
   title: Пов’язані послуги й готові рішення
-  description: Ці напрями допомагають розглянути сценарій автоматизації разом з електромонтажною основою.
+  description: Автоматизацію проєктуємо разом з електромонтажною основою. Деталі наведено в описах пов’язаних послуг і готових рішень.
   links:
     - { type: service, slug: smart-home-integration, label: Інтеграція розумного будинку, description: Логіка сценаріїв у зв’язку з електромонтажем. }
     - { type: service, slug: lighting, label: Освітлення, description: Групи світла та точки керування для житлових зон. }
     - { type: service, slug: backup-power, label: Резервне живлення, description: Підхід до пріоритетних споживачів і захисту. }
-    - { type: solution, slug: private-house-full-automation, label: Приватний будинок — повна автоматизація, description: Готова до адаптації конфігурація для цілісного об’єкта. }
+    - { type: solution, slug: private-house-full-automation, label: "Приватний будинок: повна автоматизація", description: Конфігурація для адаптації під приватний будинок. }
 contact:
   kicker: Обговорення простору
   title: Побудуємо логіку разом із планом
   description: Починаємо з потреб простору, щоб сценарії автоматизації стали частиною електромонтажного проєкту.
   button_label: Обговорити об’єкт
   status: Звернення ще недоступні.
-scenarios:
+presets:
   - id: morning
     label: Ранок
     eyebrow: Сценарій початку дня
@@ -99,18 +229,28 @@ scenarios:
       - { zone: Клімат, response: Для кожної зони окремо задають ранкову температуру й повітрообмін. }
     project_note: На плані фіксуємо ранкові маршрути, групи світла, сонцезахист і ручне коригування.
     live_summary: "Обрано сценарій «Ранок»: ранкове світло, сонцезахист і температура працюють як один сценарій."
+    values:
+      lighting: { brightness: 35, layer: route }
+      climate: { comfort: balanced, operation: auto }
+      access: { arrival_route: true, entry_zone: entry }
+      security: { coverage: entry, event_path: sensors }
+      panel: { layer: groups, priority_groups: false }
+      low-voltage: { route: network, topology_focus: points }
+      backup-power: { priority_groups: false, restore_intent: manual }
+      audio: { level: 20, source: scenario, zone: living, muted: false }
+      shading: { position: 85, treatment: tulle }
     logic:
       route: [private, passage, living]
       primary_system: shading
       systems:
-        - { id: lighting, zone: private, role: support, summary: М’яке світло підтримує початок дня в приватній зоні., visual: interior }
+        - { id: lighting, zone: private, role: support, summary: М’яке світло підтримує початок дня в приватній зоні., visual: lighting }
         - { id: climate, zone: living, role: support, summary: Для житлової зони задають ранковий рівень комфорту., visual: climate }
-        - { id: access, zone: entry, role: quiet, summary: Доступ зберігає звичні правила входу., visual: exterior }
-        - { id: security, zone: entry, role: quiet, summary: Для відеоконтролю входу й технічних сигналів задають окремі правила., visual: exterior }
-        - { id: panel, zone: technical, role: quiet, summary: У щиті передбачають потрібні для сценарію групи живлення., visual: interior }
-        - { id: low-voltage, zone: living, role: support, summary: Точки керування передають ранкову команду до потрібних зон., visual: interior }
-        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не змінює звичний початок дня., visual: interior }
-        - { id: audio, zone: living, role: quiet, summary: Аудіо додають лише за потребою конкретного простору., visual: interior }
+        - { id: access, zone: entry, role: quiet, summary: Доступ зберігає звичні правила входу., visual: access }
+        - { id: security, zone: entry, role: quiet, summary: Для відеоконтролю входу й технічних сигналів задають окремі правила., visual: security }
+        - { id: panel, zone: technical, role: quiet, summary: У щиті передбачають потрібні для сценарію групи живлення., visual: panel }
+        - { id: low-voltage, zone: living, role: support, summary: Точки керування передають ранкову команду до потрібних зон., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не змінює звичний початок дня., visual: backup-power }
+        - { id: audio, zone: living, role: quiet, summary: Аудіо додають лише за потребою конкретного простору., visual: audio }
         - { id: shading, zone: living, role: focus, summary: "Штори, тюль або ролети займають положення, задане для ранку.", visual: shading }
     related_services: [lighting, smart-home-integration, low-voltage]
     related_solution: apartment-comfort-and-control
@@ -126,18 +266,28 @@ scenarios:
       - { zone: Точка доступу, response: Подію входу розглядаємо разом із правилами доступу для конкретного простору. }
     project_note: На плані фіксуємо маршрути, групи світла, точки доступу та межі ручного керування.
     live_summary: "Обрано сценарій «Повернення»: вхід, маршрутне світло та підготовлена зона комфорту."
+    values:
+      lighting: { brightness: 70, layer: route }
+      climate: { comfort: balanced, operation: auto }
+      access: { arrival_route: true, entry_zone: entry }
+      security: { coverage: entry, event_path: video }
+      panel: { layer: groups, priority_groups: false }
+      low-voltage: { route: signals, topology_focus: points }
+      backup-power: { priority_groups: false, restore_intent: manual }
+      audio: { level: 30, source: scenario, zone: living, muted: false }
+      shading: { position: 45, treatment: curtains }
     logic:
       route: [exterior, entry, passage, living]
       primary_system: lighting
       systems:
-        - { id: lighting, zone: exterior, role: focus, summary: Зовнішнє й маршрутне світло веде від двору до вітальні., visual: exterior }
+        - { id: lighting, zone: exterior, role: focus, summary: Зовнішнє й маршрутне світло веде від двору до вітальні., visual: lighting }
         - { id: climate, zone: living, role: support, summary: Комфорт у вітальні переходить у підготовлений стан., visual: climate }
-        - { id: access, zone: entry, role: support, summary: Подія входу запускає сценарій., visual: exterior }
-        - { id: security, zone: entry, role: quiet, summary: Для відеоконтролю входу зберігають правила, задані для повернення., visual: exterior }
-        - { id: panel, zone: technical, role: quiet, summary: У проєкті щита виділяють групи для сценарію входу., visual: interior }
-        - { id: low-voltage, zone: entry, role: support, summary: Сигнали доступу доходять до потрібної точки., visual: exterior }
-        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не змінює звичний сценарій входу., visual: interior }
-        - { id: audio, zone: living, role: quiet, summary: Аудіо не є частиною цієї дії., visual: interior }
+        - { id: access, zone: entry, role: support, summary: Подія входу запускає сценарій., visual: access }
+        - { id: security, zone: entry, role: quiet, summary: Для відеоконтролю входу зберігають правила, задані для повернення., visual: security }
+        - { id: panel, zone: technical, role: quiet, summary: У проєкті щита виділяють групи для сценарію входу., visual: panel }
+        - { id: low-voltage, zone: entry, role: support, summary: Сигнали доступу доходять до потрібної точки., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не змінює звичний сценарій входу., visual: backup-power }
+        - { id: audio, zone: living, role: quiet, summary: Аудіо не є частиною цієї дії., visual: audio }
         - { id: shading, zone: living, role: quiet, summary: Сонцезахист зберігає положення, задане для моменту входу., visual: shading }
     related_services: [lighting, low-voltage, smart-home-integration]
     related_solution: apartment-comfort-and-control
@@ -146,25 +296,35 @@ scenarios:
     eyebrow: Сценарій житлової зони
     title: Вечірній стан основної зони
     event: Команда або заданий час
-    scene_label: Основна житлова зона з продуманими групами світла
+    scene_label: Основна житлова зона з окремими групами світла
     outcomes:
       - { zone: Основна зона, response: Рівні освітлення для головної зони складаємо з урахуванням її планування та щоденних справ. }
       - { zone: Окремі групи, response: Один виклик може задати спільний стан для кількох груп світла. }
       - { zone: Ручне керування, response: Ручне коригування лишається частиною сценарію для цього простору. }
     project_note: На плані розкладаємо групи, точки керування, акцентне світло та спосіб ручного коригування.
     live_summary: "Обрано сценарій «Вечір»: спільний стан світла для основної житлової зони."
+    values:
+      lighting: { brightness: 55, layer: evening }
+      climate: { comfort: warm, operation: heating }
+      access: { arrival_route: false, entry_zone: entry }
+      security: { coverage: perimeter, event_path: video }
+      panel: { layer: protection, priority_groups: false }
+      low-voltage: { route: network, topology_focus: interfaces }
+      backup-power: { priority_groups: false, restore_intent: staged }
+      audio: { level: 45, source: media, zone: living, muted: false }
+      shading: { position: 25, treatment: curtains }
     logic:
       route: [passage, living]
       primary_system: lighting
       systems:
-        - { id: lighting, zone: living, role: focus, summary: Світло збирає вітальню в один вечірній стан., visual: interior }
+        - { id: lighting, zone: living, role: focus, summary: Світло збирає вітальню в один вечірній стан., visual: lighting }
         - { id: climate, zone: living, role: support, summary: Комфорт у вітальні відповідає часу перебування., visual: climate }
-        - { id: access, zone: entry, role: quiet, summary: Доступ працює за звичними правилами., visual: exterior }
-        - { id: security, zone: entry, role: quiet, summary: Відеоконтроль входу й технічні сигнали зберігають визначені правила., visual: exterior }
-        - { id: panel, zone: technical, role: quiet, summary: Щит живить задіяні групи світла., visual: interior }
-        - { id: low-voltage, zone: living, role: support, summary: Точки керування передають одну команду., visual: interior }
-        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не бере участі у вечірньому сценарії., visual: interior }
-        - { id: audio, zone: living, role: support, summary: До вечірнього сценарію можна додати аудіо., visual: interior }
+        - { id: access, zone: entry, role: quiet, summary: Доступ працює за звичними правилами., visual: access }
+        - { id: security, zone: entry, role: quiet, summary: Відеоконтроль входу й технічні сигнали зберігають визначені правила., visual: security }
+        - { id: panel, zone: technical, role: quiet, summary: Щит живить задіяні групи світла., visual: panel }
+        - { id: low-voltage, zone: living, role: support, summary: Точки керування передають одну команду., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не бере участі у вечірньому сценарії., visual: backup-power }
+        - { id: audio, zone: living, role: support, summary: До вечірнього сценарію можна додати аудіо., visual: audio }
         - { id: shading, zone: living, role: support, summary: Штори або ролети підтримують приватність вечірньої зони., visual: shading }
     related_services: [electrical-design, lighting, smart-home-integration]
     related_solution: architectural-lighting
@@ -177,21 +337,31 @@ scenarios:
     outcomes:
       - { zone: Потрібні групи світла, response: Окремі групи можуть перейти в підготовлений стан після команди перед виходом. }
       - { zone: Клімат, response: Для житлових зон можна закласти ощадний стан комфорту відповідно до прийнятої логіки. }
-      - { zone: Доступ і технічний захист, response: "Точки доступу, відеоконтроль і визначені сигнали — наприклад протікання — входять в один послідовний сценарій." }
+      - { zone: Доступ і технічний захист, response: "Точки доступу, відеоконтроль і визначені сигнали, наприклад протікання, входять в один послідовний сценарій." }
     project_note: Фіксуємо, які групи та зони входять до команди, а які лишаються під ручним керуванням.
     live_summary: "Обрано сценарій «Вихід»: групи світла, комфорт і контроль підготовлені перед виходом."
+    values:
+      lighting: { brightness: 10, layer: route }
+      climate: { comfort: balanced, operation: auto }
+      access: { arrival_route: false, entry_zone: gate }
+      security: { coverage: perimeter, event_path: video }
+      panel: { layer: protection, priority_groups: true }
+      low-voltage: { route: video, topology_focus: routes }
+      backup-power: { priority_groups: true, restore_intent: essential }
+      audio: { level: 0, source: scenario, zone: living, muted: true }
+      shading: { position: 0, treatment: rollers }
     logic:
       route: [private, living, passage, entry]
       primary_system: security
       systems:
-        - { id: lighting, zone: passage, role: support, summary: Потрібні групи світла переходять у стан перед виходом., visual: exterior }
+        - { id: lighting, zone: passage, role: support, summary: Потрібні групи світла переходять у стан перед виходом., visual: lighting }
         - { id: climate, zone: living, role: support, summary: Комфорт у житловій зоні переходить в ощадний стан., visual: climate }
-        - { id: access, zone: entry, role: support, summary: Точка доступу завершує послідовність виходу., visual: exterior }
-        - { id: security, zone: entry, role: focus, summary: Відеоконтроль і визначені технічні сигнали переходять у стан відсутності., visual: exterior }
-        - { id: panel, zone: technical, role: quiet, summary: Щит зберігає задані пріоритети живлення., visual: interior }
-        - { id: low-voltage, zone: entry, role: support, summary: Сигнал доступу замикає послідовність виходу., visual: exterior }
-        - { id: backup-power, zone: technical, role: quiet, summary: Резерв працює за окремо заданими правилами., visual: interior }
-        - { id: audio, zone: living, role: quiet, summary: Аудіо завершує роботу разом з іншими групами., visual: interior }
+        - { id: access, zone: entry, role: support, summary: Точка доступу завершує послідовність виходу., visual: access }
+        - { id: security, zone: entry, role: focus, summary: Відеоконтроль і визначені технічні сигнали переходять у стан відсутності., visual: security }
+        - { id: panel, zone: technical, role: quiet, summary: Щит зберігає задані пріоритети живлення., visual: panel }
+        - { id: low-voltage, zone: entry, role: support, summary: Сигнал доступу замикає послідовність виходу., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: quiet, summary: Резерв працює за окремо заданими правилами., visual: backup-power }
+        - { id: audio, zone: living, role: quiet, summary: Аудіо завершує роботу разом з іншими групами., visual: audio }
         - { id: shading, zone: living, role: support, summary: Штори або ролети займають положення для стану відсутності., visual: shading }
     related_services: [lighting, low-voltage, smart-home-integration]
     related_solution: security-and-access-control
@@ -207,18 +377,28 @@ scenarios:
       - { zone: Житлові зони, response: Потрібні зони можуть перейти в тихий стан без втрати ручного керування. }
     project_note: На плані фіксуємо маршрутні точки, рівні світла, умови запуску та межі для кожної житлової зони.
     live_summary: "Обрано сценарій «Нічний маршрут»: делікатне світло веде через житлові зони та сходи."
+    values:
+      lighting: { brightness: 15, layer: route }
+      climate: { comfort: cool, operation: cooling }
+      access: { arrival_route: false, entry_zone: entry }
+      security: { coverage: quiet, event_path: quiet }
+      panel: { layer: protection, priority_groups: true }
+      low-voltage: { route: signals, topology_focus: points }
+      backup-power: { priority_groups: true, restore_intent: essential }
+      audio: { level: 0, source: scenario, zone: private, muted: true }
+      shading: { position: 0, treatment: rollers }
     logic:
       route: [private, stairs, passage, living]
       primary_system: lighting
       systems:
-        - { id: lighting, zone: stairs, role: focus, summary: Делікатне світло веде між нічними зонами через сходи., visual: stairs }
+        - { id: lighting, zone: stairs, role: focus, summary: Делікатне світло веде між нічними зонами через сходи., visual: lighting }
         - { id: climate, zone: private, role: support, summary: Комфорт у приватній зоні тримає тихий стан., visual: climate }
-        - { id: access, zone: entry, role: quiet, summary: Для доступу діють окремі нічні правила., visual: exterior }
-        - { id: security, zone: passage, role: support, summary: Для відеоконтролю проходу задають окремі нічні правила., visual: stairs }
-        - { id: panel, zone: technical, role: quiet, summary: Щит підтримує потрібні нічні групи., visual: interior }
-        - { id: low-voltage, zone: passage, role: support, summary: Точки керування подають команду для маршруту., visual: stairs }
-        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не змінює нічний маршрут., visual: interior }
-        - { id: audio, zone: private, role: quiet, summary: Аудіо не втручається в тихий стан., visual: interior }
+        - { id: access, zone: entry, role: quiet, summary: Для доступу діють окремі нічні правила., visual: access }
+        - { id: security, zone: passage, role: support, summary: Для відеоконтролю проходу задають окремі нічні правила., visual: security }
+        - { id: panel, zone: technical, role: quiet, summary: Щит підтримує потрібні нічні групи., visual: panel }
+        - { id: low-voltage, zone: passage, role: support, summary: Точки керування подають команду для маршруту., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: quiet, summary: Резерв не змінює нічний маршрут., visual: backup-power }
+        - { id: audio, zone: private, role: quiet, summary: Аудіо не втручається в тихий стан., visual: audio }
         - { id: shading, zone: private, role: quiet, summary: Штори зберігають заданий рівень приватності., visual: shading }
     related_services: [electrical-design, lighting, low-voltage]
     related_solution: apartment-comfort-and-control
@@ -234,18 +414,28 @@ scenarios:
       - { zone: Вуличний простір, response: Зовнішнє освітлення для вечора та входу налаштовують окремо. }
     project_note: На плані фіксуємо сонячні сторони, зони охолодження, вентиляції, сонцезахисту та ручного керування.
     live_summary: "Обрано сценарій «Спека»: затінення, охолодження й вентиляція реагують на сонячне навантаження."
+    values:
+      lighting: { brightness: 30, layer: full }
+      climate: { comfort: cool, operation: cooling }
+      access: { arrival_route: false, entry_zone: garage }
+      security: { coverage: perimeter, event_path: sensors }
+      panel: { layer: groups, priority_groups: false }
+      low-voltage: { route: network, topology_focus: interfaces }
+      backup-power: { priority_groups: false, restore_intent: staged }
+      audio: { level: 20, source: media, zone: living, muted: false }
+      shading: { position: 15, treatment: blinds }
     logic:
       route: [exterior, living, private]
       primary_system: climate
       systems:
-        - { id: lighting, zone: exterior, role: quiet, summary: Зовнішнє освітлення для вечора та входу налаштовують окремо., visual: exterior }
+        - { id: lighting, zone: exterior, role: quiet, summary: Зовнішнє освітлення для вечора та входу налаштовують окремо., visual: lighting }
         - { id: climate, zone: living, role: focus, summary: Охолодження та вентиляцію задають для потрібних зон., visual: climate }
-        - { id: access, zone: entry, role: quiet, summary: Доступ зберігає звичні правила входу., visual: exterior }
-        - { id: security, zone: exterior, role: quiet, summary: Відеоконтроль двору й технічні сигнали працюють за окремими правилами., visual: exterior }
-        - { id: panel, zone: technical, role: support, summary: У щиті передбачають групи для клімату та сонцезахисту., visual: climate }
-        - { id: low-voltage, zone: living, role: support, summary: Точки керування пов’язують команду з потрібними зонами., visual: climate }
-        - { id: backup-power, zone: technical, role: quiet, summary: Резерв визначають окремо від сценарію спеки., visual: interior }
-        - { id: audio, zone: living, role: quiet, summary: Аудіо не визначає стан комфорту., visual: interior }
+        - { id: access, zone: entry, role: quiet, summary: Доступ зберігає звичні правила входу., visual: access }
+        - { id: security, zone: exterior, role: quiet, summary: Відеоконтроль двору й технічні сигнали працюють за окремими правилами., visual: security }
+        - { id: panel, zone: technical, role: support, summary: У щиті передбачають групи для клімату та сонцезахисту., visual: panel }
+        - { id: low-voltage, zone: living, role: support, summary: Точки керування пов’язують команду з потрібними зонами., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: quiet, summary: Резерв визначають окремо від сценарію спеки., visual: backup-power }
+        - { id: audio, zone: living, role: quiet, summary: Аудіо не визначає стан комфорту., visual: audio }
         - { id: shading, zone: living, role: support, summary: "Штори, тюль або ролети обмежують пряме сонячне світло.", visual: shading }
     related_services: [lighting, smart-home-integration, electrical-design]
     related_solution: apartment-comfort-and-control
@@ -261,18 +451,28 @@ scenarios:
       - { zone: Керування навантаженням, response: Логіку потрібних споживачів перевіряємо проти технічних меж конкретного простору. }
     project_note: На плані фіксуємо пріоритетні групи, межі переходу та зв’язок резерву зі щитом і захистом.
     live_summary: "Обрано сценарій «Резерв»: пріоритетні групи живлення формують для конкретного простору."
+    values:
+      lighting: { brightness: 35, layer: route }
+      climate: { comfort: balanced, operation: auto }
+      access: { arrival_route: true, entry_zone: entry }
+      security: { coverage: entry, event_path: sensors }
+      panel: { layer: priorities, priority_groups: true }
+      low-voltage: { route: signals, topology_focus: routes }
+      backup-power: { priority_groups: true, restore_intent: essential }
+      audio: { level: 0, source: local, zone: living, muted: true }
+      shading: { position: 0, treatment: rollers }
     logic:
       route: [technical, living]
       primary_system: backup-power
       systems:
-        - { id: lighting, zone: living, role: support, summary: Світло працює в межах заданих пріоритетів., visual: interior }
+        - { id: lighting, zone: living, role: support, summary: Світло працює в межах заданих пріоритетів., visual: lighting }
         - { id: climate, zone: living, role: quiet, summary: Клімат входить до сценарію лише за потреби., visual: climate }
-        - { id: access, zone: entry, role: quiet, summary: Доступ не визначає пріоритети резерву., visual: exterior }
-        - { id: security, zone: entry, role: support, summary: Відео й критичні технічні сигнали можуть мати окремий пріоритет., visual: exterior }
-        - { id: panel, zone: technical, role: support, summary: Щит розподіляє навантаження між групами., visual: interior }
-        - { id: low-voltage, zone: technical, role: quiet, summary: Слабкострумні лінії входять до схеми за потреби., visual: interior }
-        - { id: backup-power, zone: technical, role: focus, summary: Резервне живлення подається на пріоритетні групи., visual: interior }
-        - { id: audio, zone: living, role: quiet, summary: Аудіо не має першочергового пріоритету., visual: interior }
+        - { id: access, zone: entry, role: quiet, summary: Доступ не визначає пріоритети резерву., visual: access }
+        - { id: security, zone: entry, role: support, summary: Відео й критичні технічні сигнали можуть мати окремий пріоритет., visual: security }
+        - { id: panel, zone: technical, role: support, summary: Щит розподіляє навантаження між групами., visual: panel }
+        - { id: low-voltage, zone: technical, role: quiet, summary: Слабкострумні лінії входять до схеми за потреби., visual: low-voltage }
+        - { id: backup-power, zone: technical, role: focus, summary: Резервне живлення подається на пріоритетні групи., visual: backup-power }
+        - { id: audio, zone: living, role: quiet, summary: Аудіо не має першочергового пріоритету., visual: audio }
         - { id: shading, zone: living, role: quiet, summary: Сонцезахист підключають до резерву лише коли це потрібно проєкту., visual: shading }
     related_services: [panels-and-protection, backup-power, smart-home-integration]
     related_solution: energy-autonomy
