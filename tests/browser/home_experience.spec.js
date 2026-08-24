@@ -55,8 +55,8 @@ test("hero explains the full electrical journey and exposes live engineering con
   }
 
   const liveRegions = main.locator('[aria-live]:visible');
-  await expect(liveRegions).not.toHaveCount(0);
-  await expect(liveRegions.first()).not.toHaveText("");
+  await expect(liveRegions).toHaveCount(1);
+  await expect(liveRegions.first()).toBeEmpty();
 
   const lighting = main.getByRole("button", { name: "Освітлення", exact: true });
   await lighting.click();

@@ -33,8 +33,9 @@ function enhance(root) {
   const composition = one(root, "[data-cinematic-composition]");
   const connectorLane = one(root, "[data-cinematic-connector-lane]");
   const snapshot = one(root, "[data-cinematic-outgoing-snapshot]");
+  const live = one(root, "[data-cinematic-live]");
   const returnControl = one(root, "button[data-cinematic-return]");
-  if (!source || !fallback || !stage || !composition || !connectorLane || !snapshot || !returnControl) return;
+  if (!source || !fallback || !stage || !composition || !connectorLane || !snapshot || !live || !returnControl) return;
 
   const { graph, machine } = source;
   const directionIds = graph.directions.map((direction) => direction.id);
@@ -111,7 +112,7 @@ function enhance(root) {
     root.dataset.cinematicDirection = state.selectedDirectionId || "";
     root.dataset.cinematicRelation = state.selectedRelationId || "";
     root.style.setProperty("--cinematic-rail-index", String(directionIndex.get(state.selectedDirectionId) || 1));
-    if (announce) root.dataset.cinematicAnnounced = "true";
+    if (announce) live.textContent = text(activePanel.querySelector("[data-cinematic-summary]")?.textContent);
 
     root.dispatchEvent(new CustomEvent("cinematic:state-change", {
       bubbles: true,

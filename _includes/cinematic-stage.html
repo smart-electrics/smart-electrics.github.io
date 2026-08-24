@@ -51,6 +51,8 @@
       <h2 id="{{ stage_id }}-stage-title">{{ include.title }}</h2>
     </header>
 
+    <p class="residence-spine__live" data-cinematic-live aria-live="polite" aria-atomic="true"></p>
+
     <div class="residence-spine__composition" data-cinematic-composition>
       <nav class="residence-spine__rail" aria-label="Напрями системи">
         <ol>
@@ -139,8 +141,8 @@
         <div class="residence-spine__panels" data-cinematic-panels>
           <article class="residence-spine__panel" data-cinematic-panel="assembled">
             <p class="residence-spine__panel-kicker">Повна система</p>
-            <h3>Рішення починається зі зв’язків між напрямами.</h3>
-            <p data-cinematic-summary aria-live="polite">Оберіть напрям, щоб побачити його місце в цілісній електричній системі та пов’язані складові.</p>
+            <h3>Усі напрями працюють як одна система.</h3>
+            <p data-cinematic-summary>Оберіть напрям. Сцена покаже його місце в системі та пов’язані роботи.</p>
           </article>
 
           {% for direction in cinematic.directions %}
@@ -149,7 +151,7 @@
             <article class="residence-spine__panel" data-cinematic-panel="focus" data-cinematic-focus-panel="{{ direction.id }}" hidden>
               <p class="residence-spine__panel-kicker">Напрям системи</p>
               <h3>{{ direction.label }}</h3>
-              <p data-cinematic-summary aria-live="polite">{{ direction.description }}</p>
+              <p data-cinematic-summary>{{ direction.description }}</p>
               <a class="residence-spine__destination" data-cinematic-focus-destination="{{ direction.id }}" href="{{ service.url | relative_url }}">Відкрити напрям «{{ direction.label }}» <span aria-hidden="true">↗</span></a>
               {% if owned_relations.size > 0 %}
                 <div class="residence-spine__relation-switcher" data-cinematic-relation-switcher="{{ direction.id }}">
@@ -170,7 +172,7 @@
             <article class="residence-spine__panel" data-cinematic-panel="reassembled" data-cinematic-reassembled-panel="{{ relation.id }}" hidden>
               <p class="residence-spine__panel-kicker">{{ owner.label }}</p>
               <h3>{{ relation.child.label }}</h3>
-              <p data-cinematic-summary aria-live="polite">{{ relation.child.description }}</p>
+              <p data-cinematic-summary>{{ relation.child.description }}</p>
               <a class="residence-spine__destination" data-cinematic-reassembled-destination="{{ relation.id }}" href="{{ owner_service.url | relative_url }}">Відкрити напрям «{{ owner.label }}» <span aria-hidden="true">↗</span></a>
               <ul class="residence-spine__related" data-cinematic-related="{{ relation.id }}">
                 {% for related_id in relation.related_direction_ids %}

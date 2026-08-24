@@ -157,6 +157,19 @@
   text-align: right;
 }
 
+.residence-spine__live {
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 .residence-spine__composition {
   --residence-rail: clamp(10.5rem, 18vw, 14.5rem);
   aspect-ratio: 16 / 10;

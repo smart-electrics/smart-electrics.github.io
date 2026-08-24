@@ -75,6 +75,21 @@ test("both surfaces turn a direction and relation into one causal scene and real
   }
 });
 
+test("one live region announces the active direction and relation", async ({ page }) => {
+  await page.goto("/");
+  const { stage } = await stageFor(page);
+  const live = stage.locator("[data-cinematic-live]");
+
+  await expect(stage.locator("[aria-live]")).toHaveCount(1);
+  await expect(live).toBeEmpty();
+
+  await chooseDirection(stage, "Освітлення");
+  await expect(live).toHaveText("Групи світла формують повсякденні й маршрутні сценарії простору.");
+
+  await stage.getByRole("button", { name: "Показати зв’язок: Освітлення сходів", exact: true }).click();
+  await expect(live).toHaveText("Маршрутне світло для сходів розглядають разом із групами освітлення.");
+});
+
 test("every enhanced direction has one 44px control and no same-name destination link", async ({ page }) => {
   await page.goto("/services/");
   const { stage } = await stageFor(page);
@@ -213,7 +228,7 @@ test("keyboard and touch select the same residence-spine state", async ({ page, 
 
   const touchContext = await browser.newContext({ hasTouch: true, viewport: { width: 375, height: 812 } });
   const touchPage = await touchContext.newPage();
-  await touchPage.goto("http://127.0.0.1:4000/");
+  await touchPage.goto(new URL("/", page.url()).href);
   const touchStage = touchPage.locator("[data-cinematic-stage]");
   await touchStage.getByRole("button", { name: "Освітлення", exact: true }).tap();
   await expect(touchPage.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-direction", "lighting");
