@@ -19,4 +19,20 @@ related_services:
   - electrical-design
   - panels-and-protection
   - diagnostics-and-service
+service_studio:
+  direction_id: backup-power
+  relation_id: backup-power--backup
+  states:
+    assembled:
+      label: Пріоритетні групи
+      title: Що має залишатися в роботі
+      summary: Спершу визначають лінії, які мають отримувати резервне живлення.
+    focus:
+      label: Щит і захист
+      title: Де підключається резерв
+      summary: Ці групи закладають у схему щита разом із комутацією та захистом.
+    reassembled:
+      label: Схема резерву
+      title: Як групи пов’язані
+      summary: Схема показує, як ці групи пов’язані з розподілом і наступною перевіркою.
 ---

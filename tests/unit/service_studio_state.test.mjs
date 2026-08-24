@@ -50,3 +50,30 @@ test("service studio rejects IDs absent from the canonical graph", () => {
     /canonical graph/
   );
 });
+
+test("service studio maps the reserve relation onto its canonical owner", () => {
+  const reserveGraph = {
+    directions: [
+      { id: "backup-power" },
+      { id: "panels-and-protection" }
+    ],
+    relations: [
+      {
+        id: "backup-power--backup",
+        direction_id: "backup-power",
+        child: { id: "backup" },
+        related_direction_ids: ["panels-and-protection"]
+      }
+    ]
+  };
+  const studio = createServiceStudioState(reserveGraph, {
+    direction_id: "backup-power",
+    relation_id: "backup-power--backup"
+  });
+
+  assert.deepEqual(studio.reduce(studio.initialState, { type: "select-reassembled" }), {
+    state: "reassembled",
+    selectedDirectionId: "backup-power",
+    selectedRelationId: "backup-power--backup"
+  });
+});

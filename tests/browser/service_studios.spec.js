@@ -6,6 +6,8 @@ const studios = [
     route: "/services/electrical-design/",
     controls: ["План", "Групи й навантаження", "Рішення для щита"],
     direction: "electrical-design",
+    resolvedDirection: "panels-and-protection",
+    relation: "panels-and-protection--panel-assembly",
     related: [
       ["/services/electrical-installation/", "/services/panels-and-protection/", "/services/lighting/"],
       ["/services/electrical-installation/", "/services/panels-and-protection/"],
@@ -16,6 +18,8 @@ const studios = [
     route: "/services/electrical-installation/",
     controls: ["Траси й точки", "Підключення", "Розподіл"],
     direction: "electrical-installation",
+    resolvedDirection: "panels-and-protection",
+    relation: "panels-and-protection--panel-assembly",
     related: [
       ["/services/electrical-design/", "/services/panels-and-protection/", "/services/lighting/", "/services/low-voltage/"],
       ["/services/electrical-design/", "/services/panels-and-protection/"],
@@ -26,10 +30,36 @@ const studios = [
     route: "/services/panels-and-protection/",
     controls: ["Ввід", "Захист", "Розподіл і пріоритети"],
     direction: "panels-and-protection",
+    resolvedDirection: "panels-and-protection",
+    relation: "panels-and-protection--panel-assembly",
     related: [
       ["/services/electrical-design/", "/services/electrical-installation/", "/services/backup-power/", "/services/smart-home-integration/"],
       ["/services/electrical-design/", "/services/electrical-installation/"],
       ["/services/panels-and-protection/", "/services/electrical-installation/", "/services/backup-power/"]
+    ]
+  },
+  {
+    route: "/services/backup-power/",
+    controls: ["Пріоритетні групи", "Щит і захист", "Схема резерву"],
+    direction: "backup-power",
+    resolvedDirection: "backup-power",
+    relation: "backup-power--backup",
+    related: [
+      ["/services/electrical-design/", "/services/panels-and-protection/", "/services/diagnostics-and-service/"],
+      ["/services/electrical-design/", "/services/panels-and-protection/"],
+      ["/services/backup-power/", "/services/panels-and-protection/", "/services/diagnostics-and-service/"]
+    ]
+  },
+  {
+    route: "/services/diagnostics-and-service/",
+    controls: ["Вихідні дані", "Локалізація", "Наступний крок"],
+    direction: "diagnostics-and-service",
+    resolvedDirection: "diagnostics-and-service",
+    relation: "diagnostics-and-service--diagnostics",
+    related: [
+      ["/services/electrical-installation/", "/services/panels-and-protection/", "/services/backup-power/"],
+      ["/services/electrical-installation/", "/services/panels-and-protection/"],
+      ["/services/diagnostics-and-service/", "/services/panels-and-protection/", "/services/low-voltage/"]
     ]
   }
 ];
@@ -58,8 +88,22 @@ const multiRelationStudios = [
       { label: "Відеоконтроль", id: "low-voltage--cctv", image: "/assets/images/smart-home/surveillance-1536.webp", related: ["/services/low-voltage/", "/services/electrical-installation/", "/services/diagnostics-and-service/"] },
       { label: "Аудіо", id: "low-voltage--audio", image: "/assets/images/smart-home/audio-1536.webp", related: ["/services/low-voltage/", "/services/electrical-design/", "/services/smart-home-integration/"] }
     ]
+  },
+  {
+    route: "/services/smart-home-integration/",
+    controls: ["Зони", "Умова", "Ручне керування"],
+    related: [
+      ["/services/electrical-design/", "/services/lighting/", "/services/low-voltage/", "/services/panels-and-protection/"],
+      ["/services/electrical-design/", "/services/lighting/"]
+    ],
+    relations: [
+      { label: "Клімат", id: "smart-home-integration--climate", image: "/assets/images/smart-home/climate-1536.webp", related: ["/services/smart-home-integration/", "/services/panels-and-protection/", "/services/low-voltage/"] },
+      { label: "Штори, тюль і ролети", id: "smart-home-integration--curtains-tulle-roller-shutters", image: "/assets/images/smart-home/shading-1536.webp", related: ["/services/smart-home-integration/", "/services/lighting/", "/services/low-voltage/"] }
+    ]
   }
 ];
+
+const allStudios = [...studios, ...multiRelationStudios];
 
 async function studioFor(page) {
   const root = page.locator("[data-service-studio-root]");
@@ -67,10 +111,11 @@ async function studioFor(page) {
   return { root, stage: root.locator("[data-service-studio-stage]") };
 }
 
-test("the three service studios retain their complete semantic reading order without JavaScript", async ({ page }) => {
+test("all eight service studios retain their complete semantic reading order without JavaScript", async ({ page }) => {
+  expect(allStudios).toHaveLength(8);
   await page.route("**/assets/js/service-studio.js", (route) => route.abort());
 
-  for (const studio of studios) {
+  for (const studio of allStudios) {
     await page.goto(studio.route);
     const root = page.locator("[data-service-studio-root]");
     const fallback = root.locator("[data-service-studio-fallback]");
@@ -98,10 +143,12 @@ test("each studio rail changes the canonical state, explanation, scene and exact
       await expect(relatedLinks).toHaveCount(studio.related[index].length);
       expect(await relatedLinks.evaluateAll((links) => links.map((link) => link.getAttribute("href")))).toEqual(studio.related[index]);
       await expect(stage.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
+      expect(await stage.locator("[data-service-studio-live]").textContent()).not.toContain("..");
+      expect((await new AxeBuilder({ page }).include("[data-service-studio-stage]").analyze()).violations).toEqual([]);
     }
 
-    await expect(root).toHaveAttribute("data-service-studio-direction", "panels-and-protection");
-    await expect(root).toHaveAttribute("data-service-studio-relation", "panels-and-protection--panel-assembly");
+    await expect(root).toHaveAttribute("data-service-studio-direction", studio.resolvedDirection);
+    await expect(root).toHaveAttribute("data-service-studio-relation", studio.relation);
   }
 });
 
@@ -159,15 +206,18 @@ test("service studios are still, accessible and overflow-free at the required wi
     }).length)).toBe(0);
   }
 
-  await page.goto(studios[2].route);
-  const { stage } = await studioFor(page);
-  for (const label of studios[2].controls) {
-    await stage.getByRole("button", { name: label, exact: true }).click();
-    expect((await new AxeBuilder({ page }).include("[data-service-studio-stage]").analyze()).violations).toEqual([]);
+  for (const studio of studios) {
+    await page.goto(studio.route);
+    const { stage } = await studioFor(page);
+    expect(await stage.locator(".service-studio__rail ol > li").allTextContents()).not.toEqual(expect.arrayContaining([expect.stringMatching(/^\s*0\d/)]));
+    for (const label of studio.controls) {
+      await stage.getByRole("button", { name: label, exact: true }).click();
+      expect((await new AxeBuilder({ page }).include("[data-service-studio-stage]").analyze()).violations).toEqual([]);
+    }
   }
 });
 
-test("lighting and low-voltage expose every owned relation through the shared cinematic studio", async ({ page }) => {
+test("every multi-relation studio exposes each owned relation through the shared cinematic studio", async ({ page }) => {
   for (const studio of multiRelationStudios) {
     await page.goto(studio.route);
     const { root, stage } = await studioFor(page);
@@ -180,6 +230,7 @@ test("lighting and low-voltage expose every owned relation through the shared ci
         await expect(stage.locator("[data-service-studio-scene]:visible img")).toHaveAttribute("src", relation.image);
         await expect(stage.locator("[data-service-studio-panel]:visible .service-studio__relation-label")).toContainText(relation.label);
         await expect(stage.locator("[data-service-studio-live]")).toContainText(relation.label);
+        expect(await stage.locator("[data-service-studio-live]").textContent()).not.toContain("..");
         const relatedLinks = stage.locator("[data-service-studio-panel]:visible [data-service-studio-related] a");
         const expectedRelated = index === 2 ? relation.related : studio.related[index];
         expect(await relatedLinks.evaluateAll((links) => links.map((link) => link.getAttribute("href")))).toEqual(expectedRelated);
@@ -195,6 +246,17 @@ test("relation controls retain a 44px pointer target", async ({ page }) => {
     const { stage } = await studioFor(page);
     for (const relation of studio.relations) {
       const box = await stage.getByRole("button", { name: relation.label, exact: true }).boundingBox();
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
+test("each studio rail control retains a 44px pointer target", async ({ page }) => {
+  for (const studio of allStudios) {
+    await page.goto(studio.route);
+    const { stage } = await studioFor(page);
+    for (const control of studio.controls) {
+      const box = await stage.getByRole("button", { name: control, exact: true }).boundingBox();
       expect(box?.height).toBeGreaterThanOrEqual(44);
     }
   }
@@ -285,6 +347,59 @@ test("invalid studio JSON, DOM, or non-owner relation keeps the complete fallbac
     await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
     await page.unroute("**/services/lighting/");
   }
+});
+
+test("a swapped valid relation config and DOM keeps the single-relation fallback", async ({ page }) => {
+  await page.route("**/services/backup-power/", async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    const graphIndex = body.indexOf('<script type="application/json" data-service-studio-graph>');
+    const swapped = `${body.slice(0, graphIndex).replaceAll("backup-power--backup", "diagnostics-and-service--diagnostics")}${body.slice(graphIndex)}`;
+    await route.fulfill({ response, body: swapped, contentType: "text/html" });
+  });
+
+  await page.goto("/services/backup-power/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
+});
+
+test("a combined valid relation config, DOM, and mapping swap keeps the single-relation fallback", async ({ page }) => {
+  await page.route("**/services/backup-power/", async (route) => {
+    const response = await route.fetch();
+    const body = await response.text();
+    const graphIndex = body.indexOf('<script type="application/json" data-service-studio-graph>');
+    const beforeGraph = body.slice(0, graphIndex).replaceAll("backup-power--backup", "diagnostics-and-service--diagnostics");
+    const graph = body.slice(graphIndex).replace(
+      '"backup-power":["backup-power--backup"]',
+      '"backup-power":["diagnostics-and-service--diagnostics"]'
+    );
+    await route.fulfill({ response, body: `${beforeGraph}${graph}`, contentType: "text/html" });
+  });
+
+  await page.goto("/services/backup-power/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
+});
+
+test("a malformed canonical mapping keeps the complete fallback", async ({ page }) => {
+  await page.route("**/services/backup-power/", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /(<script type="application\/json" data-service-studio-graph>)([\s\S]*?)(<\/script>)/,
+      (_match, open, graph, close) => `${open}${graph.replace('"low-voltage--audio"', '"invented--relation"')}${close}`
+    );
+    await route.fulfill({ response, body, contentType: "text/html" });
+  });
+
+  await page.goto("/services/backup-power/");
+  const root = page.locator("[data-service-studio-root]");
+  await expect(root.locator("[data-service-studio-fallback]")).toBeVisible();
+  await expect(root.locator("[data-service-studio-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-service-studio-enhanced");
 });
 
 test("an unknown rail action keeps the semantic fallback instead of enabling inert controls", async ({ page }) => {

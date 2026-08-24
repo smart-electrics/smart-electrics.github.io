@@ -95,6 +95,13 @@ class CinematicContractTest < Minitest::Test
     assert_rejected(graph, "direction 1: fields must be exactly id, focus_scene_family, service_slug, label, description")
   end
 
+  def test_rejects_top_level_fields_outside_the_canonical_graph_contract
+    graph = canonical_graph
+    graph["service_studio_relation_idz"] = graph.fetch("service_studio_relation_ids").transform_values(&:dup)
+
+    assert_rejected(graph, "cinematic_system.yml: fields must be exactly directions, relations, service_studio_relation_ids")
+  end
+
   def test_rejects_duplicate_or_blank_direction_ids
     graph = canonical_graph
     graph.fetch("directions")[1]["id"] = graph.fetch("directions").first.fetch("id")
@@ -184,5 +191,50 @@ class CinematicContractTest < Minitest::Test
       refute_predicate status, :success?
       assert_includes stderr, "cinematic_system.yml: must contain valid YAML"
     end
+  end
+
+  def test_requires_exact_service_studio_relation_mapping_shape
+    graph = canonical_graph
+    graph.delete("service_studio_relation_ids")
+    assert_rejected(graph, "service_studio_relation_ids must be a mapping")
+
+    graph = canonical_graph
+    graph.fetch("service_studio_relation_ids").delete("backup-power")
+    assert_rejected(graph, "service_studio_relation_ids must contain exactly the graph direction IDs in canonical order")
+
+    graph = canonical_graph
+    graph.fetch("service_studio_relation_ids")["backup-power"] = []
+    assert_rejected(graph, "service_studio_relation_ids.backup-power must be a non-empty list of relation IDs")
+
+    graph = canonical_graph
+    graph.fetch("service_studio_relation_ids")["lighting"] = ["lighting--stair-lighting", "lighting--stair-lighting"]
+    assert_rejected(graph, "service_studio_relation_ids.lighting must not contain duplicate relation IDs")
+
+    graph = canonical_graph
+    graph.fetch("service_studio_relation_ids")["diagnostics-and-service"] = ["invented-relation"]
+    assert_rejected(graph, "service_studio_relation_ids.diagnostics-and-service must reference graph relation IDs")
+  end
+
+  def test_requires_service_studio_mappings_to_follow_owned_graph_relations_in_graph_order
+    graph = canonical_graph
+    graph.fetch("service_studio_relation_ids")["backup-power"] = ["diagnostics-and-service--diagnostics"]
+    assert_rejected(graph, "service_studio_relation_ids.backup-power must equal the canonical owned relation IDs")
+
+    graph = canonical_graph
+    graph.fetch("service_studio_relation_ids")["lighting"].reverse!
+    assert_rejected(graph, "service_studio_relation_ids.lighting must equal the canonical owned relation IDs")
+
+    graph = canonical_graph
+    graph.fetch("relations").reject! { |relation| relation["direction_id"] == "backup-power" }
+    graph.fetch("service_studio_relation_ids")["backup-power"] = ["panels-and-protection--panel-assembly"]
+    assert_rejected(graph, "service_studio_relation_ids.backup-power may use the panel-assembly fallback only for electrical-design, electrical-installation")
+
+    graph = canonical_graph
+    graph.fetch("relations").first.fetch("child")["id"] = "missing-panel-assembly"
+    assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
+
+    graph = canonical_graph
+    graph.fetch("relations")[1].fetch("child")["id"] = "panel-assembly"
+    assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
 end

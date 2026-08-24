@@ -39,6 +39,15 @@ directions:
     service_slug: diagnostics-and-service
     label: Діагностика й сервіс
     description: Стан системи перевіряють у контексті наявних рішень об’єкта.
+service_studio_relation_ids:
+  electrical-design: [panels-and-protection--panel-assembly]
+  electrical-installation: [panels-and-protection--panel-assembly]
+  panels-and-protection: [panels-and-protection--panel-assembly]
+  lighting: [lighting--stair-lighting, lighting--outdoor-lighting]
+  low-voltage: [low-voltage--cctv, low-voltage--audio]
+  backup-power: [backup-power--backup]
+  smart-home-integration: [smart-home-integration--climate, smart-home-integration--curtains-tulle-roller-shutters]
+  diagnostics-and-service: [diagnostics-and-service--diagnostics]
 relations:
   - id: panels-and-protection--panel-assembly
     direction_id: panels-and-protection

@@ -20,4 +20,22 @@ related_services:
   - lighting
   - low-voltage
   - panels-and-protection
+service_studio:
+  direction_id: smart-home-integration
+  relation_ids:
+    - smart-home-integration--climate
+    - smart-home-integration--curtains-tulle-roller-shutters
+  states:
+    assembled:
+      label: Зони
+      title: Зони та функції
+      summary: Заплановані функції прив’язують до зон і суміжних електричних систем.
+    focus:
+      label: Умова
+      title: Команда, подія або розклад
+      summary: Для зони визначають команду, подію або розклад, які враховують у сценарії.
+    reassembled:
+      label: Ручне керування
+      title: Можливість коригування
+      summary: У сценарії передбачають можливість ручного коригування для кожної зони.
 ---

@@ -19,4 +19,20 @@ related_services:
   - electrical-installation
   - panels-and-protection
   - backup-power
+service_studio:
+  direction_id: diagnostics-and-service
+  relation_id: diagnostics-and-service--diagnostics
+  states:
+    assembled:
+      label: Вихідні дані
+      title: З чого починається перевірка
+      summary: Для перевірки збирають опис стану, перелік зон та відомі зв’язки системи.
+    focus:
+      label: Локалізація
+      title: Як звужують ділянку
+      summary: Ділянку звужують, послідовно розглядаючи її зв’язки з іншими частинами системи.
+    reassembled:
+      label: Наступний крок
+      title: Що перевіряти далі
+      summary: Наступний крок обирають після перевірки зв’язків і наявних вихідних даних.
 ---
