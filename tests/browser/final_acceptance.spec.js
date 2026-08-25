@@ -72,9 +72,26 @@ const dynamicClaimRules = Object.freeze([
     /\b(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)\b/iu
   ]]
 ]);
+const unicodeWord = (value) => new RegExp("(?:^|[^\\p{L}\\p{N}])" + value + "(?=$|[^\\p{L}\\p{N}])", "iu");
 const truthfulNegativeDisclosure = /(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))/iu;
 const contrastingClauseSeparator = /\s*,?\s*(?:але|однак|проте|but)\s*/iu;
-const truthfulNegativeConjunction = /(?:\s*[,;:]\s*|\s+(?:і|й|та|and)\s+)/iu;
+const positiveClaimAfterDisclosure = Object.freeze([
+  unicodeWord("телеметрія"),
+  /\b(?:онлайн|live)[\s-]*(?:статус|status)\b/iu,
+  /\bпортал\b\s+(?:дає|доступн|дозвол|керуван)/iu,
+  /\bособист[\p{L}\p{N}]*\s+кабінет\b/iu,
+  /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu,
+  /\b(?:сумісн(?:ий|а|е|і)|підтримує(?:мо|те)?|підтримується)\s+(?:з|із)\b/iu,
+  /\b(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b/iu,
+  unicodeWord("ціна"),
+  /[₴€]/u,
+  unicodeWord("грн"),
+  /\$\s*\d/u,
+  /гаранту[\p{L}\p{N}]*/iu,
+  /сертифікован[\p{L}\p{N}]*/iu,
+  unicodeWord("сертифікат"),
+  unicodeWord("відгук")
+]);
 const dynamicFallbacks = Object.freeze([
   { route: "/", root: "[data-cinematic-root]", fallback: "[data-cinematic-fallback]", stage: "[data-cinematic-stage]" },
   { route: "/services/electrical-design/", root: "[data-service-studio-root]", fallback: "[data-service-studio-fallback]", stage: "[data-service-studio-stage]" },
@@ -255,6 +272,13 @@ async function expectNoVisibleSnapshots(page) {
   await expect(snapshots, "reduced-motion interactions must not create outgoing snapshots").toHaveCount(0);
 }
 
+function mixedNegativePositiveClaim(clause) {
+  const disclosure = clause.match(truthfulNegativeDisclosure);
+  if (!disclosure || disclosure.index === undefined) return false;
+  const tail = clause.slice(disclosure.index + disclosure[0].length);
+  return positiveClaimAfterDisclosure.some((pattern) => pattern.test(tail));
+}
+
 async function expectGroundedDynamicCopy(root, name) {
   const text = await root.evaluate((element) => {
     const visible = (candidate) => {
@@ -272,10 +296,7 @@ async function expectGroundedDynamicCopy(root, name) {
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
     const claimable = fragment
       .split(contrastingClauseSeparator)
-      .map((clause) => {
-        const segments = clause.split(truthfulNegativeConjunction).map((segment) => segment.trim()).filter(Boolean);
-        return segments.length > 0 && segments.every((segment) => truthfulNegativeDisclosure.test(segment)) ? " " : clause;
-      })
+      .map((clause) => truthfulNegativeDisclosure.test(clause) && !mixedNegativePositiveClaim(clause) ? " " : clause)
       .join(" ");
     for (const [category, patterns] of dynamicClaimRules) {
       if (patterns.some((pattern) => pattern.test(claimable))) violations.push({ category, fragment });
