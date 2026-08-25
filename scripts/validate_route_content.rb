@@ -205,45 +205,66 @@ module RouteContent
   end
 
   def route_fingerprint(journey)
-    serialized_nodes = journey.fetch("nodes").map do |node|
+    return nil unless journey.is_a?(Hash)
+
+    nodes = journey["nodes"]
+    assembled = journey["assembled"]
+    panel = journey["panel"]
+    labels = journey["labels"]
+    actions = journey["actions"]
+    media = journey["media"]
+    return nil unless nodes.is_a?(Array) && assembled.is_a?(Hash) && panel.is_a?(Hash) &&
+                      labels.is_a?(Hash) && actions.is_a?(Hash) && media.is_a?(Hash)
+
+    panel_assembled = panel["assembled"]
+    panel_focus = panel["focus"]
+    panel_reassembled = panel["reassembled"]
+    return nil unless panel_assembled.is_a?(Hash) && panel_focus.is_a?(Hash) && panel_reassembled.is_a?(Hash)
+
+    serialized_nodes = nodes.map do |node|
+      visual = node.is_a?(Hash) ? node["visual"] : nil
+      focus = visual.is_a?(Hash) ? visual["focus"] : nil
+      next_point = visual.is_a?(Hash) ? visual["next"] : nil
+      return nil unless node.is_a?(Hash) && visual.is_a?(Hash) && focus.is_a?(Hash) && next_point.is_a?(Hash)
+
       copy = %w[id title input decision next].map { |field| node.fetch(field) }.join("~")
       # Each node owns its camera anchor and causal endpoint; this is not a second topology.
       [
         copy,
-        node.fetch("visual").fetch("focus").fetch("x"),
-        node.fetch("visual").fetch("focus").fetch("y"),
-        node.fetch("visual").fetch("focus").fetch("scale"),
-        node.fetch("visual").fetch("next").fetch("x"),
-        node.fetch("visual").fetch("next").fetch("y")
+        focus.fetch("x"),
+        focus.fetch("y"),
+        focus.fetch("scale"),
+        next_point.fetch("x"),
+        next_point.fetch("y")
       ].join("~")
     end
     serialized = [
       journey.fetch("id"),
       journey.fetch("aria_label"),
-      journey.fetch("assembled").fetch("title"),
-      journey.fetch("assembled").fetch("summary"),
+      assembled.fetch("title"),
+      assembled.fetch("summary"),
       [
-        journey.fetch("panel").fetch("assembled").fetch("label"),
-        journey.fetch("panel").fetch("assembled").fetch("title"),
-        journey.fetch("panel").fetch("assembled").fetch("summary"),
-        journey.fetch("panel").fetch("focus").fetch("label"),
-        journey.fetch("panel").fetch("reassembled").fetch("label"),
-        journey.fetch("panel").fetch("reassembled").fetch("title")
+        panel_assembled.fetch("label"),
+        panel_assembled.fetch("title"),
+        panel_assembled.fetch("summary"),
+        panel_focus.fetch("label"),
+        panel_reassembled.fetch("label"),
+        panel_reassembled.fetch("title")
       ].join("~"),
       [
-        journey.fetch("labels").fetch("input"),
-        journey.fetch("labels").fetch("decision"),
-        journey.fetch("labels").fetch("next")
+        labels.fetch("input"),
+        labels.fetch("decision"),
+        labels.fetch("next")
       ].join("~"),
       [
-        journey.fetch("actions").fetch("show_relationship"),
-        journey.fetch("actions").fetch("return")
+        actions.fetch("show_relationship"),
+        actions.fetch("return")
       ].join("~"),
       [
-        journey.fetch("media").fetch("image_768"),
-        journey.fetch("media").fetch("image_1536"),
-        journey.fetch("media").fetch("image_alt"),
-        journey.fetch("media").fetch("image_focus")
+        media.fetch("image_768"),
+        media.fetch("image_1536"),
+        media.fetch("image_alt"),
+        media.fetch("image_focus")
       ].join("~"),
       serialized_nodes.join("|")
     ].join(":")
@@ -284,23 +305,28 @@ module RouteContent
   end
 
   def validate_projects(projects, errors)
+    body = projects.is_a?(Hash) ? projects["body"] : nil
+    links = projects.is_a?(Hash) ? projects["links"] : nil
     expected = [
       "Наразі ми не публікуємо тут підтверджених кейсів чи матеріалів про виконані об’єкти.",
       "Візуальні концепції готових рішень залишаються прикладами конфігурацій для обговорення, а не описами робіт на конкретних об’єктах."
     ]
-    errors << "projects must not claim a case, review, statistic, or completed work" unless projects["body"] == expected
-    errors << "projects must link only to prepared solutions and services" unless projects["links"].map { |link| link["url"] } == %w[/solutions/ /services/]
+    errors << "projects must not claim a case, review, statistic, or completed work" unless body == expected
+    errors << "projects must link only to prepared solutions and services" unless links.is_a?(Array) && links.map { |link| link.is_a?(Hash) ? link["url"] : nil } == %w[/solutions/ /services/]
   end
 
   def validate_contact(contact, errors)
-    errors << "contact must remain a static prelaunch route without links or collection controls" unless contact["links"] == []
-    unless contact["body"].join(" ").include?("не збирає контактні дані")
+    body = contact.is_a?(Hash) ? contact["body"] : nil
+    links = contact.is_a?(Hash) ? contact["links"] : nil
+    errors << "contact must remain a static prelaunch route without links or collection controls" unless links == []
+    unless body.is_a?(Array) && body.join(" ").include?("не збирає контактні дані")
       errors << "contact must state that no contact data is collected"
     end
   end
 
   def validate_privacy(privacy, errors)
-    text = privacy["body"].join(" ")
+    body = privacy.is_a?(Hash) ? privacy["body"] : nil
+    text = body.is_a?(Array) ? body.join(" ") : ""
     errors << "privacy must describe the disabled GA4 state" unless text.include?("GA4 не завантажується")
     errors << "privacy must describe the disabled Formspree state" unless text.include?("Formspree не активна")
     errors << "privacy must identify itself as a current technical state, not a final legal policy" unless text.include?("не фінальна юридична політика")

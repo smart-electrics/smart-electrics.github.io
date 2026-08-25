@@ -101,7 +101,8 @@ function exactFallback(fallback, config) {
     ["decision", "decision"],
     ["next", "next"]
   ];
-  return fallback.tagName === "DIV" && fallback.children.length === 1 && list && entries.length === config.nodes.length &&
+  return fallback.tagName === "DIV" && !fallback.hidden && !fallback.hasAttribute("aria-hidden") &&
+    fallback.children.length === 1 && list && entries.length === config.nodes.length &&
     entries.every((entry, index) => {
       const node = config.nodes[index];
       const heading = one(entry, ":scope > h2");
@@ -118,6 +119,14 @@ function exactFallback(fallback, config) {
             term.textContent === config.labels[label] && description.textContent === node[copy];
         });
     });
+}
+
+function restoreSafeFallback(root, fallback, stage) {
+  if (!fallback || !stage) return;
+  fallback.hidden = false;
+  fallback.removeAttribute("aria-hidden");
+  stage.hidden = true;
+  root.removeAttribute("data-route-journey-enhanced");
 }
 
 function exactStage(root, stage, config) {
@@ -207,10 +216,12 @@ function enhance(root) {
   const config = readJson(root);
   const fallback = one(root, "[data-route-journey-fallback]");
   const stage = one(root, "[data-route-journey-stage]");
-  if (!isId(routeId) || !fallback || !stage || !validConfig(config, routeId)) return;
   const expectedFingerprint = CANONICAL_ROUTE_JOURNEY_FINGERPRINTS[routeId];
-  if (!expectedFingerprint || fingerprint !== expectedFingerprint || routeJourneyFingerprint(config) !== expectedFingerprint) return;
-  const controls = exactFallback(fallback, config) && exactStage(root, stage, config);
+  const controls = isId(routeId) && fallback && stage && validConfig(config, routeId) &&
+    expectedFingerprint && fingerprint === expectedFingerprint &&
+    routeJourneyFingerprint(config) === expectedFingerprint &&
+    exactFallback(fallback, config) && exactStage(root, stage, config);
+  restoreSafeFallback(root, fallback, stage);
   if (!controls) return;
 
   let adapter;
