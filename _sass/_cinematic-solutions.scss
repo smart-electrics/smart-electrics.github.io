@@ -62,7 +62,18 @@
 .cinematic-solutions__fallback-copy {
   display: grid;
   gap: 1.4rem;
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
+}
+
+.cinematic-solutions__fallback-copy > * {
+  min-width: 0;
+}
+
+.cinematic-solutions__fallback-copy > h1,
+.cinematic-solutions__fallback-copy > h2 {
+  font-size: clamp(2.25rem, 4vw, 4.5rem);
+  overflow-wrap: anywhere;
 }
 
 .cinematic-solutions__fallback-copy section {
