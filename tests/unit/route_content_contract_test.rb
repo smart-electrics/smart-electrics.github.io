@@ -69,7 +69,7 @@ class RouteContentContractTest < Minitest::Test
 
     data = canonical_content
     data.fetch("uk").fetch("about").fetch("journey").fetch("nodes")[0]["ordinal"] = "01"
-    assert_rejected(data, "about.journey.nodes[0] fields must be exactly id, title, input, decision, next")
+    assert_rejected(data, "about.journey.nodes[0] fields must be exactly id, title, input, decision, next, visual")
 
     data = canonical_content
     data.fetch("uk").fetch("process").fetch("journey").fetch("panel")["focus"] = {}

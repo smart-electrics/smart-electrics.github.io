@@ -60,7 +60,7 @@ async function settledVisual(page, root) {
         transitionDuration: style.transitionDuration
       },
       connector: {
-        hidden: connector.hidden,
+        hidden: connector.hasAttribute("hidden"),
         display: getComputedStyle(connector).display,
         state: connector.dataset.routeJourneyConnectorState,
         x1: line.getAttribute("x1"),

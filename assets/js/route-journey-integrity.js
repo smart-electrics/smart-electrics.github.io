@@ -1,8 +1,21 @@
 const isText = (value) => typeof value === "string" && value.trim().length > 0;
+const hasFields = (value, fields) => value !== null && typeof value === "object" && !Array.isArray(value) &&
+  Object.keys(value).sort().join("|") === fields.join("|");
+const isCoordinate = (value) => Number.isInteger(value) && value >= 8 && value <= 92;
+const isScale = (value) => typeof value === "number" && Number.isFinite(value) && value >= 1.12 && value <= 1.4;
+const validVisual = (visual) => hasFields(visual, ["focus", "next"]) &&
+  hasFields(visual.focus, ["scale", "x", "y"]) &&
+  hasFields(visual.next, ["x", "y"]) &&
+  isCoordinate(visual.focus.x) &&
+  isCoordinate(visual.focus.y) &&
+  isScale(visual.focus.scale) &&
+  isCoordinate(visual.next.x) &&
+  isCoordinate(visual.next.y) &&
+  (visual.focus.x !== visual.next.x || visual.focus.y !== visual.next.y);
 
 export const CANONICAL_ROUTE_JOURNEY_FINGERPRINTS = Object.freeze({
-  process: "066c7944",
-  about: "284c693b"
+  process: "3aa1e547",
+  about: "2a17a656"
 });
 
 export function routeJourneyFingerprint(journey) {
@@ -53,12 +66,24 @@ export function routeJourneyFingerprint(journey) {
       node === null ||
       typeof node !== "object" ||
       Array.isArray(node) ||
-      Object.keys(node).sort().join("|") !== "decision|id|input|next|title" ||
+      Object.keys(node).sort().join("|") !== "decision|id|input|next|title|visual" ||
       ![node.id, node.title, node.input, node.decision, node.next].every(isText) ||
+      !validVisual(node.visual) ||
       nodeIds.has(node.id)
     ) return null;
     nodeIds.add(node.id);
-    serializedNodes.push([node.id, node.title, node.input, node.decision, node.next].join("~"));
+    serializedNodes.push([
+      node.id,
+      node.title,
+      node.input,
+      node.decision,
+      node.next,
+      node.visual.focus.x,
+      node.visual.focus.y,
+      node.visual.focus.scale,
+      node.visual.next.x,
+      node.visual.next.y
+    ].join("~"));
   }
 
   const serializedPanel = [

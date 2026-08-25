@@ -9,6 +9,8 @@ const isText = (value) => typeof value === "string" && value.trim().length > 0;
 const sameIds = (left, right) => Array.isArray(left) && left.length === right.length && left.every((id, index) => id === right[index]);
 const hasFields = (value, fields) => value !== null && typeof value === "object" && !Array.isArray(value) &&
   Object.keys(value).sort().join("|") === fields.join("|");
+const isCoordinate = (value) => Number.isInteger(value) && value >= 8 && value <= 92;
+const isScale = (value) => typeof value === "number" && Number.isFinite(value) && value >= 1.12 && value <= 1.4;
 
 const validPanel = (panel) => hasFields(panel, ["assembled", "focus", "reassembled"]) &&
   hasFields(panel.assembled, ["label", "summary", "title"]) &&
@@ -22,6 +24,16 @@ const validPanel = (panel) => hasFields(panel, ["assembled", "focus", "reassembl
     panel.reassembled.label,
     panel.reassembled.title
   ].every(isText);
+
+const validVisual = (visual) => hasFields(visual, ["focus", "next"]) &&
+  hasFields(visual.focus, ["scale", "x", "y"]) &&
+  hasFields(visual.next, ["x", "y"]) &&
+  isCoordinate(visual.focus.x) &&
+  isCoordinate(visual.focus.y) &&
+  isScale(visual.focus.scale) &&
+  isCoordinate(visual.next.x) &&
+  isCoordinate(visual.next.y) &&
+  (visual.focus.x !== visual.next.x || visual.focus.y !== visual.next.y);
 
 const one = (root, selector) => {
   const matches = root.querySelectorAll(selector);
@@ -61,8 +73,9 @@ function validConfig(config, routeId) {
     const valid = node !== null &&
       typeof node === "object" &&
       !Array.isArray(node) &&
-      Object.keys(node).sort().join("|") === "decision|id|input|next|title" &&
+      Object.keys(node).sort().join("|") === "decision|id|input|next|title|visual" &&
       [node.id, node.title, node.input, node.decision, node.next].every(isText) &&
+      validVisual(node.visual) &&
       isId(node.id) &&
       !nodeIds.has(node.id);
     nodeIds.add(node?.id);
@@ -88,7 +101,16 @@ function exactStage(stage, config) {
     const scene = one(stage, "[data-route-journey-scene]");
     const media = one(stage, "[data-route-journey-media]");
     const outgoing = one(stage, "img[data-route-journey-outgoing]");
-    return scene && media && outgoing && media.contains(scene) && media.contains(outgoing) &&
+    const connector = one(stage, "svg[data-route-journey-connector]");
+    const connectorLine = connector && one(connector, "line[data-route-journey-connector-line]");
+    const source = connector && one(connector, "circle[data-route-journey-connector-source]");
+    const target = connector && one(connector, "circle[data-route-journey-connector-target]");
+    return scene && media && outgoing && connector && connectorLine && source && target &&
+      media.contains(scene) && media.contains(outgoing) && media.contains(connector) &&
+      stage.querySelectorAll("svg").length === 1 &&
+      connector.getAttribute("viewBox") === "0 0 100 100" &&
+      connector.getAttribute("preserveAspectRatio") === "none" &&
+      connector.querySelectorAll("line").length === 1 && connector.querySelectorAll("circle").length === 2 &&
       scene.querySelectorAll("picture").length === 0 && scene.querySelectorAll("img").length === 1;
   })();
   const panel = one(stage, "[data-route-journey-panel]");
@@ -107,7 +129,7 @@ function exactStage(stage, config) {
     buttons.length === actionButtons.length &&
     exactScene &&
     exactPanel
-    ? { nodeButtons, actionButtons, panel }
+    ? { nodeButtons, actionButtons, panel, connector: one(stage, "svg[data-route-journey-connector]") }
     : null;
 }
 
@@ -142,7 +164,11 @@ function enhance(root) {
   const live = one(stage, "[data-route-journey-live]");
   const scene = one(stage, "[data-route-journey-scene] img");
   const outgoing = one(stage, "[data-route-journey-outgoing]");
-  if (!title || !stateLabel || !summary || !details || !input || !decision || !next || !showRelationship || !returnControl || !live || !scene || !outgoing) return;
+  const connector = controls.connector;
+  const connectorLine = connector && one(connector, "line[data-route-journey-connector-line]");
+  const connectorSource = connector && one(connector, "circle[data-route-journey-connector-source]");
+  const connectorTarget = connector && one(connector, "circle[data-route-journey-connector-target]");
+  if (!title || !stateLabel || !summary || !details || !input || !decision || !next || !showRelationship || !returnControl || !live || !scene || !outgoing || !connector || !connectorLine || !connectorSource || !connectorTarget) return;
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let view = adapter.initialView;
@@ -169,6 +195,27 @@ function enhance(root) {
     });
     root.dataset.routeJourneyState = view.state;
     root.dataset.routeJourneySelectedNode = view.selectedNodeId;
+    const frame = view.visual.frame;
+    scene.style.setProperty("--route-journey-scene-x", `${frame.x}%`);
+    scene.style.setProperty("--route-journey-scene-y", `${frame.y}%`);
+    scene.style.setProperty("--route-journey-scene-position", `${frame.x}% ${frame.y}%`);
+    scene.style.setProperty("--route-journey-scene-scale", String(frame.scale));
+    scene.style.setProperty("--route-journey-scene-inset", `${frame.inset}%`);
+    const connection = view.visual.connector;
+    connector.toggleAttribute("hidden", connection === null);
+    connector.dataset.routeJourneyConnectorState = connection?.state || "assembled";
+    if (connection) {
+      const points = [
+        [connectorLine, connection.from.x, connection.from.y, "x1", "y1"],
+        [connectorLine, connection.to.x, connection.to.y, "x2", "y2"],
+        [connectorSource, connection.from.x, connection.from.y, "cx", "cy"],
+        [connectorTarget, connection.to.x, connection.to.y, "cx", "cy"]
+      ];
+      points.forEach(([element, x, y, xAttribute, yAttribute]) => {
+        element.setAttribute(xAttribute, String(x));
+        element.setAttribute(yAttribute, String(y));
+      });
+    }
     stateLabel.textContent = view.stateLabel;
     title.textContent = view.title;
     summary.hidden = view.summary === null;

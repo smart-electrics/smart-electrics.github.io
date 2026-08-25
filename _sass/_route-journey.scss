@@ -171,24 +171,75 @@
   display: block;
 }
 
+.route-journey__media picture {
+  overflow: hidden;
+  z-index: 0;
+}
+
 .route-journey__media picture img,
 .route-journey__outgoing {
   object-fit: cover;
 }
 
+.route-journey__media picture img {
+  --route-journey-scene-x: 50%;
+  --route-journey-scene-y: 50%;
+  --route-journey-scene-position: 50% 50%;
+  --route-journey-scene-scale: 1;
+  --route-journey-scene-inset: 0%;
+  clip-path: inset(0% round 0.1rem);
+  object-position: var(--route-journey-scene-position);
+  transform: scale(1);
+  transform-origin: var(--route-journey-scene-x) var(--route-journey-scene-y);
+  transition: clip-path 420ms cubic-bezier(0.2, 0.8, 0.2, 1), object-position 420ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: clip-path, object-position, transform;
+}
+
+.route-journey[data-route-journey-state="focus"] [data-route-journey-scene] img,
+.route-journey[data-route-journey-state="reassembled"] [data-route-journey-scene] img {
+  clip-path: inset(var(--route-journey-scene-inset) round 0.35rem);
+  transform: scale(var(--route-journey-scene-scale));
+}
+
 .route-journey__connector {
-  background:
-    linear-gradient(90deg, transparent 9%, rgba(255, 202, 143, 0.5) 9.1%, transparent 9.35%, transparent 90.65%, rgba(255, 202, 143, 0.5) 90.9%, transparent 91%),
-    linear-gradient(135deg, rgba(4, 2, 1, 0.74), transparent 52%, rgba(175, 93, 56, 0.2)),
-    linear-gradient(0deg, rgba(4, 2, 1, 0.62), transparent 48%);
+  overflow: visible;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
+}
+
+.route-journey__connector line {
+  fill: none;
+  stroke: var(--amber-light);
+  stroke-dasharray: 0 1;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  stroke-width: 0.5;
+  transition: stroke-dasharray 360ms ease-out, stroke-dashoffset 360ms ease-out;
+}
+
+.route-journey__connector circle {
+  fill: var(--amber-light);
+  stroke: rgba(28, 15, 8, 0.78);
+  stroke-width: 0.45;
+  transition: opacity 240ms ease-out;
+}
+
+.route-journey__connector [data-route-journey-connector-target] {
+  opacity: 0;
+}
+
+.route-journey[data-route-journey-state="reassembled"] .route-journey__connector line {
+  stroke-dasharray: 1 0;
+}
+
+.route-journey[data-route-journey-state="reassembled"] .route-journey__connector [data-route-journey-connector-target] {
+  opacity: 1;
 }
 
 .route-journey__outgoing {
   animation: route-journey-outgoing 360ms ease-out both;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
 .route-journey__rail {

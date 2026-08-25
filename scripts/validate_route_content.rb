@@ -21,8 +21,8 @@ module RouteContent
     "about" => %w[object-context system-logic coordination handover]
   }.freeze
   FINGERPRINTS = {
-    "process" => "066c7944",
-    "about" => "284c693b"
+    "process" => "3aa1e547",
+    "about" => "2a17a656"
   }.freeze
   DOCUMENTS = {
     "process" => ["process.md", "journey"],
@@ -150,16 +150,51 @@ module RouteContent
     end
     ids = nodes.map { |node| node.is_a?(Hash) ? node["id"] : nil }
     errors << "#{key}.journey.nodes must use the exact canonical order" unless ids == JOURNEY_IDS.fetch(key)
+    visual_signatures = []
     nodes.each_with_index do |node, index|
-      unless hash_fields?(node, %w[decision id input next title])
-        errors << "#{key}.journey.nodes[#{index}] fields must be exactly id, title, input, decision, next"
+      unless hash_fields?(node, %w[decision id input next title visual])
+        errors << "#{key}.journey.nodes[#{index}] fields must be exactly id, title, input, decision, next, visual"
         next
       end
-      unless node.values.all? { |value| text?(value) }
+      unless %w[id title input decision next].all? { |field| text?(node[field]) }
         errors << "#{key}.journey.nodes[#{index}] must contain non-empty input, decision, and next copy"
       end
       validate_copy(node, "#{key}.journey.nodes[#{index}]", errors)
+      validate_visual(node["visual"], key, index, errors)
+      visual_signatures << visual_signature(node["visual"])
     end
+    if visual_signatures.compact.uniq.length != visual_signatures.compact.length
+      errors << "#{key}.journey.nodes must use a distinct canonical visual mapping for every node"
+    end
+  end
+
+  def validate_visual(visual, key, index, errors)
+    focus = visual.is_a?(Hash) ? visual["focus"] : nil
+    next_point = visual.is_a?(Hash) ? visual["next"] : nil
+    valid = hash_fields?(visual, %w[focus next]) &&
+            hash_fields?(focus, %w[scale x y]) &&
+            hash_fields?(next_point, %w[x y]) &&
+            coordinate?(focus["x"]) &&
+            coordinate?(focus["y"]) &&
+            scale?(focus["scale"]) &&
+            coordinate?(next_point["x"]) &&
+            coordinate?(next_point["y"]) &&
+            [focus["x"], focus["y"]] != [next_point["x"], next_point["y"]]
+    errors << "#{key}.journey.nodes[#{index}].visual must provide bounded exact focus and next coordinates" unless valid
+  end
+
+  def coordinate?(value)
+    value.is_a?(Integer) && value.between?(8, 92)
+  end
+
+  def scale?(value)
+    value.is_a?(Numeric) && value.finite? && value >= 1.12 && value <= 1.4
+  end
+
+  def visual_signature(visual)
+    return nil unless visual.is_a?(Hash) && visual["focus"].is_a?(Hash) && visual["next"].is_a?(Hash)
+
+    [visual.dig("focus", "x"), visual.dig("focus", "y"), visual.dig("focus", "scale"), visual.dig("next", "x"), visual.dig("next", "y")].join("~")
   end
 
   def validate_fingerprint(journey, key, errors)
@@ -171,7 +206,16 @@ module RouteContent
 
   def route_fingerprint(journey)
     serialized_nodes = journey.fetch("nodes").map do |node|
-      %w[id title input decision next].map { |field| node.fetch(field) }.join("~")
+      copy = %w[id title input decision next].map { |field| node.fetch(field) }.join("~")
+      # Each node owns its camera anchor and causal endpoint; this is not a second topology.
+      [
+        copy,
+        node.fetch("visual").fetch("focus").fetch("x"),
+        node.fetch("visual").fetch("focus").fetch("y"),
+        node.fetch("visual").fetch("focus").fetch("scale"),
+        node.fetch("visual").fetch("next").fetch("x"),
+        node.fetch("visual").fetch("next").fetch("y")
+      ].join("~")
     end
     serialized = [
       journey.fetch("id"),
