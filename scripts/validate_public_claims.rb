@@ -23,6 +23,34 @@ module PublicClaims
   LIQUID_OUTPUT = /\{[{%].*?[}%]\}/m
   CONTRASTING_CLAUSE_SEPARATOR = /\s*,?\s*\b(?:але|однак|проте|but)\b\s*/iu
   NEGATIVE_DISCLOSURE = /\b(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))\b/iu
+  POSITIVE_CLAIM_AFTER_DISCLOSURE = {
+    "telemetry/status" => [
+      /\bтелеметрія\b/iu,
+      /\b(?:онлайн|live)[\s-]*(?:статус|status)\b/iu
+    ].freeze,
+    "portal/account/control" => [
+      /\bпортал\b\s+(?:дає|доступн|дозвол|керуван)/iu,
+      /\bособист[\p{L}\p{N}]*\s+кабінет\b/iu,
+      /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu
+    ].freeze,
+    "vendor compatibility" => [
+      /\b(?:сумісн(?:ий|а|е|і)|підтримує(?:мо|те)?|підтримується)\s+(?:з|із)\b/iu,
+      /\b(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b/iu
+    ].freeze,
+    "price" => [
+      /\bціна\b/iu,
+      /[₴€]/u,
+      /\bгрн\b/iu,
+      /\$\s*\d/u
+    ].freeze,
+    "guarantee" => [/\bгаранту[\p{L}\p{N}]*\b/iu].freeze,
+    "certificate" => [
+      /\bсертифікован[\p{L}\p{N}]*\b/iu,
+      /\bсертифікат\b/iu
+    ].freeze,
+    "review" => [/\bвідгук\b/iu].freeze,
+    "client project as fact" => []
+  }.freeze
   CLAIM_PATTERNS = {
     "telemetry/status" => [
       /\bтелеметр[\p{L}\p{N}]*\b/iu,
@@ -138,8 +166,27 @@ module PublicClaims
 
   def mask_truthful_negative_clauses(fragment)
     fragment.split(CONTRASTING_CLAUSE_SEPARATOR)
-            .map { |clause| truthful_negative_disclosure?(clause) ? " " : clause }
+            .map do |clause|
+              if truthful_negative_disclosure?(clause) && !mixed_negative_positive_claim?(clause)
+                " "
+              else
+                clause
+              end
+            end
             .join(" ")
+  end
+
+  def mixed_negative_positive_claim?(fragment)
+    disclosure = NEGATIVE_DISCLOSURE.match(fragment)
+    return false unless disclosure
+
+    tail = fragment[disclosure.end(0)..]
+    return false unless tail
+
+    POSITIVE_CLAIM_AFTER_DISCLOSURE.any? do |category, patterns|
+      patterns.any? { |pattern| pattern.match?(tail) } ||
+        (category == "client project as fact" && CLAIM_PATTERNS[category].any? { |pattern| pattern.match?(tail) })
+    end
   end
 
   def relative_path(path, root)

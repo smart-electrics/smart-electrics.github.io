@@ -1,10 +1,12 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import playwrightConfig from "../playwright.config.js";
 
 const failures = [];
-const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
+const repositoryRoot = process.env.SMART_ELECTRICS_POLICY_ROOT
+  ? resolve(process.env.SMART_ELECTRICS_POLICY_ROOT)
+  : fileURLToPath(new URL("../", import.meta.url));
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
 );
@@ -78,6 +80,20 @@ function assertWorkflowHasAction(workflow, workflowName, action, revision) {
   }
 }
 
+const PULL_REQUEST_HEAD_REF = /^\s*ref:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*&&\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}\s*$/mu;
+
+function assertPullRequestCheckoutRef(workflow, workflowName) {
+  const checkoutStep = workflow.match(
+    /^[ \t]*-[ \t]+name:[^\n]*\n[ \t]+uses:[ \t]+actions\/checkout@[^\n]+\n([\s\S]*?)(?=^[ \t]*-[ \t]+name:|$(?![\s\S]))/mu
+  )?.[1] ?? "";
+
+  if (!PULL_REQUEST_HEAD_REF.test(checkoutStep)) {
+    failures.push(
+      `${workflowName} checkout must use the pull-request head SHA and github.sha only for non-PR events.`
+    );
+  }
+}
+
 const qualityTriggers = workflowTriggers(qualityWorkflow);
 const pagesTriggers = workflowTriggers(pagesWorkflow);
 const codeqlTriggers = workflowTriggers(codeqlWorkflow);
@@ -112,6 +128,7 @@ if (!/if: success\(\)[\s\S]*path: artifacts\/final-evidence\/[\s\S]*if-no-files-
 
 assertPinnedActions(qualityWorkflow, "Quality");
 assertWorkflowHasAction(qualityWorkflow, "Quality", "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1");
+assertPullRequestCheckoutRef(qualityWorkflow, "Quality");
 
 if (codeqlTriggers.join(",") !== "push,pull_request,workflow_dispatch,schedule") {
   failures.push("CodeQL must retain push, pull_request, workflow_dispatch, and schedule triggers.");
@@ -123,6 +140,7 @@ if (!/^on:\n  push:\n    branches: \[main\]\n  pull_request:\n    branches: \[ma
 
 assertPinnedActions(codeqlWorkflow, "CodeQL");
 assertWorkflowHasAction(codeqlWorkflow, "CodeQL", "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1");
+assertPullRequestCheckoutRef(codeqlWorkflow, "CodeQL");
 assertWorkflowHasAction(codeqlWorkflow, "CodeQL", "github/codeql-action/init", "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28");
 assertWorkflowHasAction(codeqlWorkflow, "CodeQL", "github/codeql-action/analyze", "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28");
 
