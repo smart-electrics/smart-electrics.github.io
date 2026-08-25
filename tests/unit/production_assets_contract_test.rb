@@ -107,6 +107,17 @@ class ProductionAssetsContractTest < Minitest::Test
     assert_rejected(data, "#{asset.fetch('path')}: independent visual QA document must exist")
   end
 
+  def test_rejects_complete_semantic_metadata_swaps_between_existing_pairs
+    %w[responsive_pair family provenance qa].each do |field|
+      data = canonical_manifest
+      control_room = assets_for_pair(data, "control-room")
+      apartment = assets_for_pair(data, "solution-apartment-comfort")
+      swap_pair_field(control_room, apartment, field)
+
+      assert_rejected(data, "#{control_room.first.fetch('path')}: #{field} must match canonical production metadata")
+    end
+  end
+
   def test_decodes_vp8_vp8l_and_vp8x_dimensions_without_external_image_gems
     Dir.mktmpdir("smart-electrics-webp-dimensions") do |directory|
       fixtures = {
@@ -149,5 +160,18 @@ class ProductionAssetsContractTest < Minitest::Test
     padded_payload << "\x00" if padded_payload.bytesize.odd?
     body = "WEBP".b + chunk + [payload.bytesize].pack("V") + padded_payload
     "RIFF".b + [body.bytesize].pack("V") + body
+  end
+
+  def assets_for_pair(data, pair)
+    data.fetch("assets").select { |asset| asset.fetch("responsive_pair") == pair }
+  end
+
+  def swap_pair_field(left, right, field)
+    assert_equal left.length, right.length
+
+    left_values = left.map { |asset| asset.fetch(field) }
+    right_values = right.map { |asset| asset.fetch(field) }
+    left.each_with_index { |asset, index| asset[field] = right_values.fetch(index) }
+    right.each_with_index { |asset, index| asset[field] = left_values.fetch(index) }
   end
 end
