@@ -363,6 +363,24 @@ test("invalid JSON, action/DOM drift, and valid-but-swapped mapping data fail cl
   }
 });
 
+test("a stage-only assembled related-solution href drift keeps the detail fallback", async ({ page }) => {
+  await prependAdapterMutation(page, "document.querySelector('[data-cinematic-solutions-stage] [data-cinematic-solutions-panel=assembled] [data-cinematic-solutions-related] a').setAttribute('href', '/solutions/energy-autonomy/');");
+  await page.goto(solutions[3].route);
+  const root = page.locator("[data-cinematic-solutions-root]");
+  await expect(root.locator("[data-cinematic-solutions-fallback]")).toBeVisible();
+  await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+});
+
+test("a stage-only focus service href drift keeps the detail fallback", async ({ page }) => {
+  await prependAdapterMutation(page, "document.querySelector('[data-cinematic-solutions-stage] [data-cinematic-solutions-panel=focus] [data-cinematic-solutions-related] a').setAttribute('href', '/services/lighting/');");
+  await page.goto(solutions[3].route);
+  const root = page.locator("[data-cinematic-solutions-root]");
+  await expect(root.locator("[data-cinematic-solutions-fallback]")).toBeVisible();
+  await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+});
+
 test("an image failure leaves the enhanced panel readable", async ({ page }) => {
   await page.route("**/assets/images/solutions/*.webp", (route) => route.abort());
   await page.goto(solutions[4].route);

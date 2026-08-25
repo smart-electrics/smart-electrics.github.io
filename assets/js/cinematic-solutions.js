@@ -11,6 +11,7 @@ const STATE_ACTIONS = {
   reassembled: "select-reassembled"
 };
 const isId = (value) => typeof value === "string" && value.trim().length > 0;
+const isServiceSlug = (value) => typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 const sameIds = (left, right) => Array.isArray(left) && left.length === right.length && left.every((id, index) => id === right[index]);
 
 const one = (root, selector) => {
@@ -62,10 +63,13 @@ function validMapping(graph, mapping, mappingIds) {
   ) return null;
 
   const directionIds = new Set(graph.directions.map((direction) => direction?.id));
+  const serviceSlugs = new Set(graph.directions.map((direction) => direction?.service_slug));
   const relationsById = new Map(graph.relations.map((relation) => [relation?.id, relation]));
   if (
     directionIds.size !== graph.directions.length ||
     [...directionIds].some((id) => !isId(id)) ||
+    serviceSlugs.size !== graph.directions.length ||
+    [...serviceSlugs].some((serviceSlug) => !isServiceSlug(serviceSlug)) ||
     relationsById.size !== graph.relations.length ||
     [...relationsById.keys()].some((id) => !isId(id))
   ) return null;
@@ -127,13 +131,22 @@ function exactVisuals(stage, fallback, solutionIds, mapping, graph, relationsByI
   const readableScene = scenes.every((scene) => scene.querySelectorAll("picture").length === 1 && scene.querySelectorAll("img").length === 1);
   const directionsById = new Map(graph.directions.map((direction) => [direction.id, direction]));
   const linkHrefs = (element) => [...element.querySelectorAll("a[href]")].map((link) => link.getAttribute("href"));
-  const fallbackSolutionLinks = new Map(solutionIds.map((solutionId) => {
+  const fallbackLinks = (solutionId, suffix) => {
     const fallbackItems = fallback.querySelectorAll(`[id="solution-${solutionId}"]`);
     const groups = fallbackItems.length === 1
-      ? fallbackItems[0].querySelectorAll(`[aria-labelledby="solution-${solutionId}-solutions"]`)
+      ? fallbackItems[0].querySelectorAll(`[aria-labelledby="solution-${solutionId}-${suffix}"]`)
       : [];
-    return [solutionId, groups.length === 1 ? linkHrefs(groups[0]) : null];
-  }));
+    return groups.length === 1 ? linkHrefs(groups[0]) : null;
+  };
+  const fallbackSolutionLinks = new Map(solutionIds.map((solutionId) => [solutionId, fallbackLinks(solutionId, "solutions")]));
+  const fallbackServiceLinks = new Map(solutionIds.map((solutionId) => [solutionId, fallbackLinks(solutionId, "services")]));
+  const focusServiceLinks = new Map(solutionIds.map((solutionId) => [
+    solutionId,
+    mapping[solutionId].direction_ids.map((directionId) => {
+      const serviceSlug = directionsById.get(directionId)?.service_slug;
+      return isServiceSlug(serviceSlug) ? `/services/${serviceSlug}/` : null;
+    })
+  ]));
   const readablePanel = panels.every((panel) => {
     const summary = panel.querySelectorAll("[data-cinematic-solutions-summary]");
     const stateId = panel.dataset.cinematicSolutionsPanel;
@@ -141,7 +154,18 @@ function exactVisuals(stage, fallback, solutionIds, mapping, graph, relationsByI
     const related = [...panel.querySelectorAll("[data-cinematic-solutions-related] a[href]")];
     if (summary.length !== 1 || !summary[0].textContent.trim() || related.length === 0 || related.some((link) => !link.getAttribute("href")?.startsWith("/"))) return false;
     if (stateId !== "reassembled") {
-      return panel.querySelectorAll("[data-cinematic-solutions-relation-label], [data-cinematic-solutions-service-links], [data-cinematic-solutions-solution-links]").length === 0 && panel.querySelectorAll("[data-cinematic-solutions-related]").length === 1;
+      const relatedLists = panel.querySelectorAll("[data-cinematic-solutions-related]");
+      const expectedLinks = stateId === "assembled"
+        ? fallbackSolutionLinks.get(panel.dataset.cinematicSolutionsSolutionId)
+        : focusServiceLinks.get(panel.dataset.cinematicSolutionsSolutionId);
+      const expectedFallbackServices = fallbackServiceLinks.get(panel.dataset.cinematicSolutionsSolutionId);
+      return panel.querySelectorAll("[data-cinematic-solutions-relation-label], [data-cinematic-solutions-service-links], [data-cinematic-solutions-solution-links]").length === 0 &&
+        relatedLists.length === 1 &&
+        Array.isArray(expectedLinks) &&
+        expectedLinks.length > 0 &&
+        expectedLinks.every(Boolean) &&
+        (stateId !== "focus" || sameIds(expectedLinks, expectedFallbackServices)) &&
+        sameIds(linkHrefs(relatedLists[0]), expectedLinks);
     }
 
     const label = panel.querySelectorAll("[data-cinematic-solutions-relation-label]");
