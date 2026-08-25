@@ -1,13 +1,41 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 const checkoutPin = "3d3c42e5aac5ba805825da76410c181273ba90b1";
 const codeqlPin = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
+const pullRequestHeadRef = /ref:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*&&\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/u;
+
+function runPolicyAgainstWorkflowEdits(edits) {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), "smart-electrics-quality-policy-"));
+
+  try {
+    for (const path of [".github", "Makefile", ".nvmrc", "package.json", "playwright.config.js", "tests", "scripts"]) {
+      cpSync(join(repositoryRoot, path), join(fixtureRoot, path), { recursive: true });
+    }
+    cpSync(join(repositoryRoot, "node_modules"), join(fixtureRoot, "node_modules"), { recursive: true });
+
+    for (const [path, edit] of Object.entries(edits)) {
+      const filePath = join(fixtureRoot, path);
+      const source = readFileSync(filePath, "utf8");
+      writeFileSync(filePath, edit(source));
+    }
+
+    return spawnSync(process.execPath, ["scripts/validate_quality_policy.js"], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+      env: { ...process.env, SMART_ELECTRICS_POLICY_ROOT: fixtureRoot }
+    });
+  } finally {
+    rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+}
 
 test("Quality is a pinned pull-request gate with dispatch and retained success evidence", () => {
   const workflow = read(".github/workflows/quality.yml");
@@ -17,6 +45,7 @@ test("Quality is a pinned pull-request gate with dispatch and retained success e
   assert.match(workflow, /^  quality:\n    name: quality$/mu);
   assert.match(workflow, /^    timeout-minutes: 45$/mu);
   assert.match(workflow, new RegExp(`uses: actions/checkout@${checkoutPin}`));
+  assert.match(workflow, pullRequestHeadRef, "Quality must check out the exact PR head SHA while retaining github.sha for dispatch.");
   assert.match(workflow, /uses: ruby\/setup-ruby@[0-9a-f]{40}/u);
   assert.match(workflow, /uses: actions\/setup-node@[0-9a-f]{40}/u);
   assert.match(workflow, /^          node-version-file: \.nvmrc$/mu);
@@ -36,12 +65,32 @@ test("CodeQL remains an automatic and manual gate with every action pinned", () 
     /^on:\n  push:\n    branches: \[main\]\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:\n  schedule:/mu
   );
   assert.match(workflow, new RegExp(`uses: actions/checkout@${checkoutPin}`));
+  assert.match(workflow, pullRequestHeadRef, "CodeQL must check out the exact PR head SHA while retaining github.sha for non-PR runs.");
   assert.match(workflow, new RegExp(`uses: github/codeql-action/init@${codeqlPin}`));
   assert.match(workflow, new RegExp(`uses: github/codeql-action/analyze@${codeqlPin}`));
   assert.doesNotMatch(workflow, /uses:\s+[^\n]+@v\d+/u);
 });
 
-test("the local gate retains production assets, public claims, and one final acceptance project", () => {
+test("the quality policy rejects a missing or unsafe pull-request checkout ref", () => {
+  for (const [path, label] of [
+    [".github/workflows/quality.yml", "Quality"],
+    [".github/workflows/codeql.yml", "CodeQL"]
+  ]) {
+    const missingRef = runPolicyAgainstWorkflowEdits({
+      [path]: (source) => source.replace(/^\s+ref:.*\n/mu, "")
+    });
+    assert.notEqual(missingRef.status, 0, `${label} must fail when checkout ref is removed`);
+    assert.match(missingRef.stderr, new RegExp(`${label}.*pull-request.*head SHA`, "iu"));
+
+    const unsafeRef = runPolicyAgainstWorkflowEdits({
+      [path]: (source) => source.replace(pullRequestHeadRef, "ref: ${{ github.sha }}")
+    });
+    assert.notEqual(unsafeRef.status, 0, `${label} must fail when PR checkout falls back to github.sha`);
+    assert.match(unsafeRef.stderr, new RegExp(`${label}.*pull-request.*head SHA`, "iu"));
+  }
+});
+
+test("the local gate retains production assets, public claims, and exactly one dedicated project for each final journey", () => {
   const makefile = read("Makefile");
   const playwright = read("playwright.config.js");
 
@@ -52,6 +101,9 @@ test("the local gate retains production assets, public claims, and one final acc
   assert.match(makefile, /^\tbundle exec ruby -Itest tests\/unit\/public_claims_contract_test\.rb$/mu);
   assert.match(playwright, /name: "final-acceptance"/u);
   assert.match(playwright, /testMatch: finalAcceptanceFile/u);
+  assert.match(playwright, /const motionChoreographyFile = \/motion_choreography\\\.spec\\\.js\/u;/u);
+  assert.match(playwright, /name: "motion-choreography"[\s\S]*testMatch: motionChoreographyFile/u);
+  assert.match(playwright, /testIgnore: \[responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile\]/u);
 });
 
 test("the local quality validator approves the final PR-gate policy", () => {
