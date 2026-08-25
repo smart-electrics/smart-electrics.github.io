@@ -300,7 +300,7 @@ test("journeys fail closed when a rendered localized or semantic contract change
     },
     {
       name: "root aria label",
-      apply: (body) => body.replace('data-route-journey-fingerprint="3aa1e547" aria-label="Етапи роботи з електромонтажним проєктом"', 'data-route-journey-fingerprint="3aa1e547" aria-label="Змінений маршрут"')
+      apply: (body) => body.replace('data-route-journey-fingerprint="d76fba7e" aria-label="Етапи роботи з електромонтажним проєктом"', 'data-route-journey-fingerprint="d76fba7e" aria-label="Змінений маршрут"')
     },
     {
       name: "stage labelledby",
@@ -369,6 +369,7 @@ test("outgoing snapshots preserve the settled causal frame and clear every tempo
   const outgoing = root.locator("[data-route-journey-outgoing]");
   await root.getByRole("button", { name: "Проєктування і погодження", exact: true }).click();
   await settledVisual(page, root);
+  await page.waitForTimeout(160);
   const focused = await sceneSnapshot(root);
   await root.getByRole("button", { name: "Показати зв’язок", exact: true }).click();
   await expect(outgoing).toBeVisible();
@@ -401,6 +402,11 @@ test("outgoing snapshots preserve the settled causal frame and clear every tempo
     transformOrigin: reassembled.transformOrigin,
     clipPath: reassembled.clipPath
   });
+  await outgoing.dispatchEvent("animationend");
+  await expectSnapshotCleared(outgoing);
+
+  await root.getByRole("button", { name: "Звернення", exact: true }).click();
+  await expect(outgoing).toBeVisible();
   await outgoing.dispatchEvent("error");
   await expectSnapshotCleared(outgoing);
 

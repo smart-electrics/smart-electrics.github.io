@@ -5,7 +5,7 @@ uk:
     lede: Від першого звернення до передачі системи тримаємо в полі зору вихідні дані об’єкта, інженерні рішення та наступні кроки.
     journey:
       id: process
-      fingerprint: 3aa1e547
+      fingerprint: d76fba7e
       aria_label: Етапи роботи з електромонтажним проєктом
       assembled:
         title: Послідовність робіт для одного об’єкта
@@ -95,7 +95,7 @@ uk:
     lede: Розглядаємо електричну систему як частину об’єкта, його планування та щоденного використання.
     journey:
       id: about
-      fingerprint: 2a17a656
+      fingerprint: 2cc0ba17
       aria_label: Інженерні принципи Smart Electrics
       assembled:
         title: Принципи для одного об’єкта

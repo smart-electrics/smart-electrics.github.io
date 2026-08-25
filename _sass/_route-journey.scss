@@ -365,8 +365,8 @@
 }
 
 @keyframes route-journey-outgoing {
-  from { opacity: 0.72; transform: scale(1); }
-  to { opacity: 0; transform: scale(1.018); }
+  from { opacity: 0.72; }
+  to { opacity: 0; }
 }
 
 @media (min-width: 48rem) {

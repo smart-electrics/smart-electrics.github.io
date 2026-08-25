@@ -78,7 +78,7 @@
     </div>
     <p class="route-journey__live" data-route-journey-live aria-live="polite"></p>
   </div>
-  <script type="application/json" data-route-journey-config>{"id":{{ journey.id | jsonify }},"assembled":{{ journey.assembled | jsonify }},"panel":{{ journey.panel | jsonify }},"nodes":{{ journey.nodes | jsonify }}}</script>
+  <script type="application/json" data-route-journey-config>{"id":{{ journey.id | jsonify }},"aria_label":{{ journey.aria_label | jsonify }},"assembled":{{ journey.assembled | jsonify }},"panel":{{ journey.panel | jsonify }},"labels":{{ journey.labels | jsonify }},"actions":{{ journey.actions | jsonify }},"media":{{ journey.media | jsonify }},"nodes":{{ journey.nodes | jsonify }}}</script>
   {% if include.route.partnership %}
     <section class="route-journey__partnership" id="{{ include.route.partnership.id }}" aria-labelledby="{{ journey.id }}-partnership-title">
       <h2 id="{{ journey.id }}-partnership-title">{{ include.route.partnership.title }}</h2>

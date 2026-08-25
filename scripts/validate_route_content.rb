@@ -21,8 +21,8 @@ module RouteContent
     "about" => %w[object-context system-logic coordination handover]
   }.freeze
   FINGERPRINTS = {
-    "process" => "3aa1e547",
-    "about" => "2a17a656"
+    "process" => "d76fba7e",
+    "about" => "2cc0ba17"
   }.freeze
   DOCUMENTS = {
     "process" => ["process.md", "journey"],
@@ -219,6 +219,7 @@ module RouteContent
     end
     serialized = [
       journey.fetch("id"),
+      journey.fetch("aria_label"),
       journey.fetch("assembled").fetch("title"),
       journey.fetch("assembled").fetch("summary"),
       [
@@ -228,6 +229,21 @@ module RouteContent
         journey.fetch("panel").fetch("focus").fetch("label"),
         journey.fetch("panel").fetch("reassembled").fetch("label"),
         journey.fetch("panel").fetch("reassembled").fetch("title")
+      ].join("~"),
+      [
+        journey.fetch("labels").fetch("input"),
+        journey.fetch("labels").fetch("decision"),
+        journey.fetch("labels").fetch("next")
+      ].join("~"),
+      [
+        journey.fetch("actions").fetch("show_relationship"),
+        journey.fetch("actions").fetch("return")
+      ].join("~"),
+      [
+        journey.fetch("media").fetch("image_768"),
+        journey.fetch("media").fetch("image_1536"),
+        journey.fetch("media").fetch("image_alt"),
+        journey.fetch("media").fetch("image_focus")
       ].join("~"),
       serialized_nodes.join("|")
     ].join(":")

@@ -3,6 +3,12 @@ const hasFields = (value, fields) => value !== null && typeof value === "object"
   Object.keys(value).sort().join("|") === fields.join("|");
 const isCoordinate = (value) => Number.isInteger(value) && value >= 8 && value <= 92;
 const isScale = (value) => typeof value === "number" && Number.isFinite(value) && value >= 1.12 && value <= 1.4;
+const validLabels = (labels) => hasFields(labels, ["decision", "input", "next"]) &&
+  [labels.input, labels.decision, labels.next].every(isText);
+const validActions = (actions) => hasFields(actions, ["return", "show_relationship"]) &&
+  [actions.show_relationship, actions.return].every(isText);
+const validMedia = (media) => hasFields(media, ["image_1536", "image_768", "image_alt", "image_focus"]) &&
+  [media.image_768, media.image_1536, media.image_alt, media.image_focus].every(isText);
 const validVisual = (visual) => hasFields(visual, ["focus", "next"]) &&
   hasFields(visual.focus, ["scale", "x", "y"]) &&
   hasFields(visual.next, ["x", "y"]) &&
@@ -14,8 +20,8 @@ const validVisual = (visual) => hasFields(visual, ["focus", "next"]) &&
   (visual.focus.x !== visual.next.x || visual.focus.y !== visual.next.y);
 
 export const CANONICAL_ROUTE_JOURNEY_FINGERPRINTS = Object.freeze({
-  process: "3aa1e547",
-  about: "2a17a656"
+  process: "d76fba7e",
+  about: "2cc0ba17"
 });
 
 export function routeJourneyFingerprint(journey) {
@@ -23,8 +29,9 @@ export function routeJourneyFingerprint(journey) {
     journey === null ||
     typeof journey !== "object" ||
     Array.isArray(journey) ||
-    Object.keys(journey).sort().join("|") !== "assembled|id|nodes|panel" ||
+    Object.keys(journey).sort().join("|") !== "actions|aria_label|assembled|id|labels|media|nodes|panel" ||
     !isText(journey.id) ||
+    !isText(journey.aria_label) ||
     journey.assembled === null ||
     typeof journey.assembled !== "object" ||
     Array.isArray(journey.assembled) ||
@@ -55,6 +62,9 @@ export function routeJourneyFingerprint(journey) {
       journey.panel.reassembled.label,
       journey.panel.reassembled.title
     ].every(isText) ||
+    !validLabels(journey.labels) ||
+    !validActions(journey.actions) ||
+    !validMedia(journey.media) ||
     !Array.isArray(journey.nodes) ||
     journey.nodes.length === 0
   ) return null;
@@ -94,10 +104,28 @@ export function routeJourneyFingerprint(journey) {
     journey.panel.reassembled.label,
     journey.panel.reassembled.title
   ].join("~");
-  const serialized = [journey.id, journey.assembled.title, journey.assembled.summary, serializedPanel, serializedNodes.join("|")].join(":");
+  const serializedLabels = [journey.labels.input, journey.labels.decision, journey.labels.next].join("~");
+  const serializedActions = [journey.actions.show_relationship, journey.actions.return].join("~");
+  const serializedMedia = [
+    journey.media.image_768,
+    journey.media.image_1536,
+    journey.media.image_alt,
+    journey.media.image_focus
+  ].join("~");
+  const serialized = [
+    journey.id,
+    journey.aria_label,
+    journey.assembled.title,
+    journey.assembled.summary,
+    serializedPanel,
+    serializedLabels,
+    serializedActions,
+    serializedMedia,
+    serializedNodes.join("|")
+  ].join(":");
   let hash = 0x811c9dc5;
   for (const character of serialized) {
-    hash = Math.imul(hash ^ character.charCodeAt(0), 0x01000193);
+    hash = Math.imul(hash ^ character.codePointAt(0), 0x01000193);
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
 }

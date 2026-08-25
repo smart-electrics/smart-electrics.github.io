@@ -11,6 +11,12 @@ const hasFields = (value, fields) => value !== null && typeof value === "object"
   Object.keys(value).sort().join("|") === fields.join("|");
 const isCoordinate = (value) => Number.isInteger(value) && value >= 8 && value <= 92;
 const isScale = (value) => typeof value === "number" && Number.isFinite(value) && value >= 1.12 && value <= 1.4;
+const validLabels = (labels) => hasFields(labels, ["decision", "input", "next"]) &&
+  [labels.input, labels.decision, labels.next].every(isText);
+const validActions = (actions) => hasFields(actions, ["return", "show_relationship"]) &&
+  [actions.show_relationship, actions.return].every(isText);
+const validMedia = (media) => hasFields(media, ["image_1536", "image_768", "image_alt", "image_focus"]) &&
+  [media.image_768, media.image_1536, media.image_alt, media.image_focus].every(isText);
 
 const validPanel = (panel) => hasFields(panel, ["assembled", "focus", "reassembled"]) &&
   hasFields(panel.assembled, ["label", "summary", "title"]) &&
@@ -55,15 +61,19 @@ function validConfig(config, routeId) {
     config === null ||
     typeof config !== "object" ||
     Array.isArray(config) ||
-    Object.keys(config).sort().join("|") !== "assembled|id|nodes|panel" ||
+    Object.keys(config).sort().join("|") !== "actions|aria_label|assembled|id|labels|media|nodes|panel" ||
     config.id !== routeId ||
     !isId(config.id) ||
+    !isText(config.aria_label) ||
     config.assembled === null ||
     typeof config.assembled !== "object" ||
     Array.isArray(config.assembled) ||
     Object.keys(config.assembled).sort().join("|") !== "summary|title" ||
     ![config.assembled.title, config.assembled.summary].every(isText) ||
     !validPanel(config.panel) ||
+    !validLabels(config.labels) ||
+    !validActions(config.actions) ||
+    !validMedia(config.media) ||
     !Array.isArray(config.nodes) ||
     config.nodes.length === 0
   ) return false;
@@ -83,48 +93,106 @@ function validConfig(config, routeId) {
   });
 }
 
-function exactStage(stage, config) {
+function exactFallback(fallback, config) {
+  const list = one(fallback, ":scope > ol");
+  const entries = list ? [...list.querySelectorAll(":scope > li")] : [];
+  const fieldPairs = [
+    ["input", "input"],
+    ["decision", "decision"],
+    ["next", "next"]
+  ];
+  return fallback.tagName === "DIV" && fallback.children.length === 1 && list && entries.length === config.nodes.length &&
+    entries.every((entry, index) => {
+      const node = config.nodes[index];
+      const heading = one(entry, ":scope > h2");
+      const definition = one(entry, ":scope > dl");
+      const groups = definition ? [...definition.querySelectorAll(":scope > div")] : [];
+      return entry.children.length === 2 && entry.id === `${config.id}-${node.id}` &&
+        heading && heading.id === `${config.id}-${node.id}-title` && heading.textContent === node.title &&
+        definition && definition.children.length === fieldPairs.length && groups.length === fieldPairs.length &&
+        groups.every((group, groupIndex) => {
+          const [label, copy] = fieldPairs[groupIndex];
+          const term = one(group, ":scope > dt");
+          const description = one(group, ":scope > dd");
+          return group.children.length === 2 && term && description &&
+            term.textContent === config.labels[label] && description.textContent === node[copy];
+        });
+    });
+}
+
+function exactStage(root, stage, config) {
   const nodeButtons = [...stage.querySelectorAll("button[data-route-journey-node]")];
   const actionButtons = [...stage.querySelectorAll("button[data-route-journey-action]")];
   const buttons = [...stage.querySelectorAll("button")];
   const nodeIds = config.nodes.map((node) => node.id);
-  const expectedActions = [
-    ...nodeIds.map(() => "select-node"),
-    "show-relationship",
-    "return"
-  ].sort();
-  const actualActions = actionButtons.map((button) => button.dataset.routeJourneyAction).sort();
+  const expectedActions = [...nodeIds.map(() => "select-node"), "show-relationship", "return"];
+  const actualActions = actionButtons.map((button) => button.dataset.routeJourneyAction);
   const exactNodeButtons = nodeButtons.length === nodeIds.length &&
     sameIds(nodeButtons.map((button) => button.dataset.routeJourneyNode), nodeIds) &&
-    nodeButtons.every((button) => button.dataset.routeJourneyAction === "select-node");
+    nodeButtons.every((button, index) => button.type === "button" &&
+      button.dataset.routeJourneyAction === "select-node" &&
+      button.textContent === config.nodes[index].title &&
+      button.getAttribute("aria-pressed") === String(index === 0));
   const exactScene = (() => {
     const scene = one(stage, "[data-route-journey-scene]");
     const media = one(stage, "[data-route-journey-media]");
+    const source = scene && one(scene, "source");
+    const image = scene && one(scene, "img");
     const outgoing = one(stage, "img[data-route-journey-outgoing]");
     const connector = one(stage, "svg[data-route-journey-connector]");
     const connectorLine = connector && one(connector, "line[data-route-journey-connector-line]");
-    const source = connector && one(connector, "circle[data-route-journey-connector-source]");
-    const target = connector && one(connector, "circle[data-route-journey-connector-target]");
-    return scene && media && outgoing && connector && connectorLine && source && target &&
+    const connectorSource = connector && one(connector, "circle[data-route-journey-connector-source]");
+    const connectorTarget = connector && one(connector, "circle[data-route-journey-connector-target]");
+    const initialPoint = (element, xAttribute, yAttribute) => element &&
+      element.getAttribute(xAttribute) === "50" && element.getAttribute(yAttribute) === "50";
+    return scene && media && source && image && outgoing && connector && connectorLine && connectorSource && connectorTarget &&
       media.contains(scene) && media.contains(outgoing) && media.contains(connector) &&
       stage.querySelectorAll("svg").length === 1 &&
+      scene.tagName === "PICTURE" && scene.querySelectorAll("source").length === 1 && scene.querySelectorAll("img").length === 1 &&
+      source.getAttribute("media") === "(max-width: 767px)" && source.getAttribute("srcset") === config.media.image_768 &&
+      image.getAttribute("src") === config.media.image_1536 && image.getAttribute("alt") === config.media.image_alt &&
+      image.style.getPropertyValue("--route-journey-scene-position").trim() === config.media.image_focus &&
+      outgoing.getAttribute("src") === config.media.image_1536 && outgoing.getAttribute("alt") === "" &&
+      outgoing.getAttribute("aria-hidden") === "true" && outgoing.hidden &&
+      connector.getAttribute("aria-hidden") === "true" && connector.hasAttribute("hidden") && connector.dataset.routeJourneyConnectorState === "assembled" &&
       connector.getAttribute("viewBox") === "0 0 100 100" &&
       connector.getAttribute("preserveAspectRatio") === "none" &&
       connector.querySelectorAll("line").length === 1 && connector.querySelectorAll("circle").length === 2 &&
+      connectorLine.getAttribute("pathLength") === "1" && initialPoint(connectorLine, "x1", "y1") && initialPoint(connectorLine, "x2", "y2") &&
+      initialPoint(connectorSource, "cx", "cy") && initialPoint(connectorTarget, "cx", "cy") &&
+      connectorSource.getAttribute("r") === "1.45" && connectorTarget.getAttribute("r") === "1.45" &&
       scene.querySelectorAll("picture").length === 0 && scene.querySelectorAll("img").length === 1;
   })();
   const panel = one(stage, "[data-route-journey-panel]");
-  const exactPanel = panel && [
-    "[data-route-journey-panel-title]",
-    "[data-route-journey-panel-state]",
-    "[data-route-journey-panel-summary]",
-    "[data-route-journey-details]",
-    "[data-route-journey-input]",
-    "[data-route-journey-decision]",
-    "[data-route-journey-next]",
-    "[data-route-journey-live]"
-  ].every((selector) => stage.querySelectorAll(selector).length === 1);
-  return exactNodeButtons &&
+  const panelTitle = panel && one(panel, "[data-route-journey-panel-title]");
+  const panelState = panel && one(panel, "[data-route-journey-panel-state]");
+  const panelSummary = panel && one(panel, "[data-route-journey-panel-summary]");
+  const details = panel && one(panel, "[data-route-journey-details]");
+  const detailGroups = details ? [...details.querySelectorAll(":scope > div")] : [];
+  const detailFields = ["input", "decision", "next"];
+  const live = one(stage, "[data-route-journey-live]");
+  const showRelationship = one(stage, 'button[data-route-journey-action="show-relationship"]');
+  const returnControl = one(stage, 'button[data-route-journey-action="return"]');
+  const exactPanel = panel && panel.tagName === "SECTION" && panel.getAttribute("aria-labelledby") === `${config.id}-journey-panel-title` &&
+    panelTitle && panelTitle.id === `${config.id}-journey-panel-title` && panelTitle.textContent === config.panel.assembled.title &&
+    panelState && panelState.textContent === config.panel.assembled.label &&
+    panelSummary && panelSummary.textContent === config.panel.assembled.summary &&
+    details && details.hidden && detailGroups.length === detailFields.length &&
+    detailGroups.every((group, index) => {
+      const term = one(group, ":scope > dt");
+      const description = one(group, ":scope > dd");
+      return group.children.length === 2 && term && description && term.textContent === config.labels[detailFields[index]] && description.textContent === "";
+    }) &&
+    showRelationship && showRelationship.type === "button" && showRelationship.textContent === config.actions.show_relationship && showRelationship.hidden &&
+    returnControl && returnControl.type === "button" && returnControl.textContent === config.actions.return && returnControl.hidden &&
+    live && live.tagName === "P" && live.getAttribute("aria-live") === "polite";
+  const stageTitle = one(stage, ".route-journey__stage-heading h2");
+  const rail = one(stage, ".route-journey__rail");
+  return root.tagName === "SECTION" && root.getAttribute("aria-label") === config.aria_label && stage.tagName === "DIV" && stage.hidden &&
+    stage.getAttribute("aria-labelledby") === `${config.id}-journey-title` &&
+    stageTitle && stageTitle.id === `${config.id}-journey-title` && stageTitle.textContent === config.assembled.title &&
+    rail && rail.tagName === "OL" && rail.getAttribute("aria-label") === config.aria_label &&
+    exactNodeButtons &&
     sameIds(actualActions, expectedActions) &&
     buttons.length === actionButtons.length &&
     exactScene &&
@@ -142,7 +210,7 @@ function enhance(root) {
   if (!isId(routeId) || !fallback || !stage || !validConfig(config, routeId)) return;
   const expectedFingerprint = CANONICAL_ROUTE_JOURNEY_FINGERPRINTS[routeId];
   if (!expectedFingerprint || fingerprint !== expectedFingerprint || routeJourneyFingerprint(config) !== expectedFingerprint) return;
-  const controls = exactStage(stage, config);
+  const controls = exactFallback(fallback, config) && exactStage(root, stage, config);
   if (!controls) return;
 
   let adapter;
@@ -176,6 +244,7 @@ function enhance(root) {
   const clearTransition = () => {
     outgoing.hidden = true;
     outgoing.removeAttribute("src");
+    ["transform", "object-position", "transform-origin", "clip-path"].forEach((property) => outgoing.style.removeProperty(property));
     root.removeAttribute("data-route-journey-transition");
   };
 
@@ -184,7 +253,12 @@ function enhance(root) {
     if (reducedMotion.matches) return;
     const source = scene.currentSrc || scene.src;
     if (!source) return;
+    const style = window.getComputedStyle(scene);
     outgoing.src = source;
+    outgoing.style.transform = style.transform;
+    outgoing.style.objectPosition = style.objectPosition;
+    outgoing.style.transformOrigin = style.transformOrigin;
+    outgoing.style.clipPath = style.clipPath;
     outgoing.hidden = false;
     root.dataset.routeJourneyTransition = "true";
   };
