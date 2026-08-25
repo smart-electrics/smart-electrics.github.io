@@ -47,6 +47,39 @@ async function ready(page, composition) {
   return root;
 }
 
+async function recordPhaseTimeline(root, phaseAttribute) {
+  await root.evaluate((element, attribute) => {
+    element.__cinematicPhaseObserver?.disconnect();
+    element.__cinematicPhaseTimeline = [];
+    element.__cinematicPhaseObserver = new MutationObserver(() => {
+      element.__cinematicPhaseTimeline.push({ phase: element.getAttribute(attribute), time: performance.now() });
+    });
+    element.__cinematicPhaseObserver.observe(element, { attributeFilter: [attribute] });
+  }, phaseAttribute);
+}
+
+async function expectDeliberatePhaseDurations(root, label) {
+  const timeline = await root.evaluate((element) => {
+    element.__cinematicPhaseObserver?.disconnect();
+    return element.__cinematicPhaseTimeline || [];
+  });
+  const phase = (name) => timeline.find((entry) => entry.phase === name);
+  const disassemble = phase("disassemble");
+  const hold = phase("hold");
+  const reassemble = phase("reassemble");
+  const idle = phase("idle");
+  expect(timeline.map(({ phase: name }) => name), label + " must expose the complete causal phase order").toEqual([
+    "disassemble",
+    "hold",
+    "reassemble",
+    "idle"
+  ]);
+  expect(hold.time - disassemble.time, label + " must visibly disassemble before replacing the scene").toBeGreaterThanOrEqual(250);
+  expect(reassemble.time - hold.time, label + " must retain an inspectable clean hold").toBeGreaterThanOrEqual(500);
+  expect(idle.time - reassemble.time, label + " must visibly reassemble the selected state").toBeGreaterThanOrEqual(300);
+  return timeline;
+}
+
 test("cinematic compositions expose a bounded causal lifecycle with a clean single-scene hold", async ({ page }) => {
   for (const width of [375, 1440]) {
     await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 });
@@ -55,6 +88,7 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
       const trigger = composition.route === "/"
         ? root.locator("[data-cinematic-direction-control]").first()
         : root.locator(composition.trigger);
+      await recordPhaseTimeline(root, composition.phase);
       await trigger.click();
       await expect(root).toHaveAttribute(composition.phase, "disassemble");
       await expect(root.locator(composition.snapshot)).toBeVisible();
@@ -111,6 +145,7 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
       expect(connectorGeometry, `${composition.route} at ${width}px`).toEqual({ endpointInScene: true, sourceEndpointOnSelectedControl: true, intersectsHeading: false });
       await expect(root).toHaveAttribute(composition.phase, "idle");
       await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
+      await expectDeliberatePhaseDurations(root, `${composition.route} at ${width}px`);
     }
   }
 });
@@ -139,16 +174,35 @@ test("rapid interactions restart each composition from the newest selected state
     if (composition.route === "/") {
       const controls = root.locator("[data-cinematic-direction-control]");
       await controls.nth(0).click();
+      const newestDirection = await controls.nth(3).getAttribute("data-direction-id");
       await controls.nth(3).click();
-      await expect(root).toHaveAttribute("data-cinematic-direction", await controls.nth(3).getAttribute("data-direction-id"));
+      await expect(root).toHaveAttribute("data-cinematic-direction", newestDirection);
+      await expect(root).toHaveAttribute("data-cinematic-state", "focus");
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-cinematic-focus-scene", newestDirection);
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-cinematic-focus-panel", newestDirection);
     } else if (composition.route === "/services/lighting/") {
+      const newestRelation = await root.locator(`${composition.scene}:visible`).getAttribute("data-service-studio-relation-id");
       await root.locator('[data-service-studio-action="select-focus"]').click();
       await root.locator('[data-service-studio-action="select-reassembled"]').click();
       await expect(root).toHaveAttribute("data-service-studio-state", "reassembled");
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+      await expect(root).toHaveAttribute("data-service-studio-relation", newestRelation);
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-service-studio-scene", "reassembled");
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-service-studio-relation-id", newestRelation);
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-service-studio-panel", "reassembled");
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-service-studio-relation-id", newestRelation);
     } else {
+      const newestSolution = await root.getAttribute("data-cinematic-solutions-solution-id");
       await root.locator('[data-cinematic-solutions-action="select-focus"]').click();
       await root.locator('[data-cinematic-solutions-action="select-reassembled"]').click();
       await expect(root).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+      await expect(root).toHaveAttribute("data-cinematic-solutions-solution-id", newestSolution);
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-cinematic-solutions-scene", "reassembled");
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-cinematic-solutions-solution-id", newestSolution);
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-cinematic-solutions-panel", "reassembled");
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-cinematic-solutions-solution-id", newestSolution);
     }
     await expect(root).toHaveAttribute(composition.phase, "idle");
     await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
@@ -178,6 +232,7 @@ test("route journeys use the same lifecycle without replacing their existing SVG
   await page.goto("/process/");
   const root = page.locator("[data-route-journey-root]");
   await expect(root).toHaveAttribute("data-route-journey-enhanced", "true");
+  await recordPhaseTimeline(root, "data-route-journey-motion-phase");
   await root.getByRole("button", { name: "Звернення", exact: true }).click();
   await expect(root).toHaveAttribute("data-route-journey-motion-phase", "disassemble");
   await expect(root).toHaveAttribute("data-route-journey-motion-phase", "hold");
@@ -185,6 +240,7 @@ test("route journeys use the same lifecycle without replacing their existing SVG
   await expect(root).toHaveAttribute("data-route-journey-motion-phase", "reassemble");
   await expect(root.locator("svg[data-route-journey-connector]")).toBeVisible();
   await expect(root).toHaveAttribute("data-route-journey-motion-phase", "idle");
+  await expectDeliberatePhaseDurations(root, "/process/ journey");
 });
 
 test("residence panels remain wholly inside the dominant scene frame at every target width", async ({ page }) => {
