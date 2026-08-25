@@ -96,6 +96,15 @@ const positiveClaimAfterDisclosure = Object.freeze([
 ]);
 const serviceStudioRoutes = publicRoutes.filter((route) => route.startsWith("/services/") && route !== "/services/");
 const solutionRoutes = publicRoutes.filter((route) => route.startsWith("/solutions/"));
+const expectedDynamicFallbackRoutes = Object.freeze([
+  "/",
+  "/services/",
+  ...serviceStudioRoutes,
+  ...solutionRoutes,
+  "/smart-home/",
+  "/process/",
+  "/about/"
+]);
 const dynamicFallbacks = Object.freeze([
   ...["/", "/services/"].map((route) => ({
     route,
@@ -103,6 +112,7 @@ const dynamicFallbacks = Object.freeze([
     fallback: "[data-cinematic-fallback]",
     fallbackContent: "[data-cinematic-fallback-directions] > li",
     stage: "[data-cinematic-stage]",
+    enhancedAttribute: "data-cinematic-enhanced",
     fallbackLink: "[data-cinematic-fallback] a[data-cinematic-direction-link]"
   })),
   ...serviceStudioRoutes.map((route) => ({
@@ -111,6 +121,7 @@ const dynamicFallbacks = Object.freeze([
     fallback: "[data-service-studio-fallback]",
     fallbackContent: ".service-studio__fallback-relations section",
     stage: "[data-service-studio-stage]",
+    enhancedAttribute: "data-service-studio-enhanced",
     fallbackLink: "[data-service-studio-fallback] a[href='/services/']"
   })),
   ...solutionRoutes.map((route) => ({
@@ -119,6 +130,7 @@ const dynamicFallbacks = Object.freeze([
     fallback: "[data-cinematic-solutions-fallback]",
     fallbackContent: ".cinematic-solutions__fallback-item",
     stage: "[data-cinematic-solutions-stage]",
+    enhancedAttribute: "data-cinematic-solutions-enhanced",
     fallbackLink: route === "/solutions/"
       ? "[data-cinematic-solutions-fallback] a[href^='/solutions/']:not([href='/solutions/'])"
       : "[data-cinematic-solutions-fallback] a[href='/solutions/']"
@@ -129,6 +141,8 @@ const dynamicFallbacks = Object.freeze([
     fallback: "[data-static-explainer]",
     fallbackContent: ".smart-home__static-systems > li",
     stage: "[data-smart-home-phone]",
+    enhancedAttribute: "data-enhanced",
+    fallbackLinkScope: "[data-smart-home-physical-fallback]",
     fallbackLink: "[data-smart-home-physical-fallback] a[href='/services/lighting/']"
   },
   ...["/process/", "/about/"].map((route) => ({
@@ -136,7 +150,8 @@ const dynamicFallbacks = Object.freeze([
     root: "[data-route-journey-root]",
     fallback: "[data-route-journey-fallback]",
     fallbackContent: "ol > li",
-    stage: "[data-route-journey-stage]"
+    stage: "[data-route-journey-stage]",
+    enhancedAttribute: "data-route-journey-enhanced"
   }))
 ]);
 
@@ -189,11 +204,40 @@ async function expectSemanticFallback(page, contract, label) {
   await expect(root, label + " must retain one composition root").toHaveCount(1);
   const fallback = root.locator(contract.fallback);
   await expect(fallback, label + " must retain a visible static fallback").toBeVisible();
+  await expect(fallback, label + " must not hide static fallback content from assistive technology").not.toHaveAttribute("aria-hidden", "true");
   await expect(root.locator(contract.stage), label + " must keep its enhanced stage hidden").toBeHidden();
+  await expect(root, label + " must not expose the enhanced adapter state").not.toHaveAttribute(contract.enhancedAttribute);
   const semanticContent = fallback.locator(contract.fallbackContent);
   await expect(semanticContent, label + " must retain readable fallback content").not.toHaveCount(0);
   await expect(semanticContent.first(), label + " must expose the first fallback item").toBeVisible();
-  return root;
+  const linkScope = contract.fallbackLinkScope ? page.locator(contract.fallbackLinkScope) : fallback;
+  await expect(linkScope, label + " must retain its fallback link scope").toBeVisible();
+  const links = await linkScope.locator("a[href]").evaluateAll((anchors) => anchors.map((anchor) => ({
+    href: anchor.href,
+    name: anchor.getAttribute("aria-label") || anchor.textContent.trim(),
+    disabled: anchor.getAttribute("aria-disabled") === "true"
+  })));
+  for (const link of links) {
+    expect(link.name, label + " fallback anchors need an accessible label").not.toBe("");
+    expect(link.disabled, label + " fallback anchors must not masquerade as disabled").toBe(false);
+  }
+  if (contract.fallbackLink) expect(links.length, label + " must retain an owned semantic fallback anchor").toBeGreaterThan(0);
+  return { links, root };
+}
+
+function expectExactDynamicFallbackInventory() {
+  const routes = dynamicFallbacks.map(({ route }) => route);
+  expect(routes).toHaveLength(20);
+  expect(new Set(routes).size, "dynamic fallback routes must be unique").toBe(20);
+  expect([...routes].sort(), "dynamic fallback routes must cover the exact public composition inventory").toEqual([...expectedDynamicFallbackRoutes].sort());
+  expect(routes.every((route) => publicRoutes.includes(route)), "dynamic fallback routes must remain public routes").toBe(true);
+}
+
+async function expectFallbackInternalTargets(page, hrefs, label) {
+  for (const route of internalRoutes(hrefs)) {
+    const response = await page.request.get(new URL(route, baseURL).href);
+    expect(response.ok(), label + " fallback target " + route + " must resolve").toBe(true);
+  }
 }
 
 function addDiagnostics(page) {
@@ -668,7 +712,7 @@ test("all twenty-four public routes stay semantic, linked, fluid, and error-free
 });
 
 test("all twenty-four public routes retain complete, ordinary navigation with JavaScript disabled", async ({ browser }) => {
-  expect(dynamicFallbacks).toHaveLength(20);
+  expectExactDynamicFallbackInventory();
   const context = await browser.newContext({ baseURL, javaScriptEnabled: false, locale: "uk-UA" });
   const page = await context.newPage();
   const matrix = [];
@@ -696,11 +740,14 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
     const mobileNavigation = page.locator(".mobile-nav");
     if (await mobileNavigation.isVisible()) await mobileNavigation.locator("summary").click();
     await followOrdinaryLink(page, 'a[href="/services/"]:visible', "no-JavaScript mobile navigation");
+    const fallbackHrefs = [];
     for (const contract of dynamicFallbacks) {
       await visit(page, contract.route);
-      await expectSemanticFallback(page, contract, contract.route + " no-JavaScript fallback");
+      const fallback = await expectSemanticFallback(page, contract, contract.route + " no-JavaScript fallback");
+      fallbackHrefs.push(...fallback.links.map(({ href }) => href));
       if (contract.fallbackLink) await followOrdinaryLink(page, contract.fallbackLink, contract.route + " no-JavaScript fallback");
     }
+    await expectFallbackInternalTargets(page, fallbackHrefs, "no-JavaScript");
   } finally {
     await context.close();
   }
@@ -791,22 +838,25 @@ test("public surface permits only flowing inline editorial links below 44px", as
 });
 
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
-  expect(dynamicFallbacks).toHaveLength(20);
+  expectExactDynamicFallbackInventory();
   const context = await browser.newContext({ baseURL, locale: "uk-UA", viewport: viewportFor(768) });
   await context.route("**/assets/js/**", (route) => route.abort());
   const page = await context.newPage();
   const evidence = [];
+  const fallbackHrefs = [];
 
   try {
     for (const contract of dynamicFallbacks) {
       await visit(page, contract.route);
-      await expectSemanticFallback(page, contract, contract.route + " adapter-failure fallback");
+      const fallback = await expectSemanticFallback(page, contract, contract.route + " adapter-failure fallback");
+      fallbackHrefs.push(...fallback.links.map(({ href }) => href));
       const surface = await publicSurface(page, contract.route, 768);
       evidence.push({ route: contract.route, controls: surface.controls, overflow: surface.overflow });
       if (contract.fallbackLink) {
         await followOrdinaryLink(page, contract.fallbackLink, contract.route + " adapter-failure fallback");
       }
     }
+    await expectFallbackInternalTargets(page, fallbackHrefs, "adapter-failure");
   } finally {
     await context.close();
   }
