@@ -95,10 +95,10 @@ const positiveClaimAfterDisclosure = Object.freeze([
   /(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)/iu
 ]);
 const dynamicFallbacks = Object.freeze([
-  { route: "/", root: "[data-cinematic-root]", fallback: "[data-cinematic-fallback]", stage: "[data-cinematic-stage]" },
-  { route: "/services/electrical-design/", root: "[data-service-studio-root]", fallback: "[data-service-studio-fallback]", stage: "[data-service-studio-stage]" },
-  { route: "/solutions/private-house-full-automation/", root: "[data-cinematic-solutions-root]", fallback: "[data-cinematic-solutions-fallback]", stage: "[data-cinematic-solutions-stage]" },
-  { route: "/smart-home/", root: "[data-smart-home-simulator]", fallback: "[data-static-explainer]", stage: "[data-smart-home-phone]" },
+  { route: "/", root: "[data-cinematic-root]", fallback: "[data-cinematic-fallback]", stage: "[data-cinematic-stage]", fallbackLink: "[data-cinematic-fallback] a[data-cinematic-direction-link]" },
+  { route: "/services/electrical-design/", root: "[data-service-studio-root]", fallback: "[data-service-studio-fallback]", stage: "[data-service-studio-stage]", fallbackLink: "[data-service-studio-fallback] a[href='/services/']" },
+  { route: "/solutions/private-house-full-automation/", root: "[data-cinematic-solutions-root]", fallback: "[data-cinematic-solutions-fallback]", stage: "[data-cinematic-solutions-stage]", fallbackLink: "[data-cinematic-solutions-fallback] a[href='/solutions/']" },
+  { route: "/smart-home/", root: "[data-smart-home-simulator]", fallback: "[data-static-explainer]", stage: "[data-smart-home-phone]", fallbackLink: "[data-smart-home-physical-fallback] a[href='/services/lighting/']" },
   { route: "/process/", root: "[data-route-journey-root]", fallback: "[data-route-journey-fallback]", stage: "[data-route-journey-stage]" },
   { route: "/about/", root: "[data-route-journey-root]", fallback: "[data-route-journey-fallback]", stage: "[data-route-journey-stage]" }
 ]);
@@ -132,6 +132,21 @@ async function visit(page, route) {
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator("main")).toBeVisible();
   return response;
+}
+
+async function followOrdinaryLink(page, selector, label) {
+  const link = page.locator(selector).first();
+  await expect(link, label + " must remain a visible semantic anchor").toBeVisible();
+  await expect(link, label + " must not masquerade as disabled").not.toHaveAttribute("aria-disabled", "true");
+  const href = await link.getAttribute("href");
+  expect(href, label + " must retain href without JavaScript").toBeTruthy();
+  const destination = new URL(href, baseURL);
+  expect(destination.origin, label + " must remain same-origin").toBe(new URL(baseURL).origin);
+  await Promise.all([
+    page.waitForURL((url) => url.pathname + url.search === destination.pathname + destination.search),
+    link.click()
+  ]);
+  await expect(page.locator("main"), label + " destination must retain a visible main landmark").toBeVisible();
 }
 
 function addDiagnostics(page) {
@@ -632,8 +647,11 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
     await visit(page, "/");
     const mobileNavigation = page.locator(".mobile-nav");
     if (await mobileNavigation.isVisible()) await mobileNavigation.locator("summary").click();
-    await page.locator('a[href="/services/"]:visible').first().click();
-    await expect(page).toHaveURL(/\/services\/$/u);
+    await followOrdinaryLink(page, 'a[href="/services/"]:visible', "no-JavaScript mobile navigation");
+    for (const contract of dynamicFallbacks.filter(({ fallbackLink }) => fallbackLink)) {
+      await visit(page, contract.route);
+      await followOrdinaryLink(page, contract.fallbackLink, contract.route + " no-JavaScript fallback");
+    }
   } finally {
     await context.close();
   }
@@ -738,6 +756,9 @@ test("every dynamic family fails closed to a visible semantic fallback when its 
       await expect(root.locator(contract.stage)).toBeHidden();
       const surface = await publicSurface(page, contract.route, 768);
       evidence.push({ route: contract.route, controls: surface.controls, overflow: surface.overflow });
+      if (contract.fallbackLink) {
+        await followOrdinaryLink(page, contract.fallbackLink, contract.route + " adapter-failure fallback");
+      }
     }
   } finally {
     await context.close();
