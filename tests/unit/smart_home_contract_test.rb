@@ -128,7 +128,8 @@ class SmartHomeContractTest < Minitest::Test
 
     assert_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
     assert_includes layout, '<source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}"'
-    assert_includes layout, '<img src="{{ visual.mobile | relative_url }}"'
+    assert_includes layout, '<img src="data:image/gif;base64,'
+    refute_includes layout, '<img src="{{ visual.mobile | relative_url }}"'
     refute_includes layout, '<img src="{{ visual.mobile | relative_url }}" srcset='
     assert_includes layout, 'sizes="(max-width: 767px) 100vw, 1536px"'
   end

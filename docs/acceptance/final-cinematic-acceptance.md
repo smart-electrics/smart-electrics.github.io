@@ -35,6 +35,12 @@ Room, stairs і exterior controls доводять зміну реального
 currentSrc і pixel signature. У smart-home simulator перевіряються всі дев'ять
 systems і сім presets, а не лише ARIA-стан.
 
+Початкова smart-home сцена має взаємовиключні mobile/desktop `source` для
+кожної ширини. `img` використовує лише inline немережевий fallback: це не дає
+Chromium speculative parser почати протилежний candidate і потім позначити
+його `net::ERR_ABORTED` на межі 768 px. Acceptance окремо перевіряє selected
+`currentSrc`, відсутність unselected request і відсутність request failures.
+
 ## Evidence
 
 tests/browser/final_acceptance.spec.js запускається один раз у project

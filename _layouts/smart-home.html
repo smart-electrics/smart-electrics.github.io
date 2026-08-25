@@ -34,7 +34,7 @@ layout: default
           <picture class="smart-home__scene-background" data-scene-picture="{{ visual.id }}" data-motion-layer="background"{% unless visual.id == initial_system.visual %} hidden{% endunless %}>
             <source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}" width="768" height="512">
             <source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}" width="1536" height="1024">
-            <img src="{{ visual.mobile | relative_url }}" sizes="(max-width: 767px) 100vw, 1536px" width="768" height="512" alt="{{ visual.alt }}"{% if visual.id == initial_system.visual %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
+            <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" sizes="(max-width: 767px) 100vw, 1536px" width="768" height="512" alt="{{ visual.alt }}"{% if visual.id == initial_system.visual %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
           </picture>
         {% endfor %}
         <span class="smart-home__scene-wash" data-motion-layer="light" aria-hidden="true"></span>
