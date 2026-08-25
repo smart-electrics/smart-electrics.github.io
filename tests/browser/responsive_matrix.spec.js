@@ -113,3 +113,31 @@ test("smart-home disassembly never expands the document", async ({ page }) => {
   await page.getByRole("radio", { name: "Повернення" }).click();
   expect(await maximumOverflow, "outgoing motion must stay inside the simulator chassis").toBe(0);
 });
+
+test("cinematic solutions atlas and all six details remain fluid at intermediate widths", async ({ page }) => {
+  const routes = [
+    "/solutions/",
+    "/solutions/apartment-comfort-and-control/",
+    "/solutions/private-house-full-automation/",
+    "/solutions/architectural-lighting/",
+    "/solutions/energy-autonomy/",
+    "/solutions/security-and-access-control/",
+    "/solutions/commercial-space/"
+  ];
+
+  for (const width of [414, 900, 1280, 1720]) {
+    await page.setViewportSize({ width, height: width < 768 ? 850 : 1000 });
+    for (const route of routes) {
+      await page.goto(route);
+      const root = page.locator("[data-cinematic-solutions-root]");
+      await expect(root).toHaveAttribute("data-cinematic-solutions-enhanced", "true");
+      const stage = root.locator("[data-cinematic-solutions-stage]");
+      await stage.getByRole("button", { name: "Зв’язок", exact: true }).click();
+      await expect(stage.locator("[data-cinematic-solutions-scene]:visible")).toHaveCount(1);
+      await expect(stage.locator("[data-cinematic-solutions-panel]:visible")).toHaveCount(1);
+      await assertNoHorizontalOverflow(page, `${route} at ${width}px`);
+      const scene = await stage.locator("[data-cinematic-solutions-scene]:visible").boundingBox();
+      expect(scene?.width ?? 0, `${route} at ${width}px keeps a bounded source image`).toBeLessThanOrEqual(1536.5);
+    }
+  }
+});

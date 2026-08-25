@@ -1,397 +1,251 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
+const STATES = ["assembled", "focus", "reassembled"];
+const ACTION_BY_STATE = {
+  assembled: "select-assembled",
+  focus: "select-focus",
+  reassembled: "select-reassembled"
+};
+const PANEL_LABEL_BY_STATE = {
+  assembled: "Склад конфігурації",
+  focus: "У фокусі",
+  reassembled: "Як системи пов’язані"
+};
 const solutions = [
   {
     slug: "apartment-comfort-and-control",
     route: "/solutions/apartment-comfort-and-control/",
-    title: "Квартира: комфорт і контроль"
+    title: "Квартира: комфорт і контроль",
+    description: "Поєднує освітлення, клімат, доступ і вибрані споживачі в узгоджену конфігурацію електричної системи квартири.",
+    directions: ["electrical-design", "lighting", "smart-home-integration", "panels-and-protection", "low-voltage"],
+    relation: "smart-home-integration--climate",
+    relationLabel: "Клімат",
+    relationDescription: "Комфорт у зонах пов’язують із керуванням, живленням і ручним коригуванням.",
+    relationLinks: ["smart-home-integration", "panels-and-protection", "low-voltage"],
+    relatedSolutions: ["private-house-full-automation", "architectural-lighting", "security-and-access-control"],
+    image: "apartment-comfort"
   },
   {
     slug: "private-house-full-automation",
     route: "/solutions/private-house-full-automation/",
-    title: "Приватний будинок: повна автоматизація"
+    title: "Приватний будинок: повна автоматизація",
+    description: "Узгоджує живлення, захист, освітлення, доступ і сценарії автоматизації в одній конфігурації приватного будинку.",
+    directions: ["electrical-design", "panels-and-protection", "backup-power", "lighting", "smart-home-integration", "low-voltage"],
+    relation: "backup-power--backup",
+    relationLabel: "Резерв",
+    relationDescription: "Резервні групи визначають разом із щитом, захистом і пріоритетами об’єкта.",
+    relationLinks: ["backup-power", "panels-and-protection", "diagnostics-and-service"],
+    relatedSolutions: ["apartment-comfort-and-control", "energy-autonomy", "security-and-access-control"],
+    image: "private-house"
   },
   {
     slug: "architectural-lighting",
     route: "/solutions/architectural-lighting/",
-    title: "Архітектурне освітлення"
+    title: "Архітектурне освітлення",
+    description: "Планує світлові точки й групи керування так, щоб освітлення відповідало плану приміщень і могло працювати у сценаріях автоматизації.",
+    directions: ["lighting", "electrical-design", "electrical-installation", "smart-home-integration"],
+    relation: "lighting--stair-lighting",
+    relationLabel: "Освітлення сходів",
+    relationDescription: "Маршрутне світло для сходів розглядають разом із групами освітлення.",
+    relationLinks: ["lighting", "electrical-design", "smart-home-integration"],
+    relatedSolutions: ["apartment-comfort-and-control", "private-house-full-automation", "commercial-space"],
+    image: "architectural-lighting"
   },
   {
     slug: "energy-autonomy",
     route: "/solutions/energy-autonomy/",
-    title: "Енергетична автономність"
+    title: "Енергетична автономність",
+    description: "Визначає, які групи мають залишатися доступними без основного живлення, і як врахувати це у структурі електричної системи.",
+    directions: ["backup-power", "panels-and-protection", "electrical-design", "diagnostics-and-service", "smart-home-integration"],
+    relation: "backup-power--backup",
+    relationLabel: "Резерв",
+    relationDescription: "Резервні групи визначають разом із щитом, захистом і пріоритетами об’єкта.",
+    relationLinks: ["backup-power", "panels-and-protection", "diagnostics-and-service"],
+    relatedSolutions: ["private-house-full-automation", "apartment-comfort-and-control", "commercial-space"],
+    image: "energy-autonomy"
   },
   {
     slug: "security-and-access-control",
     route: "/solutions/security-and-access-control/",
-    title: "Безпека та контроль доступу"
+    title: "Безпека та контроль доступу",
+    description: "Передбачає підготовку слабкострумової інфраструктури для доступу, мережі та спостереження, а також можливий зв’язок з освітленням і сценаріями автоматизації.",
+    directions: ["low-voltage", "electrical-design", "electrical-installation", "lighting", "smart-home-integration"],
+    relation: "low-voltage--cctv",
+    relationLabel: "Відеоконтроль",
+    relationDescription: "Точки відеоконтролю узгоджують із доступом, трасами та потрібними зонами.",
+    relationLinks: ["low-voltage", "electrical-installation", "diagnostics-and-service"],
+    relatedSolutions: ["private-house-full-automation", "apartment-comfort-and-control", "commercial-space"],
+    image: "security-access"
   },
   {
     slug: "commercial-space",
     route: "/solutions/commercial-space/",
-    title: "Комерційний простір"
+    title: "Комерційний простір",
+    description: "Узгоджує електричні групи, освітлення, клімат і доступ із призначенням та графіком комерційного простору.",
+    directions: ["electrical-design", "panels-and-protection", "lighting", "low-voltage", "smart-home-integration"],
+    relation: "smart-home-integration--climate",
+    relationLabel: "Клімат",
+    relationDescription: "Комфорт у зонах пов’язують із керуванням, живленням і ручним коригуванням.",
+    relationLinks: ["smart-home-integration", "panels-and-protection", "low-voltage"],
+    relatedSolutions: ["architectural-lighting", "security-and-access-control", "energy-autonomy"],
+    image: "commercial-space"
   }
 ];
+const atlasRoute = "/solutions/";
+const allRoutes = [atlasRoute, ...solutions.map((solution) => solution.route)];
+const serviceHref = (slug) => `/services/${slug}/`;
+const noJsBaseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000";
 
-const solutionRoutes = ["/solutions/", ...solutions.map(({ route }) => route)];
-const solutionRouteSet = new Set(solutions.map(({ route }) => route));
-const serviceRoutes = new Set([
-  "/services/electrical-design/",
-  "/services/electrical-installation/",
-  "/services/panels-and-protection/",
-  "/services/lighting/",
-  "/services/low-voltage/",
-  "/services/backup-power/",
-  "/services/smart-home-integration/",
-  "/services/diagnostics-and-service/"
-]);
-
-const placeholderCopy = /placeholder|lorem ipsum|page-note|контент готується|сторінка готується|текст готується|coming soon/i;
-const forbiddenCopy = [
-  /(?:відгук\w*|рейтинг\w*|зірк\w*|оцінк\w*)/i,
-  /\b\d+(?:[.,]\d+)?\s*\/\s*5\b/i,
-  /24\s*\/\s*7/i,
-  /\b(?:гаранті\w*|сертифікат\w*|vendor|протокол\w*|сумісн\w*|телефон\w*|email|e-mail|formspree|ga4)\b/i,
-  /\b(?:ціна|ціни|вартіст\w*|коштує|кошторис\w*|строк\w*|бюджет\w*|площ\w*|адрес\w*)\b/i,
-  /\b(?:клієнт\w*|замовник\w*|покупець\w*|лід\w*|заявк\w*)\b/i,
-  /\b(?:виконан\w*|реалізован\w*)\s+(?:об['’ʼ`]?єкт\w*|про[єе]кт\w*|кейс\w*)/i,
-  /\bsmart[\s_-]*home\b/i,
-  /\bдомашн\w*\s+автоматизац\w*\b/i,
-  /\b(?:магі\w*|режим\w*|пакет\w*)\b/i
-];
-
-function assertTruthfulCopy(text, route) {
-  expect(text, `${route} should not expose placeholder copy`).not.toMatch(placeholderCopy);
-  for (const phrase of forbiddenCopy) {
-    expect(text, `${route} should not expose unsupported marketing or fake-case copy`).not.toMatch(phrase);
-  }
-}
-
-async function assertAtlasCardGeometry(page, route) {
-  if (route !== "/solutions/") return;
-
-  const violations = await page.locator(".solutions-atlas__list > li > a.solution-scene").evaluateAll((cards) =>
-    cards.flatMap((card, index) => {
-      const media = card.querySelector(".solution-scene__media");
-      const copy = card.querySelector(".solution-scene__copy");
-      const title = card.querySelector(".solution-scene__title");
-      if (!media || !copy || !title) {
-        return [{ index, issue: "missing-card-geometry-node" }];
-      }
-
-      const cardBounds = card.getBoundingClientRect();
-      const mediaBounds = media.getBoundingClientRect();
-      const copyBounds = copy.getBoundingClientRect();
-      const titleBounds = title.getBoundingClientRect();
-      const titleStyle = getComputedStyle(title);
-      const sharesRow = mediaBounds.top < copyBounds.bottom - 1 && copyBounds.top < mediaBounds.bottom - 1;
-      const cardBoundaryViolations = [
-        ["copy-left-outside-card", copyBounds.left < cardBounds.left - 1],
-        ["copy-right-outside-card", copyBounds.right > cardBounds.right + 1],
-        ["copy-top-outside-card", copyBounds.top < cardBounds.top - 1],
-        ["copy-bottom-outside-card", copyBounds.bottom > cardBounds.bottom + 1],
-        ["title-left-outside-card", titleBounds.left < cardBounds.left - 1],
-        ["title-right-outside-card", titleBounds.right > cardBounds.right + 1],
-        ["title-top-outside-card", titleBounds.top < cardBounds.top - 1],
-        ["title-bottom-outside-card", titleBounds.bottom > cardBounds.bottom + 1],
-        [
-          "title-horizontal-scroll-clipped",
-          titleStyle.overflowX !== "visible" && title.scrollWidth > title.clientWidth + 1
-        ],
-        [
-          "title-vertical-scroll-clipped",
-          titleStyle.overflowY !== "visible" && title.scrollHeight > title.clientHeight + 1
-        ]
-      ]
-        .filter(([, violated]) => violated)
-        .map(([issue]) => ({
-          index,
-          issue,
-          cardLeft: cardBounds.left,
-          cardRight: cardBounds.right,
-          titleLeft: titleBounds.left,
-          titleRight: titleBounds.right
-        }));
-
-      if (sharesRow && mediaBounds.right > copyBounds.left + 1) {
-        cardBoundaryViolations.push({
-          index,
-          issue: "media-overlaps-copy",
-          mediaRight: mediaBounds.right,
-          copyLeft: copyBounds.left
-        });
-      }
-      return cardBoundaryViolations;
-    })
+async function studioFor(page) {
+  const root = page.locator("[data-cinematic-solutions-root]");
+  await expect(root).toHaveAttribute("data-cinematic-solutions-enhanced", "true");
+  const stage = root.locator("[data-cinematic-solutions-stage]");
+  await expect(stage).toBeVisible();
+  await expect(root).toHaveAttribute(
+    "aria-labelledby",
+    (await root.getAttribute("data-cinematic-solutions-mode")) === "atlas"
+      ? "cinematic-solutions-stage-title"
+      : "cinematic-solution-stage-title"
   );
-
-  expect(violations, `${route} cards should keep media, copy, and title within their card geometry`).toEqual([]);
+  return { root, stage };
 }
 
-async function assertNoHorizontalOverflow(page, route) {
-  const measurements = await page.evaluate(() => ({
-    overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
-    clipped: [...document.querySelectorAll("a, button, summary, [role='button']")]
-      .filter((element) => {
-        const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      })
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          name: element.getAttribute("aria-label") || element.textContent.trim(),
-          left: rect.left,
-          right: rect.right,
-          width: rect.width,
-          height: rect.height
-        };
-      })
-      .filter(({ left, right }) => left < -1 || right > window.innerWidth + 1)
+async function hrefs(scope, selector) {
+  return scope.locator(`${selector} a`).evaluateAll(
+    (links) => links.map((link) => link.getAttribute("href"))
+  );
+}
+
+async function assertState(page, root, stage, solution, stateId) {
+  await stage.locator(`button[data-cinematic-solutions-action="${ACTION_BY_STATE[stateId]}"]`).click();
+  await expect(root).toHaveAttribute("data-cinematic-solutions-state", stateId);
+  await expect(root).toHaveAttribute("data-cinematic-solutions-solution-id", solution.slug);
+  await expect(root).toHaveAttribute("data-cinematic-solutions-relation-id", stateId === "reassembled" ? solution.relation : "");
+  await expect(stage.locator("[data-cinematic-solutions-scene]:visible")).toHaveCount(1);
+  await expect(stage.locator("[data-cinematic-solutions-panel]:visible")).toHaveCount(1);
+  const panel = stage.locator("[data-cinematic-solutions-panel]:visible");
+  await expect(panel.locator("[data-cinematic-solutions-summary]")).not.toHaveText("");
+  await expect(panel.locator(".cinematic-solutions__panel-kicker")).toHaveText(PANEL_LABEL_BY_STATE[stateId]);
+  await expect(stage.locator(`button[data-cinematic-solutions-action="${ACTION_BY_STATE[stateId]}"]`)).toHaveAttribute("aria-pressed", "true");
+  if (stateId === "reassembled") {
+    await expect(panel.locator("[data-cinematic-solutions-relation-label]")).toHaveText(solution.relationLabel);
+    await expect(panel.locator("[data-cinematic-solutions-summary]")).toHaveText(solution.relationDescription);
+    await expect(panel.getByRole("heading", { name: "Пов’язані послуги", exact: true })).toBeVisible();
+    await expect(panel.getByRole("heading", { name: "Пов’язані готові рішення", exact: true })).toBeVisible();
+    expect(await hrefs(panel, "[data-cinematic-solutions-service-links]")).toEqual(solution.relationLinks.map(serviceHref));
+    expect(await hrefs(panel, "[data-cinematic-solutions-solution-links]")).toEqual(solution.relatedSolutions.map((slug) => `/solutions/${slug}/`));
+  } else {
+    const expectedLinks = stateId === "assembled"
+      ? solution.relatedSolutions.map((slug) => `/solutions/${slug}/`)
+      : solution.directions.map(serviceHref);
+    expect(await hrefs(panel, "[data-cinematic-solutions-related]")).toEqual(expectedLinks);
+  }
+  const image = stage.locator("[data-cinematic-solutions-scene]:visible img");
+  await expect.poll(() => image.evaluate((element) => element.complete && element.naturalWidth > 0)).toBe(true);
+  const currentSrc = await image.evaluate((element) => element.currentSrc);
+  const variant = (page.viewportSize()?.width ?? 0) <= 767 ? "768" : "1536";
+  expect(currentSrc).toContain(`/assets/images/solutions/${solution.image}-${variant}.webp`);
+  expect((await stage.locator("[data-cinematic-solutions-live]").innerText()).trim()).toMatch(/:\s+\S/u);
+  expect((await stage.locator("[data-cinematic-solutions-live]").innerText())).not.toContain("..");
+  expect((await new AxeBuilder({ page }).include("[data-cinematic-solutions-stage]").analyze()).violations).toEqual([]);
+  return stage.locator("[data-cinematic-solutions-scene]:visible").evaluate((scene) => ({
+    imageTransform: getComputedStyle(scene.querySelector("img")).transform,
+    overlay: getComputedStyle(scene, "::before").backgroundImage,
+    overlayOpacity: getComputedStyle(scene, "::before").opacity
   }));
-  expect(measurements.overflow, `${route} should not scroll horizontally`).toBe(0);
-  expect(measurements.clipped, `${route} should keep interactive controls inside the viewport`).toEqual([]);
-  await assertAtlasCardGeometry(page, route);
 }
 
-async function assertMobileTargets(page, route) {
-  if ((page.viewportSize()?.width ?? 0) > 414) return;
-
-  const undersized = await page.locator("a, button, summary, [role='button']").evaluateAll((elements) =>
-    elements
-      .filter((element) => {
-        const style = getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-        return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
-      })
-      .map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          name: element.getAttribute("aria-label") || element.textContent.trim(),
-          width: rect.width,
-          height: rect.height
-        };
-      })
-      .filter(({ width, height }) => width < 44 || height < 44)
-  );
-  expect(undersized, `${route} should expose 44px mobile interactive targets`).toEqual([]);
-}
-
-async function assertLocalImages(page, route) {
-  const images = page.locator("main img");
-  expect(await images.count(), `${route} should expose local solution imagery`).toBeGreaterThan(0);
-  const expectedLoading = route === "/solutions/" ? "lazy" : "eager";
-  const expectedSelectedIntrinsic = (page.viewportSize()?.width ?? 0) <= 767
-    ? { width: 768, height: 512 }
-    : { width: 1536, height: 1024 };
-
-  for (const image of await images.all()) {
-    await image.scrollIntoViewIfNeeded();
-    await expect.poll(
-      async () => image.evaluate((element) => element.complete && element.naturalWidth > 0),
-      { message: `${route} image should load successfully` }
-    ).toBe(true);
-    await expect(image).toHaveAttribute("alt", /\S{8,}/);
-    await expect(image).toHaveAttribute("loading", expectedLoading);
-    await expect(image).toHaveAttribute("decoding", "async");
-    const alt = await image.getAttribute("alt");
-    expect(alt, `${route} image alt should not be generic`).not.toMatch(/^(?:image|photo|зображення|фото)$/i);
-
-    const intrinsic = await image.evaluate((element) => ({
-      width: element.naturalWidth,
-      height: element.naturalHeight,
-      currentSrc: element.currentSrc,
-      declaredWidth: element.getAttribute("width"),
-      declaredHeight: element.getAttribute("height")
-    }));
-    expect(
-      { width: intrinsic.width, height: intrinsic.height },
-      `${route} selected image should use the final responsive asset dimensions`
-    ).toEqual(expectedSelectedIntrinsic);
-    expect(intrinsic.declaredWidth, `${route} image should declare 1536px fallback width`).toBe("1536");
-    expect(intrinsic.declaredHeight, `${route} image should declare 1024px fallback height`).toBe("1024");
-
-    const fallbackIntrinsic = await page.evaluate((src) => new Promise((resolve, reject) => {
-      const fallback = new Image();
-      fallback.onload = () => resolve({ width: fallback.naturalWidth, height: fallback.naturalHeight });
-      fallback.onerror = () => reject(new Error(`Could not load ${src}`));
-      fallback.src = src;
-    }), intrinsic.currentSrc.replace(/(?:-768)(\.webp)$/, "-1536$1"));
-    expect(fallbackIntrinsic, `${route} 1536px source should be a 1536x1024 asset`).toEqual({
-      width: 1536,
-      height: 1024
-    });
-
-    const picture = image.locator("xpath=ancestor::picture");
-    await expect(picture).toHaveCount(1);
-    const sources = picture.locator("source[srcset]");
-    await expect(sources).toHaveCount(2);
-    for (const [index, dimensions] of [[768, 512], [1536, 1024]].entries()) {
-      const source = sources.nth(index);
-      await expect(source).toHaveAttribute("width", String(dimensions[0]));
-      await expect(source).toHaveAttribute("height", String(dimensions[1]));
-      const srcset = await source.getAttribute("srcset");
-      expect(srcset, `${route} source ${index + 1} should declare a local asset`).toMatch(
-        /^\/assets\/images\/solutions\/[\w-]+\.webp$/
-      );
-      const sourceIntrinsic = await page.evaluate((src) => new Promise((resolve, reject) => {
-        const sourceImage = new Image();
-        sourceImage.onload = () => resolve({ width: sourceImage.naturalWidth, height: sourceImage.naturalHeight });
-        sourceImage.onerror = () => reject(new Error(`Could not load ${src}`));
-        sourceImage.src = src;
-      }), srcset);
-      expect(sourceIntrinsic, `${route} source ${index + 1} should match its declared dimensions`).toEqual({
-        width: dimensions[0],
-        height: dimensions[1]
-      });
-    }
-  }
-}
-
-async function assertActiveSolutionsNavigation(page, route) {
-  const desktopLink = page.locator('.desktop-nav a[href="/solutions/"]', { hasText: "Готові рішення" });
-  await expect(desktopLink).toHaveAttribute("aria-current", "page");
-
-  const mobileMenu = page.locator(".mobile-nav");
-  const mobileNavigation = mobileMenu.locator('nav[aria-label="Мобільна навігація"]');
-  const mobileLink = mobileNavigation.locator('a[href="/solutions/"]', { hasText: "Готові рішення" });
-  await expect(mobileLink).toHaveAttribute("aria-current", "page");
-  if (await mobileMenu.locator("summary").isVisible()) {
-    await mobileMenu.locator("summary").click();
-    await expect(mobileLink).toBeVisible();
-    await expect(mobileMenu).toHaveAttribute("open", "");
-  }
-  expect(route).toMatch(/^\/solutions(?:\/[^/]+)?\/$/);
-}
-
-test("solutions atlas exposes exactly six ordered semantic destinations", async ({ page }) => {
-  const response = await page.goto("/solutions/");
-  expect(response?.status()).toBe(200);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/i);
-
-  const main = page.getByRole("main");
-  const cards = main.locator(".solutions-atlas__list > li");
-  await expect(cards).toHaveCount(6);
-  await expect(main.locator(".solutions-atlas__list > li > a")).toHaveCount(6);
-
-  for (const [index, solution] of solutions.entries()) {
-    const card = cards.nth(index);
-    const link = card.locator(":scope > a");
-    await expect(link).toHaveCount(1);
-    await expect(link).toHaveAttribute("href", solution.route);
-    await expect(link).toHaveAccessibleName(`${solution.title}, переглянути готове рішення`);
-    await expect(card.getByText(solution.title, { exact: true })).toBeVisible();
-    await expect(card.getByText(/Переглянути конфігурацію/)).toBeVisible();
-  }
-
-  const compassLinks = main.locator(".solutions-compass__list > li > a");
-  await expect(compassLinks).toHaveCount(6);
-  for (const [index, solution] of solutions.entries()) {
-    await expect(compassLinks.nth(index)).toHaveAttribute("href", `#solution-${solution.slug}`);
-  }
-  assertTruthfulCopy(await main.innerText(), "/solutions/");
-  await assertActiveSolutionsNavigation(page, "/solutions/");
+test("the atlas uses concrete wording and gives its mobile selector a visible scroll cue", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(atlasRoute);
+  const { stage } = await studioFor(page);
+  await expect(stage.locator(".cinematic-solutions__heading > div > p:last-child")).toHaveText("Оберіть конфігурацію, щоб побачити її системи та ключовий зв’язок між системами.");
+  const selector = stage.locator(".cinematic-solutions__selector");
+  expect(await selector.evaluate((element) => ({
+    maskImage: getComputedStyle(element).maskImage,
+    scrollable: element.scrollWidth > element.clientWidth
+  }))).toEqual({
+    maskImage: expect.stringContaining("linear-gradient"),
+    scrollable: true
+  });
 });
 
-test("every solution detail exposes the complete content and relationship contract", async ({ page }) => {
-  for (const solution of solutions) {
-    const response = await page.goto(solution.route);
-    expect(response?.status(), `${solution.route} should return 200`).toBe(200);
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/i);
+async function assertNoOverflow(page, route) {
+  expect(
+    await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth)),
+    `${route} should not scroll horizontally`
+  ).toBe(0);
+}
 
-    const main = page.getByRole("main");
-    await expect(main.getByRole("heading", { level: 1 })).toHaveText(solution.title);
+async function prependAdapterMutation(page, source) {
+  await page.route("**/assets/js/cinematic-solutions.js", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: `${source}\n${await response.text()}` });
+  });
+}
 
-    const systems = main.getByRole("region", { name: "Що поєднується в системі" });
-    const systemItems = systems.getByRole("listitem");
-    expect(await systemItems.count(), `${solution.route} systems cardinality`).toBeGreaterThanOrEqual(3);
-    expect(await systemItems.count(), `${solution.route} systems cardinality`).toBeLessThanOrEqual(5);
+test("an aborted cinematic-solutions adapter keeps the complete semantic fallback", async ({ page }) => {
+  await page.route("**/assets/js/cinematic-solutions.js", (route) => route.abort());
 
-    const inputs = main.getByRole("region", { name: "Що уточнити щодо об’єкта" });
-    const inputItems = inputs.getByRole("listitem");
-    expect(await inputItems.count(), `${solution.route} inputs cardinality`).toBeGreaterThanOrEqual(3);
-    expect(await inputItems.count(), `${solution.route} inputs cardinality`).toBeLessThanOrEqual(5);
-
-    const scenarios = main.getByRole("region", { name: "Приклади сценаріїв" }).getByRole("listitem");
-    expect(await scenarios.count(), `${solution.route} scenarios cardinality`).toBeGreaterThanOrEqual(2);
-    expect(await scenarios.count(), `${solution.route} scenarios cardinality`).toBeLessThanOrEqual(4);
-    for (const scenario of await scenarios.all()) {
-      await expect(scenario.getByRole("heading", { level: 3 })).not.toHaveText("");
-      for (const label of ["Подія", "Реакція системи", "Користь"]) {
-        const value = scenario.locator("dt", { hasText: label }).locator("+ dd");
-        await expect(value).not.toHaveText("");
+  for (const route of allRoutes) {
+    await page.goto(route);
+    const root = page.locator("[data-cinematic-solutions-root]");
+    const fallback = root.locator("[data-cinematic-solutions-fallback]");
+    await expect(fallback).toBeVisible();
+    await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+    if (route === atlasRoute) {
+      for (const solution of solutions) {
+        await expect(fallback.locator(`#solution-${solution.slug}`).getByRole("link", { name: solution.title, exact: true })).toHaveAttribute("href", solution.route);
       }
+    } else {
+      const solution = solutions.find((candidate) => candidate.route === route);
+      await expect(fallback.getByRole("heading", { name: solution.title, exact: true })).toBeVisible();
+      for (const title of ["Для кого та що у фокусі", "Що поєднується в системі", "Приклади сценаріїв", "Що уточнити щодо об’єкта", "Пов’язані послуги", "Пов’язані готові рішення"]) {
+        await expect(fallback.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      }
+      const terms = await fallback.locator("dt").count();
+      expect(terms, `${route} keeps scenario terms in the no-JS reading order`).toBeGreaterThan(0);
+      await expect(fallback.locator("dd")).toHaveCount(terms);
+      await expect(fallback.getByRole("link", { name: "До всіх готових рішень", exact: true })).toHaveAttribute("href", atlasRoute);
     }
-
-    const relatedServices = main.getByRole("region", { name: "Пов’язані послуги" }).getByRole("link");
-    expect(await relatedServices.count(), `${solution.route} related services cardinality`).toBeGreaterThanOrEqual(3);
-    expect(await relatedServices.count(), `${solution.route} related services cardinality`).toBeLessThanOrEqual(6);
-    for (const link of await relatedServices.all()) {
-      const href = await link.getAttribute("href");
-      expect(serviceRoutes.has(href), `${solution.route} related service should be canonical`).toBeTruthy();
-      await expect(link).not.toHaveAccessibleName("");
-    }
-
-    const relatedSolutions = main.getByRole("region", { name: "Пов’язані готові рішення" }).getByRole("link");
-    expect(await relatedSolutions.count(), `${solution.route} related solutions cardinality`).toBeGreaterThanOrEqual(2);
-    expect(await relatedSolutions.count(), `${solution.route} related solutions cardinality`).toBeLessThanOrEqual(3);
-    const relatedHrefs = [];
-    for (const link of await relatedSolutions.all()) {
-      const href = await link.getAttribute("href");
-      relatedHrefs.push(href);
-      expect(solutionRouteSet.has(href), `${solution.route} related solution should be canonical`).toBeTruthy();
-      expect(href, `${solution.route} should not self-link`).not.toBe(solution.route);
-      await expect(link).not.toHaveAccessibleName("");
-    }
-    expect(new Set(relatedHrefs).size).toBe(relatedHrefs.length);
-
-    await expect(main.getByRole("link", { name: /До всіх готових рішень/ })).toHaveAttribute("href", "/solutions/");
-    const contact = main.getByRole("button", { name: "Обговорити об’єкт", exact: true });
-    await expect(contact).toBeDisabled();
-    await expect(main.getByText(/готується/i)).toBeVisible();
-    assertTruthfulCopy(await main.innerText(), solution.route);
-    await assertActiveSolutionsNavigation(page, solution.route);
   }
 });
 
-test("solution imagery uses loaded local responsive pictures with meaningful alternatives", async ({ page }) => {
-  for (const route of solutionRoutes) {
-    const response = await page.goto(route);
-    expect(response?.status(), `${route} should return 200 before image checks`).toBe(200);
-    await assertLocalImages(page, route);
-  }
-});
-
-test("solution image failure keeps the detail copy and fallback readable", async ({ page }) => {
-  await page.route("**/assets/images/solutions/**", (route) => route.abort());
-  const response = await page.goto(solutions[1].route);
-  expect(response?.status()).toBe(200);
-
-  const main = page.getByRole("main");
-  await expect(main.getByRole("heading", { level: 1 })).toHaveText(solutions[1].title);
-  await expect(main.locator(".solution-detail__hero-copy")).toBeVisible();
-  await expect(main.locator(".solution-detail__hero-index")).toHaveText(/\d{2}/);
-  await expect(main.locator(".solution-detail__hero-copy p").last()).not.toHaveText("");
-});
-
-test("solutions remain static and usable without canvas or JavaScript", async ({ browser }) => {
+test("all seven solution routes keep complete semantic content in a browser with JavaScript disabled", async ({ browser }) => {
   const context = await browser.newContext({
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000",
     javaScriptEnabled: false,
-    colorScheme: "dark",
-    locale: "uk-UA"
+    locale: "uk-UA",
+    baseURL: noJsBaseURL
   });
   const page = await context.newPage();
+
   try {
-    for (const [index, route] of ["/solutions/", solutions[0].route].entries()) {
-      const response = await page.goto(route);
-      expect(response?.status(), `${route} should return 200 without JavaScript`).toBe(200);
-      await expect(page.locator("canvas")).toHaveCount(0);
-      if (index === 0) {
-        await expect(page.locator(".solutions-atlas__list > li")).toHaveCount(6);
+    for (const route of allRoutes) {
+      await page.goto(new URL(route, noJsBaseURL).href);
+      const root = page.locator("[data-cinematic-solutions-root]");
+      const fallback = root.locator("[data-cinematic-solutions-fallback]");
+      await expect(fallback).toBeVisible();
+      await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+      await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+      if (route === atlasRoute) {
+        await expect(fallback.locator(".cinematic-solutions__fallback-item")).toHaveCount(solutions.length);
+        for (const solution of solutions) {
+          await expect(fallback.locator(`#solution-${solution.slug}`).getByRole("link", { name: solution.title, exact: true })).toHaveAttribute("href", solution.route);
+        }
       } else {
-        await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText(solutions[0].title);
+        const solution = solutions.find((candidate) => candidate.route === route);
+        await expect(fallback.getByRole("heading", { name: solution.title, exact: true })).toBeVisible();
+        await expect(fallback.locator("h1 + p")).toHaveText(solution.description);
+        for (const title of ["Для кого та що у фокусі", "Що поєднується в системі", "Приклади сценаріїв", "Що уточнити щодо об’єкта", "Пов’язані послуги", "Пов’язані готові рішення"]) {
+          await expect(fallback.getByRole("heading", { name: title, exact: true })).toBeVisible();
+        }
+        const terms = await fallback.locator("dt").count();
+        expect(terms, `${route} keeps scenario terms in the no-JS reading order`).toBeGreaterThan(0);
+        await expect(fallback.locator("dd")).toHaveCount(terms);
+        expect(await hrefs(fallback.getByRole("heading", { name: "Пов’язані послуги", exact: true }).locator(".."), "ul")).toEqual(solution.directions.map(serviceHref));
+        expect(await hrefs(fallback.getByRole("heading", { name: "Пов’язані готові рішення", exact: true }).locator(".."), "ul")).toEqual(solution.relatedSolutions.map((slug) => `/solutions/${slug}/`));
+        await expect(fallback.getByRole("link", { name: "До всіх готових рішень", exact: true })).toHaveAttribute("href", atlasRoute);
       }
     }
   } finally {
@@ -399,96 +253,152 @@ test("solutions remain static and usable without canvas or JavaScript", async ({
   }
 });
 
-test("all solution routes pass axe accessibility checks", async ({ page }) => {
-  for (const route of solutionRoutes) {
-    const response = await page.goto(route);
-    expect(response?.status(), `${route} should return 200 before axe`).toBe(200);
-    await expect(page.getByRole("main")).toBeVisible();
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations, `${route} should pass axe`).toEqual([]);
+test("all six details render one scene and panel for every canonical state with exact links", async ({ page }) => {
+  for (const solution of solutions) {
+    const linkSignatures = [
+      solution.relatedSolutions.map((slug) => `/solutions/${slug}/`).join("|"),
+      solution.directions.map(serviceHref).join("|"),
+      solution.relationLinks.map(serviceHref).join("|")
+    ];
+    expect(new Set(linkSignatures).size, `${solution.slug} has a distinct real link set per state`).toBe(3);
+    await page.goto(solution.route);
+    const { root, stage } = await studioFor(page);
+    await expect(stage.locator("button[data-cinematic-solutions-solution-control]")).toHaveCount(0);
+    const sceneSignatures = [];
+    for (const stateId of STATES) sceneSignatures.push(await assertState(page, root, stage, solution, stateId));
+    expect(new Set(sceneSignatures.map((signature) => JSON.stringify(signature))).size, `${solution.slug} keeps three distinct scene compositions`).toBe(3);
+    await expect(root.locator("button[disabled]")).toHaveCount(0);
+    expect(await root.innerText()).not.toMatch(/(?:^|\s)0[1-6](?:\s|$)/u);
   }
 });
 
-test("solution routes remain horizontal-overflow free and controls stay in bounds", async ({ page }) => {
-  for (const route of solutionRoutes) {
-    const response = await page.goto(route);
-    expect(response?.status(), `${route} should return 200`).toBe(200);
-    await assertNoHorizontalOverflow(page, route);
-    await assertMobileTargets(page, route);
-  }
+test("the atlas selects every solution and traverses its three data-owned states", async ({ page }) => {
+  await page.goto(atlasRoute);
+  const { root, stage } = await studioFor(page);
+  await expect(stage.locator("button[data-cinematic-solutions-solution-control]")).toHaveCount(6);
+  await expect(stage.locator(".solutions-compass, .solution-scene")).toHaveCount(0);
 
-  for (const width of [414, 900, 1280, 1720]) {
-    await page.setViewportSize({ width, height: 900 });
-    for (const route of ["/solutions/", solutions[1].route]) {
-      await page.goto(route);
-      await assertNoHorizontalOverflow(page, `${route} at ${width}px`);
-      await assertMobileTargets(page, `${route} at ${width}px`);
-    }
+  for (const solution of solutions) {
+    await stage.getByRole("button", { name: solution.title, exact: true }).click();
+    await expect(root).toHaveAttribute("data-cinematic-solutions-state", "focus");
+    await expect(root).toHaveAttribute("data-cinematic-solutions-solution-id", solution.slug);
+    await expect(stage.getByRole("button", { name: solution.title, exact: true })).toHaveAttribute("aria-pressed", "true");
+    for (const stateId of STATES) await assertState(page, root, stage, solution, stateId);
   }
 });
 
-test("keyboard users can reach every solution link with visible focus", async ({ page }) => {
-  for (const route of ["/solutions/", solutions[1].route]) {
-    await page.goto(route);
-    const expectedLinks = new Set(
-      await page.getByRole("main").getByRole("link").evaluateAll((links) =>
-        links.map((link) => link.getAttribute("href")).filter(Boolean)
-      )
-    );
-    const seenLinks = new Set();
+test("keyboard and touch controls reach the same canonical states with 44px targets", async ({ page, browser }) => {
+  await page.goto(solutions[0].route);
+  const { root, stage } = await studioFor(page);
+  const focus = stage.getByRole("button", { name: "У фокусі", exact: true });
+  await focus.focus();
+  await page.keyboard.press("Enter");
+  await expect(root).toHaveAttribute("data-cinematic-solutions-state", "focus");
+  await expect(focus).toBeFocused();
+  const undersized = await stage.locator("button").evaluateAll((buttons) => buttons.map((button) => {
+    const bounds = button.getBoundingClientRect();
+    return { text: button.textContent.trim(), width: bounds.width, height: bounds.height };
+  }).filter(({ width, height }) => width < 44 || height < 44));
+  expect(undersized).toEqual([]);
 
-    await page.keyboard.press("Tab");
-    await expect(page.locator(".skip-link")).toBeFocused();
-    for (let step = 0; step < 120 && seenLinks.size < expectedLinks.size; step += 1) {
-      const focused = await page.evaluate(() => {
-        const element = document.activeElement;
-        return {
-          href: element?.tagName === "A" ? element.getAttribute("href") : null,
-          focusVisible: Boolean(element?.matches(":focus-visible"))
-        };
-      });
-      if (focused.href && expectedLinks.has(focused.href)) {
-        seenLinks.add(focused.href);
-        expect(focused.focusVisible, `${route} ${focused.href} should show keyboard focus`).toBeTruthy();
-      }
-      await page.keyboard.press("Tab");
-    }
-    expect(seenLinks, `${route} keyboard traversal should reach every solution link`).toEqual(expectedLinks);
-  }
+  const context = await browser.newContext({ hasTouch: true, viewport: { width: 375, height: 812 } });
+  const touchPage = await context.newPage();
+  await touchPage.goto(new URL(solutions[1].route, page.url()).href);
+  const touchRoot = touchPage.locator("[data-cinematic-solutions-root]");
+  await touchRoot.getByRole("button", { name: "Зв’язок", exact: true }).tap();
+  await expect(touchRoot).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
+  await context.close();
 });
 
-test("reduced-motion solution surfaces have no running animations or transitions", async ({ page }) => {
+test("outgoing snapshots animate, rapid actions settle, and cancellation clears the artifact", async ({ page }) => {
+  await page.goto(solutions[2].route);
+  const { root, stage } = await studioFor(page);
+  await expect.poll(() => stage.locator("[data-cinematic-solutions-scene]:visible img").evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+  await page.addStyleTag({ content: "[data-cinematic-solutions-outgoing-snapshot][data-cinematic-solutions-snapshot-active] { animation-duration: 10s !important; }" });
+  const snapshot = stage.locator("[data-cinematic-solutions-outgoing-snapshot]");
+  await stage.getByRole("button", { name: "У фокусі", exact: true }).click();
+  await expect(snapshot).toBeVisible();
+  await expect(snapshot).toHaveAttribute("data-cinematic-solutions-snapshot-active", "true");
+  await expect(snapshot).toHaveCSS("animation-name", "cinematic-solutions-outgoing");
+  await stage.getByRole("button", { name: "Склад", exact: true }).click();
+  await stage.getByRole("button", { name: "Зв’язок", exact: true }).click();
+  await expect(root).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
+  await expect(stage.locator("[data-cinematic-solutions-scene]:visible")).toHaveCount(1);
+  await expect(stage.locator("[data-cinematic-solutions-panel]:visible")).toHaveCount(1);
+  await snapshot.dispatchEvent("animationcancel");
+  await expect(snapshot).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-cinematic-solutions-transition");
+});
+
+test("reduced motion leaves no active snapshot or nonzero stage motion", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  for (const route of ["/solutions/", solutions[1].route]) {
-    await page.goto(route);
-    if (route === "/solutions/") {
-      const firstCard = page.locator(".solution-scene").first();
-      const firstImage = firstCard.locator(".solution-scene__media img");
-      await firstCard.hover();
-      await expect.poll(() => firstImage.evaluate((image) => getComputedStyle(image).transform), {
-        message: "reduced-motion hover should not scale atlas imagery"
-      }).toBe("none");
+  await page.goto(solutions[3].route);
+  const { stage } = await studioFor(page);
+  await stage.getByRole("button", { name: "Зв’язок", exact: true }).click();
+  await expect(stage.locator("[data-cinematic-solutions-outgoing-snapshot]")).toBeHidden();
+  expect(await stage.locator("*").evaluateAll((elements) => elements.filter((element) => {
+    const style = getComputedStyle(element);
+    return [style.animationDuration, style.transitionDuration].some((value) => value.split(",").some((duration) => Number.parseFloat(duration) > 0));
+  }).length)).toBe(0);
+});
 
-      await page.mouse.move(0, 0);
-      await page.keyboard.press("Tab");
-      await firstCard.focus();
-      await expect(firstCard).toBeFocused();
-      await expect.poll(() => firstImage.evaluate((image) => getComputedStyle(image).transform), {
-        message: "reduced-motion focus should not scale atlas imagery"
-      }).toBe("none");
-    }
-    const animatedElements = await page.locator("*").evaluateAll((elements) => {
-      let runningCount = 0;
-      for (const element of elements) {
-        const style = getComputedStyle(element);
-        const animationRuns = style.animationName !== "none" && style.animationDuration !== "0s";
-        const transitionRuns = style.transitionDuration
-          .split(",")
-          .some((duration) => Number.parseFloat(duration) > 0);
-        if (animationRuns || transitionRuns) runningCount += 1;
-      }
-      return runningCount;
-    });
-    expect(animatedElements, `${route} should disable motion for reduced-motion users`).toBe(0);
+test("invalid JSON, action/DOM drift, and valid-but-swapped mapping data fail closed", async ({ page }) => {
+  const cases = [
+    "document.querySelector('[data-cinematic-solutions-config]').textContent = '{invalid';",
+    "document.querySelector('[data-cinematic-solutions-control-state=focus]').dataset.cinematicSolutionsAction = 'select-invented';",
+    "document.querySelector('[data-cinematic-solutions-stage]').insertAdjacentHTML('beforeend', '<button type=button>Зайва кнопка</button>');",
+    "document.querySelector('[data-cinematic-solutions-relation-label]').remove();",
+    "document.querySelector('[data-cinematic-solutions-solution-links] a').setAttribute('href', '/solutions/energy-autonomy/');",
+    "{ const testMapping = JSON.parse(document.querySelector('[data-cinematic-solutions-mapping]').textContent); testMapping['energy-autonomy'].relation_id = 'smart-home-integration--climate'; document.querySelector('[data-cinematic-solutions-mapping]').textContent = JSON.stringify(testMapping); document.querySelectorAll('[data-cinematic-solutions-stage] [data-cinematic-solutions-relation-id]').forEach((element) => { element.dataset.cinematicSolutionsRelationId = 'smart-home-integration--climate'; }); }",
+    "{ const testMapping = JSON.parse(document.querySelector('[data-cinematic-solutions-mapping]').textContent); testMapping['energy-autonomy'].direction_ids.reverse(); document.querySelector('[data-cinematic-solutions-mapping]').textContent = JSON.stringify(testMapping); document.querySelectorAll('[data-cinematic-solutions-stage] [data-cinematic-solutions-direction-ids]').forEach((element) => { element.dataset.cinematicSolutionsDirectionIds = testMapping['energy-autonomy'].direction_ids.join('|'); }); }"
+  ];
+  for (const source of cases) {
+    await prependAdapterMutation(page, source);
+    await page.goto(solutions[3].route);
+    const root = page.locator("[data-cinematic-solutions-root]");
+    await expect(root.locator("[data-cinematic-solutions-fallback]")).toBeVisible();
+    await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+    await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+    await page.unroute("**/assets/js/cinematic-solutions.js");
+  }
+});
+
+test("a stage-only assembled related-solution href drift keeps the detail fallback", async ({ page }) => {
+  await prependAdapterMutation(page, "document.querySelector('[data-cinematic-solutions-stage] [data-cinematic-solutions-panel=assembled] [data-cinematic-solutions-related] a').setAttribute('href', '/solutions/energy-autonomy/');");
+  await page.goto(solutions[3].route);
+  const root = page.locator("[data-cinematic-solutions-root]");
+  await expect(root.locator("[data-cinematic-solutions-fallback]")).toBeVisible();
+  await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+});
+
+test("a stage-only focus service href drift keeps the detail fallback", async ({ page }) => {
+  await prependAdapterMutation(page, "document.querySelector('[data-cinematic-solutions-stage] [data-cinematic-solutions-panel=focus] [data-cinematic-solutions-related] a').setAttribute('href', '/services/lighting/');");
+  await page.goto(solutions[3].route);
+  const root = page.locator("[data-cinematic-solutions-root]");
+  await expect(root.locator("[data-cinematic-solutions-fallback]")).toBeVisible();
+  await expect(root.locator("[data-cinematic-solutions-stage]")).toBeHidden();
+  await expect(root).not.toHaveAttribute("data-cinematic-solutions-enhanced");
+});
+
+test("an image failure leaves the enhanced panel readable", async ({ page }) => {
+  await page.route("**/assets/images/solutions/*.webp", (route) => route.abort());
+  await page.goto(solutions[4].route);
+  const { stage } = await studioFor(page);
+  await expect(stage.locator("[data-cinematic-solutions-panel]:visible [data-cinematic-solutions-summary]")).not.toHaveText("");
+  await expect(stage.locator("[data-cinematic-solutions-panel]:visible [data-cinematic-solutions-related] a")).not.toHaveCount(0);
+});
+
+test("the five required project widths bound the 1536px scene and remain fluid", async ({ page }) => {
+  await page.goto(atlasRoute);
+  const { stage } = await studioFor(page);
+  await assertNoOverflow(page, atlasRoute);
+  const scene = stage.locator("[data-cinematic-solutions-scene]:visible");
+  const box = await scene.boundingBox();
+  expect(box?.width ?? 0).toBeLessThanOrEqual(1536.5);
+  for (const solution of solutions) {
+    await page.goto(solution.route);
+    await studioFor(page);
+    await assertNoOverflow(page, solution.route);
   }
 });

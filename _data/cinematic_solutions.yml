@@ -1,0 +1,18 @@
+apartment-comfort-and-control:
+  direction_ids: [electrical-design, lighting, smart-home-integration, panels-and-protection, low-voltage]
+  relation_id: smart-home-integration--climate
+private-house-full-automation:
+  direction_ids: [electrical-design, panels-and-protection, backup-power, lighting, smart-home-integration, low-voltage]
+  relation_id: backup-power--backup
+architectural-lighting:
+  direction_ids: [lighting, electrical-design, electrical-installation, smart-home-integration]
+  relation_id: lighting--stair-lighting
+energy-autonomy:
+  direction_ids: [backup-power, panels-and-protection, electrical-design, diagnostics-and-service, smart-home-integration]
+  relation_id: backup-power--backup
+security-and-access-control:
+  direction_ids: [low-voltage, electrical-design, electrical-installation, lighting, smart-home-integration]
+  relation_id: low-voltage--cctv
+commercial-space:
+  direction_ids: [electrical-design, panels-and-protection, lighting, low-voltage, smart-home-integration]
+  relation_id: smart-home-integration--climate
