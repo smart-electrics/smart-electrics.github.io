@@ -137,7 +137,7 @@ function createSnapshot(source, destination) {
   const sourceGeometry = geometryFor(source);
   const destinationGeometry = geometryFor(destination);
   const visual = visualFor(source);
-  if (!sourceGeometry || !destinationGeometry || visual.unusable) return null;
+  if (!sourceGeometry || !destinationGeometry || !isMeaningfullyVisible(destinationGeometry) || visual.unusable) return null;
 
   const sourceVisible = isMeaningfullyVisible(sourceGeometry);
   const surface = sourceVisible ? source : destination;
@@ -237,6 +237,7 @@ function install(root) {
       shiftKey: event.shiftKey
     });
     if (!href) return;
+    if (!isMeaningfullyVisible(geometryFor(target))) return;
 
     const token = lifecycle.begin(href);
     activeToken = token;
