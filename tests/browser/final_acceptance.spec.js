@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -360,6 +361,33 @@ async function mediaSignature(image) {
   });
 }
 
+async function renderedPixelSignature(surface) {
+  const pixels = await surface.screenshot({ animations: "disabled" });
+  return createHash("sha256").update(pixels).digest("hex");
+}
+
+async function smartHomeTopologySignature(simulator) {
+  const topology = simulator.locator("[data-scene-topology]");
+  return topology.evaluate((element) => {
+    const text = (selector) => element.querySelector(selector)?.textContent?.trim() ?? "";
+    return {
+      source: text("[data-topology-source]"),
+      logic: text("[data-topology-logic]"),
+      result: text("[data-topology-result]"),
+      connectors: element.querySelectorAll("[data-topology-connector]").length
+    };
+  });
+}
+
+function expectMeaningfulTopologyChange(before, after, name) {
+  expect(after.connectors, name + " must retain its visible relationship structure").toBe(2);
+  for (const [key, value] of Object.entries(after)) {
+    if (key !== "connectors") expect(value, name + " must retain a populated " + key).not.toBe("");
+  }
+  const changed = ["source", "logic", "result"].filter((key) => before[key] !== after[key]);
+  expect(changed, name + " must change at least two topology facts, not only an active attribute").toHaveLength(2);
+}
+
 async function transitResidence(page, route) {
   await visit(page, route);
   const root = page.locator("[data-cinematic-root]");
@@ -518,6 +546,8 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   await expectGroundedDynamicCopy(page.locator("main"), "truthful negative dynamic copy");
   await page.setContent("<main><p>Ми не публікуємо цін, але ціна конфігурації становить 24 000 грн.</p></main>");
   await expect(expectGroundedDynamicCopy(page.locator("main"), "mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+  await page.setContent("<main><p>Не публікуємо ціну і ціна системи становить 24 000 грн.</p></main>");
+  await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
 });
 
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
@@ -654,31 +684,53 @@ test("the nine residence scene families and physical controls produce real visib
   expect(exteriorReduced.src).toMatch(/exterior-reduced-night-(768|1536)\.webp$/u);
   expect(exteriorReduced.signature).not.toBe(exterior.signature);
 
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await visit(page, "/smart-home/");
   const simulator = page.locator("[data-smart-home-simulator]");
+  const smartHomeScene = simulator.locator(".smart-home__scene");
+  const visibleSmartHomeImage = () => simulator.locator("picture[data-scene-picture]:visible img");
   await expect(simulator).toHaveAttribute("data-enhanced", "true");
   const systems = simulator.locator("button[data-phone-system]");
   await expect(systems).toHaveCount(9);
-  const selectedSystems = [];
-  for (let index = 0; index < await systems.count(); index += 1) {
+  const selectedSystems = [await systems.first().getAttribute("data-phone-system")];
+  let previousSystemMedia = await mediaSignature(visibleSmartHomeImage());
+  let previousSystemPixels = await renderedPixelSignature(smartHomeScene);
+  let previousSystemTopology = await smartHomeTopologySignature(simulator);
+  for (let index = 1; index < await systems.count(); index += 1) {
     const system = systems.nth(index);
     const id = await system.getAttribute("data-phone-system");
     await system.click();
     await expect(simulator).toHaveAttribute("data-system", id);
     await expect(simulator.locator("picture[data-scene-picture]:visible")).toHaveAttribute("data-scene-picture", id);
-    await expect(simulator.locator("[data-phone-topology-detail]")).not.toHaveText("");
+    const currentSystemMedia = await mediaSignature(visibleSmartHomeImage());
+    expect(currentSystemMedia.src, "each smart-home system must switch to a distinct rendered media source").not.toBe(previousSystemMedia.src);
+    expect(currentSystemMedia.signature, "each smart-home system must change source pixels, not only data attributes").not.toBe(previousSystemMedia.signature);
+    const currentSystemPixels = await renderedPixelSignature(smartHomeScene);
+    expect(currentSystemPixels, "each smart-home system must visibly recompose the main scene").not.toBe(previousSystemPixels);
+    const currentSystemTopology = await smartHomeTopologySignature(simulator);
+    expectMeaningfulTopologyChange(previousSystemTopology, currentSystemTopology, "smart-home system " + id);
+    previousSystemMedia = currentSystemMedia;
+    previousSystemPixels = currentSystemPixels;
+    previousSystemTopology = currentSystemTopology;
     selectedSystems.push(id);
   }
   expect(new Set(selectedSystems).size).toBe(9);
   const presets = simulator.getByRole("radio");
   await expect(presets).toHaveCount(7);
-  const selectedPresets = [];
-  for (let index = 0; index < await presets.count(); index += 1) {
+  const selectedPresets = [await presets.first().getAttribute("value")];
+  let previousPresetPixels = await renderedPixelSignature(smartHomeScene);
+  let previousPresetTopology = await smartHomeTopologySignature(simulator);
+  for (let index = 1; index < await presets.count(); index += 1) {
     const preset = presets.nth(index);
     const id = await preset.getAttribute("value");
     await preset.click();
     await expect(simulator).toHaveAttribute("data-preset", id);
-    await expect(simulator.locator("[data-phone-topology-detail]")).not.toHaveText("");
+    const currentPresetPixels = await renderedPixelSignature(smartHomeScene);
+    expect(currentPresetPixels, "each smart-home preset must visibly change scene pixels, even when it retains the selected system source").not.toBe(previousPresetPixels);
+    const currentPresetTopology = await smartHomeTopologySignature(simulator);
+    expectMeaningfulTopologyChange(previousPresetTopology, currentPresetTopology, "smart-home preset " + id);
+    previousPresetPixels = currentPresetPixels;
+    previousPresetTopology = currentPresetTopology;
     selectedPresets.push(id);
   }
   expect(new Set(selectedPresets).size).toBe(7);
