@@ -38,7 +38,7 @@ class PublicClaimsContractTest < Minitest::Test
     Dir.mktmpdir("smart-electrics-public-claims") do |root|
       site = File.join(root, "_site")
       FileUtils.mkdir_p(site)
-      File.write(File.join(root, "index.md"), source)
+      File.write(File.join(root, "index.md"), "---\nlayout: page\n---\n#{source}\n")
       File.write(File.join(site, "index.html"), "<!doctype html><html><body>#{built}</body></html>")
       yield root, site
     end
@@ -79,7 +79,7 @@ class PublicClaimsContractTest < Minitest::Test
 
   def test_fails_closed_when_built_visible_copy_is_unavailable
     Dir.mktmpdir("smart-electrics-public-claims") do |root|
-      File.write(File.join(root, "index.md"), TRUTHFUL_NEGATIVE_DISCLOSURE)
+      File.write(File.join(root, "index.md"), "---\nlayout: page\n---\n#{TRUTHFUL_NEGATIVE_DISCLOSURE}\n")
       _stdout, stderr, status = validate(root, File.join(root, "missing-site"))
 
       refute_predicate status, :success?
