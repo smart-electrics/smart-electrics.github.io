@@ -17,6 +17,10 @@ class PublicClaimsContractTest < Minitest::Test
     "review" => "Відгук клієнта підтверджує якість робіт.",
     "client project as fact" => "Реалізований клієнтський проєкт у приватному будинку."
   }.freeze
+  MIXED_DISCLOSURE_CLAIMS = {
+    "price" => "Ми не публікуємо цін, але ціна електромонтажного проєкту — 24 000 грн.",
+    "client project as fact" => "Це не підтверджений клієнтський кейс, але реалізований проєкт вже завершено."
+  }.freeze
   TRUTHFUL_NEGATIVE_DISCLOSURE = <<~COPY.strip
     Це візуальна концепція, не підтверджений клієнтський кейс.
     Ми не публікуємо цін, гарантій, сертифікатів, відгуків, телеметрії, порталів
@@ -74,6 +78,13 @@ class PublicClaimsContractTest < Minitest::Test
       _stdout, stderr, status = validate(root, site)
 
       assert_predicate status, :success?, stderr
+    end
+  end
+
+  def test_rejects_positive_claims_after_a_negative_disclosure_in_the_same_fragment
+    MIXED_DISCLOSURE_CLAIMS.each do |category, claim|
+      assert_rejected(surface: :source, claim:, category:)
+      assert_rejected(surface: :built, claim:, category:)
     end
   end
 
