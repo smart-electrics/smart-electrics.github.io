@@ -82,6 +82,19 @@ class PublicClaimsContractTest < Minitest::Test
     end
   end
 
+  def test_ignores_raw_text_elements_with_parser_tolerated_end_tag_junk
+    built = <<~HTML
+      <script>const unsupported = "KNX, ціна, live-статус";</script\t
+       data-ignored><p>Видимий нейтральний текст.</p>
+    HTML
+
+    with_public_copy(source: TRUTHFUL_NEGATIVE_DISCLOSURE, built:) do |root, site|
+      _stdout, stderr, status = validate(root, site)
+
+      assert_predicate status, :success?, stderr
+    end
+  end
+
   def test_rejects_positive_claims_after_a_negative_disclosure_in_the_same_fragment
     MIXED_DISCLOSURE_CLAIMS.each do |category, claim|
       assert_rejected(surface: :source, claim:, category:)

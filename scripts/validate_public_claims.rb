@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require "cgi"
+require "nokogiri"
 
 module PublicClaims
   module_function
@@ -16,10 +17,7 @@ module PublicClaims
     _layouts/**/*.html
     _layouts/**/*.liquid
   ].freeze
-  INVISIBLE_HTML = /<(?:script|style|template)\b[^>]*>.*?<\/(?:script|style|template)\s*>/mi
-  HTML_COMMENT = /<!--.*?-->/m
-  HTML_TAG = /<[^>]+>/m
-  BLOCK_END = /<\/(?:address|article|aside|blockquote|dd|div|dl|dt|figcaption|footer|form|h[1-6]|header|li|main|nav|ol|p|section|summary|table|td|th|tr|ul)\s*>/i
+  INVISIBLE_ELEMENTS = "script, style, template"
   LIQUID_OUTPUT = /\{[{%].*?[}%]\}/m
   CONTRASTING_CLAUSE_SEPARATOR = /\s*,?\s*\b(?:але|однак|проте|but)\b\s*/iu
   NEGATIVE_DISCLOSURE = /\b(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))\b/iu
@@ -148,10 +146,11 @@ module PublicClaims
   end
 
   def visible_fragments(document)
-    text = document.gsub(HTML_COMMENT, " ")
-                   .gsub(INVISIBLE_HTML, " ")
-                   .gsub(BLOCK_END, "\n")
-                   .gsub(HTML_TAG, " ")
+    fragment = Nokogiri::HTML5.fragment(document)
+    fragment.css(INVISIBLE_ELEMENTS).remove
+    text = fragment.xpath(".//text()")
+                   .map(&:text)
+                   .join(" ")
                    .gsub(LIQUID_OUTPUT, " ")
     CGI.unescapeHTML(text)
        .gsub(/\r?\n/, " ")
