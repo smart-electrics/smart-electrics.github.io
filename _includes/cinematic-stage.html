@@ -22,14 +22,14 @@
     </header>
 
     <aside data-cinematic-physical-fallback>
-      <p>У демонстраційній конфігурації можна перемикати світло й сонцезахист кімнати, маршрут і повну циркуляцію сходів, а також підхід, вечірній ландшафт і знижене нічне зовнішнє освітлення. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}">Розумний будинок</a>.</p>
+      <p>У демонстраційній конфігурації можна перемикати світло й сонцезахист кімнати, маршрут і повну циркуляцію сходів, а також підхід, вечірній ландшафт і знижене нічне зовнішнє освітлення. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Розумний будинок</a>.</p>
     </aside>
 
     <ol class="residence-spine__fallback-directions" data-cinematic-fallback-directions>
       {% for direction in cinematic.directions %}
         {% assign service = ordered_services | where: "slug", direction.service_slug | first %}
         <li data-cinematic-fallback-direction="{{ direction.id }}">
-          <a data-cinematic-direction-link="{{ direction.id }}" href="{{ service.url | relative_url }}">{{ direction.label }}</a>
+          <a data-cinematic-direction-link="{{ direction.id }}" href="{{ service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">{{ direction.label }}</a>
           <p>{{ direction.description }}</p>
         </li>
       {% endfor %}
@@ -44,12 +44,12 @@
           <li data-cinematic-fallback-relation="{{ relation.id }}">
             <h4>{{ relation.child.label }}</h4>
             <p>{{ relation.child.description }}</p>
-            <p><a href="{{ owner_service.url | relative_url }}">Напрям: {{ owner.label }}</a></p>
+            <p><a href="{{ owner_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Напрям: {{ owner.label }}</a></p>
             <ul>
               {% for related_id in relation.related_direction_ids %}
                 {% assign related_direction = cinematic.directions | where: "id", related_id | first %}
                 {% assign related_service = ordered_services | where: "slug", related_direction.service_slug | first %}
-                <li><a href="{{ related_service.url | relative_url }}">Пов’язаний напрям: {{ related_direction.label }}</a></li>
+                <li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Пов’язаний напрям: {{ related_direction.label }}</a></li>
               {% endfor %}
             </ul>
           </li>
@@ -87,7 +87,7 @@
       <span class="residence-spine__connector-lane" data-cinematic-connector-lane aria-hidden="true"></span>
 
       <div class="residence-spine__view" data-cinematic-view>
-        <div class="residence-spine__media" data-cinematic-media>
+        <div class="residence-spine__media" data-cinematic-media data-cinematic-route-source="cinematic-stage-{{ stage_variant }}">
           <figure
             class="residence-spine__scene"
             data-cinematic-scene
@@ -174,7 +174,7 @@
               <p class="residence-spine__panel-kicker">Напрям системи</p>
               <h3>{{ direction.label }}</h3>
               <p data-cinematic-summary>{{ direction.description }}</p>
-              <a class="residence-spine__destination" data-cinematic-focus-destination="{{ direction.id }}" href="{{ service.url | relative_url }}">Відкрити напрям «{{ direction.label }}» <span aria-hidden="true">↗</span></a>
+              <a class="residence-spine__destination" data-cinematic-focus-destination="{{ direction.id }}" href="{{ service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Відкрити напрям «{{ direction.label }}» <span aria-hidden="true">↗</span></a>
               {% if owned_relations.size > 0 %}
                 <div class="residence-spine__relation-switcher" data-cinematic-relation-switcher="{{ direction.id }}">
                   <p>Пов’язані складові</p>
@@ -197,7 +197,7 @@
               <p class="residence-spine__panel-kicker">{{ owner.label }}</p>
               <h3>{{ relation.child.label }}</h3>
               <p data-cinematic-summary>{{ relation.child.description }}</p>
-              <a class="residence-spine__destination" data-cinematic-reassembled-destination="{{ relation.id }}" href="{{ owner_service.url | relative_url }}">Відкрити напрям «{{ owner.label }}» <span aria-hidden="true">↗</span></a>
+              <a class="residence-spine__destination" data-cinematic-reassembled-destination="{{ relation.id }}" href="{{ owner_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Відкрити напрям «{{ owner.label }}» <span aria-hidden="true">↗</span></a>
               {% if relation_physical %}
                 <div class="residence-spine__physical-controls" data-cinematic-physical-controls="{{ relation_physical.id }}" hidden>
                   {% for control in relation_physical.controls %}
@@ -216,7 +216,7 @@
                 {% for related_id in relation.related_direction_ids %}
                   {% assign related_direction = cinematic.directions | where: "id", related_id | first %}
                   {% assign related_service = ordered_services | where: "slug", related_direction.service_slug | first %}
-                  <li><a href="{{ related_service.url | relative_url }}">Пов’язаний напрям: {{ related_direction.label }}</a></li>
+                  <li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Пов’язаний напрям: {{ related_direction.label }}</a></li>
                 {% endfor %}
               </ul>
             </article>

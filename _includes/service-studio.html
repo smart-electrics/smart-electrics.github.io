@@ -28,17 +28,17 @@
             {% for related_direction_id in studio_relation.related_direction_ids %}
               {% assign related_direction = cinematic.directions | where: "id", related_direction_id | first %}
               {% assign related_service = site.services | where: "slug", related_direction.service_slug | first %}
-              {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_direction.label }}</a></li>{% endif %}
+              {% if related_service %}<li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">{{ related_direction.label }}</a></li>{% endif %}
             {% endfor %}
           </ul>
         </section>
       {% endfor %}
     </div>
-    <p><a href="{{ '/services/' | relative_url }}">Переглянути всі напрями</a></p>
+    <p><a href="{{ '/services/' | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">Переглянути всі напрями</a></p>
     <ul class="service-studio__fallback-links">
       {% for related_slug in page.related_services %}
         {% assign related_service = site.services | where: "slug", related_slug | first %}
-        {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+        {% if related_service %}<li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">{{ related_service.title }}</a></li>{% endif %}
       {% endfor %}
     </ul>
   </div>
@@ -65,7 +65,7 @@
         {% endfor %}
       </ol></nav>
 
-      <div class="service-studio__media" aria-hidden="true">
+      <div class="service-studio__media" aria-hidden="true" data-cinematic-route-source="service-studio-media">
         {% for relation_id in studio_relation_ids %}
           {% assign studio_relation = cinematic.relations | where: "id", relation_id | first %}
           {% for state_id in studio_state_ids %}
@@ -96,19 +96,19 @@
                 {% if state_id == 'assembled' %}
                   {% for related_slug in page.related_services %}
                     {% assign related_service = site.services | where: "slug", related_slug | first %}
-                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">{{ related_service.title }}</a></li>{% endif %}
                   {% endfor %}
                 {% elsif state_id == 'focus' %}
                   {% for related_slug in page.related_services limit: 2 %}
                     {% assign related_service = site.services | where: "slug", related_slug | first %}
-                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">{{ related_service.title }}</a></li>{% endif %}
                   {% endfor %}
                 {% else %}
-                  <li><a href="{{ relation_owner_service.url | relative_url }}">{{ relation_owner.label }}</a></li>
+                  <li><a href="{{ relation_owner_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">{{ relation_owner.label }}</a></li>
                   {% for related_direction_id in studio_relation.related_direction_ids %}
                     {% assign related_direction = cinematic.directions | where: "id", related_direction_id | first %}
                     {% assign related_service = site.services | where: "slug", related_direction.service_slug | first %}
-                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}">{{ related_service.title }}</a></li>{% endif %}
+                    {% if related_service %}<li><a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-studio-media">{{ related_service.title }}</a></li>{% endif %}
                   {% endfor %}
                 {% endif %}
               </ul>

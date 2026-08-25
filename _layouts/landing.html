@@ -8,14 +8,13 @@ layout: default
       <h1 id="hero-title">{% for line in site.data.site.hero_title %}<span class="home-hero__title-line home-hero__title-line--{{ line.tone }}">{{ line.text }}</span>{% unless forloop.last %}<br>{% endunless %}{% endfor %}</h1>
       <p class="home-hero__lede">{{ site.data.site.hero_body }}</p>
       <div class="home-hero__actions">
-        {% if site.data.site.contact_cta.enabled %}<a class="button button--primary" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>{% else %}<button class="button button--primary" type="button" disabled aria-describedby="hero-contact-status">{{ site.data.site.contact_cta.label }}</button>{% endif %}
-        <a class="button button--quiet" href="{{ '/smart-home/' | relative_url }}">{{ site.data.site.hero_secondary_cta }}</a>
+        <a class="button button--quiet" href="{{ '/smart-home/' | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-home">{{ site.data.site.hero_secondary_cta }}</a>
       </div>
-      <p class="home-hero__prelaunch" id="hero-contact-status">{{ site.data.site.contact_cta.status }}</p>
+      <p class="home-hero__prelaunch">{{ site.data.site.contact_prelaunch_note }}</p>
     </div>
 
     {% include cinematic-stage.html variant="home" title="Електрична система для всього простору" description="Оберіть напрям, щоб побачити його місце в системі, пов’язані роботи й детальну сторінку." assembled_alt=site.data.site.hero_visual_alt %}
   </div>
 </section>
 
-<section class="audience-paths shell" aria-labelledby="audience-title"><div class="audience-paths__intro"><p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p><h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2></div><div class="audience-paths__grid">{% for path in site.data.site.audience_paths %}<a class="audience-card" href="{{ path.url | relative_url }}"><h3>{{ path.title }}</h3><p>{{ path.body }}</p><span class="audience-card__link">{{ path.cta }} <span aria-hidden="true">↗</span></span></a>{% endfor %}</div></section>
+<section class="audience-paths shell" aria-labelledby="audience-title"><div class="audience-paths__intro"><p class="section-kicker">{{ site.data.site.audience_intro.kicker }}</p><h2 id="audience-title">{{ site.data.site.audience_intro.title }}</h2></div><div class="audience-paths__grid">{% for path in site.data.site.audience_paths %}<a class="audience-card" href="{{ path.url | relative_url }}" data-cinematic-route data-cinematic-route-source="home-audience-{{ forloop.index }}" data-cinematic-route-source-ref="home-audience-{{ forloop.index }}"><h3>{{ path.title }}</h3><p>{{ path.body }}</p><span class="audience-card__link">{{ path.cta }} <span aria-hidden="true">↗</span></span></a>{% endfor %}</div></section>

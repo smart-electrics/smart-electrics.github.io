@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  boundedRouteVector,
   createCinematicRouteLifecycle,
   qualifyCinematicRoute
 } from "../../assets/js/cinematic-route-transition.js";
@@ -16,6 +17,7 @@ function request(overrides = {}) {
     currentURL,
     origin,
     target: null,
+    defaultPrevented: false,
     download: false,
     button: 0,
     altKey: false,
@@ -49,6 +51,9 @@ test("leaves utility, modified, external, fragment-only, target, and malformed l
     request({ href: "javascript:void(0)" }),
     request({ href: "https://example.test/services/" }),
     request({ href: "/services/", target: "_blank" }),
+    request({ href: "/services/", target: "_self" }),
+    request({ href: "/services/", target: "" }),
+    request({ href: "/services/", defaultPrevented: true }),
     request({ href: "/services/", download: true }),
     request({ href: "/services/", button: 1 }),
     request({ href: "/services/", ctrlKey: true }),
@@ -59,6 +64,24 @@ test("leaves utility, modified, external, fragment-only, target, and malformed l
   ];
 
   rejected.forEach((candidate) => assert.equal(qualifyCinematicRoute(candidate), null));
+});
+
+test("bounds a causal source-to-destination vector and permits a neutral self-source handoff", () => {
+  const bounded = boundedRouteVector(
+    { left: 0, top: 0, width: 100, height: 100 },
+    { left: 900, top: -200, width: 100, height: 100 }
+  );
+  assert.equal(bounded.x, 72);
+  assert.equal(bounded.y, -54);
+  assert.ok(Math.abs(bounded.midX - 34.56) < 0.001);
+  assert.ok(Math.abs(bounded.midY + 25.92) < 0.001);
+  assert.deepEqual(
+    boundedRouteVector(
+      { left: 10, top: 20, width: 40, height: 40 },
+      { left: 10, top: 20, width: 40, height: 40 }
+    ),
+    { x: 0, y: 0, midX: 0, midY: 0 }
+  );
 });
 
 test("lifecycle accepts one completion, replaces an unfinished handoff, and never navigates twice", () => {
@@ -79,7 +102,7 @@ test("lifecycle accepts one completion, replaces an unfinished handoff, and neve
   assert.deepEqual(cleanups, ["replacement", "complete"]);
 });
 
-test("lifecycle cancels an active handoff without assigning location", () => {
+test("lifecycle completes a visibility handoff with one native location assignment", () => {
   const navigations = [];
   const cleanups = [];
   const lifecycle = createCinematicRouteLifecycle({
@@ -88,8 +111,23 @@ test("lifecycle cancels an active handoff without assigning location", () => {
   });
 
   const token = lifecycle.begin(`${origin}/services/`);
-  assert.equal(lifecycle.cancel(token, "visibility"), true);
-  assert.equal(lifecycle.cancel(token, "pagehide"), false);
-  assert.deepEqual(navigations, []);
+  assert.equal(lifecycle.finish(token, "visibility"), true);
+  assert.equal(lifecycle.finish(token, "pagehide"), false);
+  assert.deepEqual(navigations, [`${origin}/services/`]);
   assert.deepEqual(cleanups, ["visibility"]);
+});
+
+test("lifecycle can clear a pagehide handoff without overriding native navigation", () => {
+  const navigations = [];
+  const cleanups = [];
+  const lifecycle = createCinematicRouteLifecycle({
+    navigate: (href) => navigations.push(href),
+    cleanup: (reason) => cleanups.push(reason)
+  });
+
+  const token = lifecycle.begin(`${origin}/solutions/`);
+  assert.equal(lifecycle.cancel(token, "pagehide"), true);
+  assert.equal(lifecycle.finish(token), false);
+  assert.deepEqual(navigations, []);
+  assert.deepEqual(cleanups, ["pagehide"]);
 });

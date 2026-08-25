@@ -3,7 +3,7 @@
   <head>
     {% include head.html %}
   </head>
-  <body class="layout-{{ page.layout | default: 'default' }}{% if page.url == '/' %} home-page{% endif %}">
+  <body class="layout-{{ page.layout | default: 'default' }}{% if page.url == '/' %} home-page{% endif %}" data-cinematic-route-root>
     <a class="skip-link" href="#main-content">До основного вмісту</a>
     <div class="ambient" aria-hidden="true">
       <span class="ambient__glow ambient__glow--one"></span>
@@ -33,5 +33,6 @@
     {% if page.url == '/smart-home/' %}
       <script type="module" src="{{ '/assets/js/smart-home-simulator.js' | relative_url }}"></script>
     {% endif %}
+    <script type="module" src="{{ '/assets/js/cinematic-route-transition.js' | relative_url }}"></script>
   </body>
 </html>

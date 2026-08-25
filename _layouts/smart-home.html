@@ -29,7 +29,7 @@ layout: default
     </div>
 
     <div class="smart-home__experience" data-smart-home-experience>
-      <figure class="smart-home__scene" data-scenario-scene>
+      <figure class="smart-home__scene" data-scenario-scene data-cinematic-route-source="smart-home-scene">
         {% for visual in spatial.visuals %}
           <picture class="smart-home__scene-background" data-scene-picture="{{ visual.id }}" data-motion-layer="background"{% unless visual.id == initial_system.visual %} hidden{% endunless %}>
             <source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}" width="768" height="512">
@@ -131,7 +131,7 @@ layout: default
     <section class="smart-home__physical" data-smart-home-physical aria-labelledby="physical-lighting-title">
       <aside data-smart-home-physical-fallback>
         <h3 id="physical-lighting-title">Фізичні сцени освітлення</h3>
-        <p>Демонстраційна конфігурація пояснює окремі стани світла на сходах і зовні; остаточні групи визначають для конкретного об’єкта. Докладніше — у напрямі <a href="{{ lighting_service.url | relative_url }}">Освітлення</a>.</p>
+        <p>Демонстраційна конфігурація пояснює окремі стани світла на сходах і зовні; остаточні групи визначають для конкретного об’єкта. Докладніше — у напрямі <a href="{{ lighting_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="smart-home-scene">Освітлення</a>.</p>
       </aside>
       <div class="smart-home__physical-stage" data-smart-home-physical-stage hidden>
         <figure class="smart-home__physical-media">
@@ -181,9 +181,9 @@ layout: default
             <ul>{% for outcome in preset.outcomes %}<li><strong>{{ outcome.zone }}</strong><span>{{ outcome.response }}</span></li>{% endfor %}</ul>
             <p class="smart-home__detail-label">{{ smart_home.configuration.project_note_label }}</p><p>{{ preset.project_note }}</p>
           </div>
-          <nav class="smart-home__preset-related" aria-label="{{ smart_home.simulator.related_aria_prefix }} {{ preset.label }}">
-            {% for service_slug in preset.related_services %}{% assign related_service = site.services | where: 'slug', service_slug | first %}{% if related_service %}<a href="{{ related_service.url | relative_url }}">{{ related_service.title }} <span aria-hidden="true">↗</span></a>{% endif %}{% endfor %}
-            {% assign related_solution = site.solutions | where: 'slug', preset.related_solution | first %}{% if related_solution %}<a href="{{ related_solution.url | relative_url }}">{{ related_solution.title }} <span aria-hidden="true">↗</span></a>{% endif %}
+          <nav class="smart-home__preset-related" aria-label="{{ smart_home.simulator.related_aria_prefix }} {{ preset.label }}" data-cinematic-route-source="smart-home-preset-{{ preset.id }}">
+            {% for service_slug in preset.related_services %}{% assign related_service = site.services | where: 'slug', service_slug | first %}{% if related_service %}<a href="{{ related_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="smart-home-preset-{{ preset.id }}">{{ related_service.title }} <span aria-hidden="true">↗</span></a>{% endif %}{% endfor %}
+            {% assign related_solution = site.solutions | where: 'slug', preset.related_solution | first %}{% if related_solution %}<a href="{{ related_solution.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="smart-home-preset-{{ preset.id }}">{{ related_solution.title }} <span aria-hidden="true">↗</span></a>{% endif %}
           </nav>
         </section>
       {% endfor %}
@@ -197,11 +197,10 @@ layout: default
 
   <section class="smart-home__related shell" data-smart-home-section aria-labelledby="related-title">
     <div class="smart-home__section-intro"><p class="section-kicker">{{ smart_home.related.kicker }}</p><h2 id="related-title">{{ smart_home.related.title }}</h2><p>{{ smart_home.related.description }}</p></div>
-    <ul class="smart-home__related-list">{% for item in smart_home.related.links %}{% if item.type == 'service' %}{% assign destination = site.services | where: 'slug', item.slug | first %}{% elsif item.type == 'solution' %}{% assign destination = site.solutions | where: 'slug', item.slug | first %}{% endif %}{% if destination %}<li><a href="{{ destination.url | relative_url }}"><span><span class="smart-home__related-title">{{ item.label }}</span><span class="smart-home__related-description">{{ item.description }}</span></span><span aria-hidden="true">↗</span></a></li>{% endif %}{% endfor %}</ul>
+    <ul class="smart-home__related-list" data-cinematic-route-source="smart-home-related">{% for item in smart_home.related.links %}{% if item.type == 'service' %}{% assign destination = site.services | where: 'slug', item.slug | first %}{% elsif item.type == 'solution' %}{% assign destination = site.solutions | where: 'slug', item.slug | first %}{% endif %}{% if destination %}<li><a href="{{ destination.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="smart-home-related"><span><span class="smart-home__related-title">{{ item.label }}</span><span class="smart-home__related-description">{{ item.description }}</span></span><span aria-hidden="true">↗</span></a></li>{% endif %}{% endfor %}</ul>
   </section>
 
   <section class="smart-home__contact shell" data-smart-home-section aria-labelledby="contact-title">
     <div><p class="section-kicker">{{ smart_home.contact.kicker }}</p><h2 id="contact-title">{{ smart_home.contact.title }}</h2><p>{{ smart_home.contact.description }}</p></div>
-    <div class="smart-home__contact-action"><button class="button button--primary" type="button" disabled>{{ smart_home.contact.button_label }}</button><p>{{ smart_home.contact.status }}</p></div>
   </section>
 </article>
