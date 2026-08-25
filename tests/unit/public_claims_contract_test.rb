@@ -77,6 +77,16 @@ class PublicClaimsContractTest < Minitest::Test
     end
   end
 
+  def test_allows_vendor_neutral_system_and_demonstration_control_copy
+    source = "Система керування та автоматизації функцій об’єкта. Керування системою освітлення у демонстраційній конфігурації."
+
+    with_public_copy(source:, built: "<main><p>#{source}</p></main>") do |root, site|
+      _stdout, stderr, status = validate(root, site)
+
+      assert_predicate status, :success?, stderr
+    end
+  end
+
   def test_fails_closed_when_built_visible_copy_is_unavailable
     Dir.mktmpdir("smart-electrics-public-claims") do |root|
       File.write(File.join(root, "index.md"), "---\nlayout: page\n---\n#{TRUTHFUL_NEGATIVE_DISCLOSURE}\n")
