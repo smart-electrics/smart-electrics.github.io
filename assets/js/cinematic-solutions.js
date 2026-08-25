@@ -1,4 +1,6 @@
 import { createCinematicSolutionsState } from "./cinematic-solutions-state.js";
+import { createCinematicMotion } from "./cinematic-motion.js";
+import { positionCinematicRelationshipConnector } from "./cinematic-relationship-connector.js";
 import {
   CANONICAL_CINEMATIC_SOLUTIONS_FINGERPRINT,
   cinematicSolutionsFingerprint
@@ -208,12 +210,14 @@ function enhance(root) {
   const graph = readJson(root, "data-cinematic-solutions-graph");
   const fallback = one(root, "[data-cinematic-solutions-fallback]");
   const stage = one(root, "[data-cinematic-solutions-stage]");
+  const composition = one(root, ".cinematic-solutions__composition");
   const live = one(root, "[data-cinematic-solutions-live]");
   const snapshot = one(root, "[data-cinematic-solutions-outgoing-snapshot]");
+  const relationshipConnector = one(root, "svg[data-cinematic-solutions-relationship-connector]");
   const stageTitle = mode === "atlas"
     ? one(root, "#cinematic-solutions-stage-title")
     : one(root, "#cinematic-solution-stage-title");
-  if (!(["atlas", "detail"].includes(mode) && isId(selectedSolutionId) && fallback && stage && live && snapshot && stageTitle)) return;
+  if (!(["atlas", "detail"].includes(mode) && isId(selectedSolutionId) && fallback && stage && composition && live && snapshot && relationshipConnector && stageTitle)) return;
   if (!validConfig(config, mode, selectedSolutionId)) return;
   const relationsById = validMapping(graph, mapping, config.mapping_ids);
   if (!relationsById || config.solution_ids.some((solutionId) => !mapping[solutionId])) return;
@@ -245,6 +249,42 @@ function enhance(root) {
     root.removeAttribute("data-cinematic-solutions-transition");
   };
 
+  const activePanel = () => panelFor(state.state, state.selectedSolutionId);
+  const synchronizePanelInertness = (inert) => {
+    const panel = activePanel();
+    if (panel) panel.inert = inert;
+  };
+  const synchronizeConnector = () => {
+    const scene = sceneFor(state.state, state.selectedSolutionId);
+    const solutionControl = controls.solutionControls.find((control) => control.dataset.cinematicSolutionsSolutionId === state.selectedSolutionId);
+    const stateControl = controls.controls.find((control) => control.dataset.cinematicSolutionsControlState === state.state);
+    const source = solutionControl || stateControl;
+    const stacked = window.matchMedia("(max-width: 47.999rem)").matches;
+    const target = scene;
+    if (state.state === "assembled" || !source || !target) {
+      relationshipConnector.setAttribute("hidden", "");
+      return;
+    }
+    positionCinematicRelationshipConnector({
+      connector: relationshipConnector,
+      container: composition,
+      source,
+      target,
+      state: state.state,
+      edgeRoute: stacked ? "right" : "perimeter",
+      sourceBias: stacked ? { x: 0.5, y: 1 } : { x: 1, y: 0.5 },
+      targetBias: { x: 0.82, y: 0.3 }
+    });
+  };
+  const motion = createCinematicMotion({
+    onPhase: (phase) => {
+      root.dataset.cinematicSolutionsMotionPhase = phase;
+      synchronizePanelInertness(phase === "hold");
+      if (phase === "hold" || phase === "idle") clearTransition();
+      if (phase === "reassemble" || phase === "idle") synchronizeConnector();
+    }
+  });
+
   const synchronize = (announce = false) => {
     const panel = panelFor(state.state, state.selectedSolutionId);
     const scene = sceneFor(state.state, state.selectedSolutionId);
@@ -256,6 +296,7 @@ function enhance(root) {
     root.dataset.cinematicSolutionsState = state.state;
     root.dataset.cinematicSolutionsSolutionId = state.selectedSolutionId;
     root.dataset.cinematicSolutionsRelationId = state.selectedRelationId || "";
+    synchronizeConnector();
     if (announce) {
       const label = panel.querySelector(".cinematic-solutions__panel-kicker")?.textContent.trim() || "";
       const summary = panel.querySelector("[data-cinematic-solutions-summary]")?.textContent.trim() || "";
@@ -287,14 +328,31 @@ function enhance(root) {
       }
     }
     state = nextState;
-    synchronize(true);
+    motion.start({ reducedMotion: reducedMotion.matches });
+    if (!synchronize(true)) {
+      clearTransition();
+      motion.cancel();
+      return;
+    }
   });
 
   snapshot.addEventListener("animationend", clearTransition);
-  snapshot.addEventListener("animationcancel", clearTransition);
-  reducedMotion.addEventListener("change", (event) => { if (event.matches) clearTransition(); });
+  snapshot.addEventListener("animationcancel", () => {
+    clearTransition();
+  });
+  reducedMotion.addEventListener("change", (event) => {
+    if (event.matches) {
+      clearTransition();
+      motion.cancel();
+      synchronizePanelInertness(false);
+    }
+  });
+  window.addEventListener("resize", () => {
+    window.requestAnimationFrame(synchronizeConnector);
+  }, { passive: true });
 
   if (!synchronize(true)) return;
+  root.dataset.cinematicSolutionsMotionPhase = "idle";
   fallback.hidden = true;
   stage.hidden = false;
   root.setAttribute("aria-labelledby", stageTitle.id);

@@ -1,4 +1,6 @@
 import { createServiceStudioState } from "./service-studio-state.js";
+import { createCinematicMotion } from "./cinematic-motion.js";
+import { positionCinematicRelationshipConnector } from "./cinematic-relationship-connector.js";
 
 const PANEL_FALLBACK_DIRECTION_IDS = new Set(["electrical-design", "electrical-installation"]);
 
@@ -76,9 +78,11 @@ function enhance(root) {
   const config = readJson(root, "data-service-studio-config");
   const fallback = one(root, "[data-service-studio-fallback]");
   const stage = one(root, "[data-service-studio-stage]");
+  const composition = one(root, ".service-studio__composition");
   const live = one(root, "[data-service-studio-live]");
   const snapshot = one(root, "[data-service-studio-outgoing-snapshot]");
-  if (!graph || !config || !fallback || !stage || !live || !snapshot) return;
+  const relationshipConnector = one(root, "svg[data-service-studio-relationship-connector]");
+  if (!graph || !config || !fallback || !stage || !composition || !live || !snapshot || !relationshipConnector) return;
 
   const relationIds = relationIdsFor(config);
   if (!relationIds) return;
@@ -144,6 +148,42 @@ function enhance(root) {
     root.removeAttribute("data-service-studio-transition");
   };
 
+  const activePanel = () => panelFor(stateIdFor(state), selectedRelationId);
+  const synchronizePanelInertness = (inert) => {
+    const panel = activePanel();
+    if (panel) panel.inert = inert;
+  };
+  const synchronizeConnector = () => {
+    const scene = sceneFor(stateIdFor(state), selectedRelationId);
+    const relationControl = relationControls.find((control) => control.dataset.serviceStudioRelationId === selectedRelationId);
+    const stateControl = controls.find((control) => control.dataset.serviceStudioControlState === stateIdFor(state));
+    const source = relationControl || stateControl;
+    const stacked = window.matchMedia("(max-width: 56.25rem)").matches;
+    const target = scene;
+    if (state.state === "assembled" || !source || !target) {
+      relationshipConnector.setAttribute("hidden", "");
+      return;
+    }
+    positionCinematicRelationshipConnector({
+      connector: relationshipConnector,
+      container: composition,
+      source,
+      target,
+      state: state.state,
+      edgeRoute: stacked ? "right" : "top-right-perimeter",
+      sourceBias: stacked ? { x: 0.5, y: 1 } : { x: 1, y: 0.5 },
+      targetBias: { x: 0.82, y: 0.3 }
+    });
+  };
+  const motion = createCinematicMotion({
+    onPhase: (phase) => {
+      root.dataset.serviceStudioMotionPhase = phase;
+      synchronizePanelInertness(phase === "hold");
+      if (phase === "hold" || phase === "idle") clearTransition();
+      if (phase === "reassemble" || phase === "idle") synchronizeConnector();
+    }
+  });
+
   const synchronize = (announce = false) => {
     const stateId = stateIdFor(state);
     const panel = panelFor(stateId, selectedRelationId);
@@ -156,6 +196,7 @@ function enhance(root) {
     root.dataset.serviceStudioState = stateId;
     root.dataset.serviceStudioDirection = state.selectedDirectionId || "";
     root.dataset.serviceStudioRelation = state.selectedRelationId || "";
+    synchronizeConnector();
     if (announce) {
       const relationship = panel.querySelector(".service-studio__relation-label")?.textContent.trim() || "";
       const summary = panel.querySelector("[data-service-studio-summary]")?.textContent.trim() || "";
@@ -188,14 +229,27 @@ function enhance(root) {
       }
     }
     state = nextState;
+    motion.start({ reducedMotion: reducedMotion.matches });
     synchronize(true);
   });
 
   snapshot.addEventListener("animationend", clearTransition);
-  snapshot.addEventListener("animationcancel", clearTransition);
-  reducedMotion.addEventListener("change", (event) => { if (event.matches) clearTransition(); });
+  snapshot.addEventListener("animationcancel", () => {
+    clearTransition();
+  });
+  reducedMotion.addEventListener("change", (event) => {
+    if (event.matches) {
+      clearTransition();
+      motion.cancel();
+      synchronizePanelInertness(false);
+    }
+  });
+  window.addEventListener("resize", () => {
+    window.requestAnimationFrame(synchronizeConnector);
+  }, { passive: true });
 
   synchronize();
+  root.dataset.serviceStudioMotionPhase = "idle";
   fallback.hidden = true;
   stage.hidden = false;
   root.dataset.serviceStudioEnhanced = "true";

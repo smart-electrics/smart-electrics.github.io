@@ -22,7 +22,7 @@
     </header>
 
     <aside data-cinematic-physical-fallback>
-      <p>У демонстраційній конфігурації можна перемикати світло й сонцезахист кімнати, маршрут і повну циркуляцію сходів, а також підхід, вечірній ландшафт і знижене нічне зовнішнє освітлення. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Розумний будинок</a>.</p>
+      <p>У демонстраційній конфігурації можна перемикати світло й сонцезахист кімнати, маршрут і повну циркуляцію сходів, а також підхід, вечірній ландшафт і знижене нічне зовнішнє освітлення. Докладніше — у напрямах <a href="{{ lighting_service.url | relative_url }}" data-inline-editorial-link data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Освітлення</a> та <a href="{{ smart_home_service.url | relative_url }}" data-inline-editorial-link data-cinematic-route data-cinematic-route-source-ref="cinematic-stage-{{ stage_variant }}">Розумний будинок</a>.</p>
     </aside>
 
     <ol class="residence-spine__fallback-directions" data-cinematic-fallback-directions>
@@ -85,6 +85,12 @@
       </nav>
 
       <span class="residence-spine__connector-lane" data-cinematic-connector-lane aria-hidden="true"></span>
+
+      <svg class="residence-spine__relationship-connector" data-cinematic-relationship-connector aria-hidden="true" focusable="false" tabindex="-1" viewBox="0 0 1 1" preserveAspectRatio="none" hidden>
+        <path data-cinematic-relationship-connector-path pathLength="1"></path>
+        <circle data-cinematic-relationship-connector-source r="3"></circle>
+        <circle data-cinematic-relationship-connector-target r="3"></circle>
+      </svg>
 
       <div class="residence-spine__view" data-cinematic-view>
         <div class="residence-spine__media" data-cinematic-media data-cinematic-route-source="cinematic-stage-{{ stage_variant }}">

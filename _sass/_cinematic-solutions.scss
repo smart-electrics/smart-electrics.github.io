@@ -198,9 +198,15 @@
 
 @media (max-width: 47.999rem) {
   .cinematic-solutions__selector {
-    -webkit-mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2rem), transparent 100%);
-    mask-image: linear-gradient(to right, #000 0, #000 calc(100% - 2rem), transparent 100%);
+    display: grid;
+    gap: 0.42rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-inline: 0;
+    overflow: visible;
+    padding: 0;
   }
+
+  .cinematic-solutions__selector button { max-width: none; min-width: 0; width: 100%; }
 }
 
 .cinematic-solutions__selector button[aria-pressed="true"],
@@ -236,6 +242,7 @@
 .cinematic-solutions__composition {
   display: grid;
   gap: clamp(1rem, 2.5vw, 2rem);
+  position: relative;
   grid-template-areas:
     "rail"
     "media"
@@ -267,6 +274,7 @@
   background: radial-gradient(circle at 70% 23%, rgba(246, 164, 95, 0.24), transparent 34%), linear-gradient(138deg, #25160f, #080605 72%);
   grid-area: media;
   isolation: isolate;
+  z-index: 1;
   margin-inline: auto;
   max-width: 96rem;
   overflow: hidden;
@@ -283,6 +291,13 @@
   position: absolute;
   width: 100%;
 }
+
+.cinematic-solutions__relationship-connector { height: 100%; inset: 0; overflow: visible; pointer-events: none; position: absolute; width: 100%; z-index: 2; }
+.cinematic-solutions__relationship-connector path { fill: none; stroke: var(--amber-light); stroke-dasharray: 1; stroke-dashoffset: 0; stroke-width: 2; }
+.cinematic-solutions__relationship-connector circle { fill: var(--amber-light); stroke: #100806; stroke-width: 1.5; }
+.cinematic-solutions[data-cinematic-solutions-motion-phase="disassemble"] .cinematic-solutions__relationship-connector,
+.cinematic-solutions[data-cinematic-solutions-motion-phase="hold"] .cinematic-solutions__relationship-connector { visibility: hidden; }
+.cinematic-solutions[data-cinematic-solutions-motion-phase="reassemble"] .cinematic-solutions__relationship-connector path { animation: cinematic-solutions-relationship-draw 420ms cubic-bezier(.2, .72, .18, 1) both; }
 
 .cinematic-solutions__scene {
   margin: 0;
@@ -350,7 +365,14 @@
 .cinematic-solutions__panels {
   grid-area: panel;
   padding-inline: clamp(0.25rem, 1vw, 1rem);
+  position: relative;
+  z-index: 3;
 }
+
+.cinematic-solutions[data-cinematic-solutions-motion-phase="disassemble"] .cinematic-solutions__panel:not([hidden]) { animation: cinematic-solutions-panel-exit 300ms cubic-bezier(.28, .74, .22, 1) both; }
+.cinematic-solutions[data-cinematic-solutions-motion-phase="hold"] .cinematic-solutions__panels { visibility: hidden; }
+.cinematic-solutions[data-cinematic-solutions-motion-phase="reassemble"] .cinematic-solutions__panel:not([hidden]) { animation: cinematic-solutions-panel-reveal 420ms cubic-bezier(.2, .72, .18, 1) both; }
+.cinematic-solutions[data-cinematic-solutions-motion-phase="reassemble"] .cinematic-solutions__panel:not([hidden]) > * { animation: cinematic-solutions-type-reveal 420ms 60ms cubic-bezier(.2, .72, .18, 1) both; }
 
 .cinematic-solutions__panel {
   border-top: 1px solid var(--line-strong);
@@ -452,6 +474,11 @@
   from { opacity: 0.78; transform: scale(1); }
   to { opacity: 0; transform: scale(1.018); }
 }
+
+@keyframes cinematic-solutions-panel-exit { from { clip-path: inset(0); transform: translateX(0); } to { clip-path: inset(0 0 0 100%); transform: translateX(-0.7rem); } }
+@keyframes cinematic-solutions-panel-reveal { from { clip-path: inset(0 100% 0 0); transform: translateX(-0.7rem); } to { clip-path: inset(0); transform: translateX(0); } }
+@keyframes cinematic-solutions-type-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes cinematic-solutions-relationship-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 
 @media (min-width: 48rem) {
   .cinematic-solutions__fallback-item {

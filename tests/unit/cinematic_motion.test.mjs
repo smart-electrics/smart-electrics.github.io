@@ -68,7 +68,8 @@ test("restarts from the latest interaction and cancels every stale lifecycle cal
   clock.runNext();
   clock.runNext();
   clock.runNext();
-  assert.deepEqual(phases, ["disassemble", "idle", "disassemble", "hold", "reassemble", "idle"]);
+  clock.runNext();
+  assert.deepEqual(phases, ["disassemble", "hold", "reassemble", "idle"]);
 });
 
 test("bypasses timers for reduced motion and can cancel a running lifecycle", () => {

@@ -259,4 +259,21 @@ class CinematicContractTest < Minitest::Test
     assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?display:\s*grid;/, styles)
     assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?overflow:\s*visible;/, styles)
   end
+
+  def test_keeps_panel_and_type_choreography_masked_without_opacity_or_filter_keyframes
+    keyframes = {
+      "_sass/_cinematic.scss" => %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal],
+      "_sass/_service-studio.scss" => %w[service-studio-panel-exit service-studio-panel-reveal service-studio-type-reveal],
+      "_sass/_cinematic-solutions.scss" => %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal],
+      "_sass/_route-journey.scss" => %w[route-journey-panel-exit route-journey-panel-reveal route-journey-type-reveal]
+    }
+    keyframes.each do |path, names|
+      source = File.read(File.join(project_root, path))
+      names.each do |name|
+        keyframe = source[/@keyframes #{Regexp.escape(name)}\s*\{[\s\S]*?\n\}/]
+        refute_nil keyframe, "#{path} must retain #{name}"
+        refute_match(/(?:opacity|filter)\s*:/, keyframe, "#{name} must use masked clip-path/transform choreography only")
+      end
+    end
+  end
 end

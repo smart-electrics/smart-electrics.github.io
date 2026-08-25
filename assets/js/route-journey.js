@@ -1,4 +1,5 @@
 import { createRouteJourneyAdapter } from "./route-journey-adapter.js";
+import { createCinematicMotion } from "./cinematic-motion.js";
 import {
   CANONICAL_ROUTE_JOURNEY_FINGERPRINTS,
   routeJourneyFingerprint
@@ -233,6 +234,7 @@ function enhance(root) {
   }
 
   const title = one(stage, "[data-route-journey-panel-title]");
+  const panel = one(stage, "[data-route-journey-panel]");
   const stateLabel = one(stage, "[data-route-journey-panel-state]");
   const summary = one(stage, "[data-route-journey-panel-summary]");
   const details = one(stage, "[data-route-journey-details]");
@@ -248,7 +250,7 @@ function enhance(root) {
   const connectorLine = connector && one(connector, "line[data-route-journey-connector-line]");
   const connectorSource = connector && one(connector, "circle[data-route-journey-connector-source]");
   const connectorTarget = connector && one(connector, "circle[data-route-journey-connector-target]");
-  if (!title || !stateLabel || !summary || !details || !input || !decision || !next || !showRelationship || !returnControl || !live || !scene || !outgoing || !connector || !connectorLine || !connectorSource || !connectorTarget) return;
+  if (!title || !panel || !stateLabel || !summary || !details || !input || !decision || !next || !showRelationship || !returnControl || !live || !scene || !outgoing || !connector || !connectorLine || !connectorSource || !connectorTarget) return;
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let view = adapter.initialView;
@@ -274,6 +276,16 @@ function enhance(root) {
     outgoing.hidden = false;
     root.dataset.routeJourneyTransition = "true";
   };
+
+  const motion = createCinematicMotion({
+    onPhase: (phase) => {
+      root.dataset.routeJourneyMotionPhase = phase;
+      const cleanHold = phase === "hold";
+      panel.hidden = cleanHold;
+      panel.inert = cleanHold;
+      if (phase === "hold" || phase === "idle") clearTransition();
+    }
+  });
 
   const synchronize = (announce = false) => {
     controls.nodeButtons.forEach((button) => {
@@ -328,6 +340,7 @@ function enhance(root) {
     if (nextView === view) return;
     startTransition();
     view = nextView;
+    motion.start({ reducedMotion: reducedMotion.matches });
     synchronize(true);
     if (action.type === "show-relationship") {
       window.requestAnimationFrame(() => returnControl.focus({ preventScroll: true }));
@@ -340,13 +353,23 @@ function enhance(root) {
   });
 
   outgoing.addEventListener("animationend", clearTransition);
-  outgoing.addEventListener("animationcancel", clearTransition);
-  outgoing.addEventListener("error", clearTransition);
+  outgoing.addEventListener("animationcancel", () => {
+    clearTransition();
+  });
+  outgoing.addEventListener("error", () => {
+    clearTransition();
+  });
   reducedMotion.addEventListener("change", (event) => {
-    if (event.matches) clearTransition();
+    if (event.matches) {
+      clearTransition();
+      motion.cancel();
+      panel.hidden = false;
+      panel.inert = false;
+    }
   });
 
   synchronize(true);
+  root.dataset.routeJourneyMotionPhase = "idle";
   fallback.hidden = true;
   stage.hidden = false;
   root.dataset.routeJourneyEnhanced = "true";

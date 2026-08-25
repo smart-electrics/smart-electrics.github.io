@@ -80,6 +80,12 @@
         <span class="service-studio__outgoing-snapshot" data-service-studio-outgoing-snapshot aria-hidden="true" hidden></span>
       </div>
 
+      <svg class="service-studio__relationship-connector" data-service-studio-relationship-connector aria-hidden="true" focusable="false" tabindex="-1" viewBox="0 0 1 1" preserveAspectRatio="none" hidden>
+        <path data-service-studio-relationship-connector-path pathLength="1"></path>
+        <circle data-cinematic-relationship-connector-source r="3"></circle>
+        <circle data-cinematic-relationship-connector-target r="3"></circle>
+      </svg>
+
       <div class="service-studio__panels">
         {% for relation_id in studio_relation_ids %}
           {% assign studio_relation = cinematic.relations | where: "id", relation_id | first %}
