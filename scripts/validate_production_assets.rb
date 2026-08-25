@@ -20,6 +20,23 @@ module ProductionAssetsContract
   SHA256 = /\A[0-9a-f]{64}\z/.freeze
   PROVENANCE = %r{\Adocs/media/generated-assets\.md#[a-z0-9-]+\z}.freeze
   QA_DOCUMENT = %r{\Adocs/media/[a-z0-9-]+-visual-qa\.md\z}.freeze
+  SOLUTION_STEM_ANCHORS = {
+    "solutions/apartment-comfort" => "apartment-comfort",
+    "solutions/private-house" => "private-house",
+    "solutions/architectural-lighting" => "architectural-lighting",
+    "solutions/energy-autonomy" => "energy-autonomy",
+    "solutions/security-access" => "security-access",
+    "solutions/commercial-space" => "commercial-space"
+  }.freeze
+  ROOM_LIGHTING_STATES = %w[off route evening full].freeze
+  ROOM_WINDOW_TREATMENTS = %w[open tulle blinds blackout curtains].freeze
+  RESIDENCE_ROOM_STEMS = ROOM_LIGHTING_STATES.product(ROOM_WINDOW_TREATMENTS)
+                                             .map { |lighting, treatment| "cinematic/residence/room-#{lighting}-#{treatment}" }
+                                             .freeze
+  RESIDENCE_STAIRS_STEMS = %w[stairs-off stairs-route stairs-full].map { |state| "cinematic/residence/#{state}" }.freeze
+  RESIDENCE_EXTERIOR_STEMS = %w[exterior-approach exterior-evening exterior-reduced-night].map { |state| "cinematic/residence/#{state}" }.freeze
+  SMART_HOME_SCENARIO_STEMS = %w[shading stairs exterior climate].map { |family| "smart-home/#{family}" }.freeze
+  SMART_HOME_ENGINEERING_STEMS = %w[electrical-installation panel backup surveillance audio diagnostics].map { |family| "smart-home/#{family}" }.freeze
 
   class WebpDimensionError < StandardError; end
 
@@ -62,6 +79,7 @@ module ProductionAssetsContract
 
       errors << "#{prefix}: fields must be exactly #{ASSET_FIELDS.join(', ')}" unless asset.keys.sort == ASSET_FIELDS.sort
       validate_asset_shape(errors, asset, prefix)
+      validate_canonical_metadata(errors, asset, prefix)
       validate_duplicate_path(errors, seen_paths, asset, prefix)
       validate_asset_file(errors, asset, prefix, repository_root)
       validate_documentation(errors, asset, prefix, repository_root)
@@ -79,6 +97,66 @@ module ProductionAssetsContract
     errors << "#{prefix}: family must be a non-empty scalar" unless non_empty_string?(asset["family"])
     errors << "#{prefix}: provenance must point to generated-assets.md" unless asset["provenance"].is_a?(String) && asset["provenance"].match?(PROVENANCE)
     errors << "#{prefix}: QA must point to an independent visual QA document" unless asset["qa"].is_a?(String) && asset["qa"].match?(QA_DOCUMENT)
+  end
+
+  def validate_canonical_metadata(errors, asset, prefix)
+    expected = canonical_metadata_for(asset["path"])
+    unless expected
+      errors << "#{prefix}: path must belong to the canonical production asset registry"
+      return
+    end
+
+    expected.each do |field, value|
+      errors << "#{prefix}: #{field} must match canonical production metadata" unless asset[field] == value
+    end
+  end
+
+  def canonical_metadata_for(path)
+    return nil unless path.is_a?(String) && path.match?(WEBP_PATH)
+
+    stem = path.sub(%r{\Aassets/images/}, "").sub(/-(?:768|1536)\.webp\z/, "")
+    metadata = canonical_metadata_for_stem(stem)
+    return nil unless metadata
+
+    {
+      "responsive_pair" => canonical_responsive_pair(stem),
+      "variant" => path.end_with?("-768.webp") ? "mobile" : "desktop",
+      **metadata
+    }
+  end
+
+  def canonical_metadata_for_stem(stem)
+    if stem == "home/control-room"
+      canonical_documentation("control-room", "control-room-visual-qa.md", "control-room")
+    elsif (anchor = SOLUTION_STEM_ANCHORS[stem])
+      canonical_documentation(anchor, "ready-solutions-visual-qa.md", "solution-#{File.basename(stem)}")
+    elsif RESIDENCE_ROOM_STEMS.include?(stem)
+      canonical_documentation("residence-physical-controls", "residence-controls-visual-qa.md", "room")
+    elsif RESIDENCE_STAIRS_STEMS.include?(stem)
+      canonical_documentation("residence-stairs-and-exterior-physical-controls", "stairs-exterior-controls-visual-qa.md", "stairs")
+    elsif RESIDENCE_EXTERIOR_STEMS.include?(stem)
+      canonical_documentation("residence-stairs-and-exterior-physical-controls", "stairs-exterior-controls-visual-qa.md", "exterior")
+    elsif SMART_HOME_SCENARIO_STEMS.include?(stem)
+      canonical_documentation("smart-home-scenario-set", "smart-home-scenes-visual-qa.md", File.basename(stem))
+    elsif SMART_HOME_ENGINEERING_STEMS.include?(stem)
+      canonical_documentation("cinematic-engineering-scene-set", "smart-home-scenes-visual-qa.md", File.basename(stem))
+    end
+  end
+
+  def canonical_responsive_pair(stem)
+    return "control-room" if stem == "home/control-room"
+    return "solution-#{File.basename(stem)}" if SOLUTION_STEM_ANCHORS.key?(stem)
+    return "smart-home-#{File.basename(stem)}" if SMART_HOME_SCENARIO_STEMS.include?(stem) || SMART_HOME_ENGINEERING_STEMS.include?(stem)
+
+    "residence-#{File.basename(stem)}"
+  end
+
+  def canonical_documentation(anchor, qa, family)
+    {
+      "family" => family,
+      "provenance" => "docs/media/generated-assets.md##{anchor}",
+      "qa" => "docs/media/#{qa}"
+    }
   end
 
   def validate_duplicate_path(errors, seen_paths, asset, prefix)
