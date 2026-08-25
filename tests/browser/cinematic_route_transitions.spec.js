@@ -292,6 +292,65 @@ test("an opted-in anchor with an unloaded selected image stays native without a 
   await expect(page).toHaveURL(/\/$/);
 });
 
+test("a visible source leaves an offscreen activated anchor native without a snapshot", async ({ page }) => {
+  activeViewport(page);
+  await page.goto("/");
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-cinematic-route-source="cinematic-stage-home"] img')]
+    .some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0));
+
+  const result = await page.evaluate(() => {
+    const ratio = (bounds) => {
+      const left = Math.max(bounds.left, 0);
+      const top = Math.max(bounds.top, 0);
+      const right = Math.min(bounds.right, window.innerWidth);
+      const bottom = Math.min(bounds.bottom, window.innerHeight);
+      const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+      return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+    };
+    const source = document.querySelector('[data-cinematic-route-source="cinematic-stage-home"]');
+    const anchor = document.querySelector('.home-hero__actions a[data-cinematic-route][href="/smart-home/"]');
+    const image = source && [...source.querySelectorAll("img")].find((candidate) => {
+      const bounds = candidate.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0 && candidate.complete && candidate.naturalWidth > 0 && candidate.naturalHeight > 0;
+    });
+    if (!source || !anchor || !image) return null;
+
+    Object.assign(source.style, {
+      height: "160px",
+      left: "20px",
+      position: "fixed",
+      top: "20px",
+      width: "240px",
+      zIndex: "1"
+    });
+    Object.assign(anchor.style, {
+      left: "20px",
+      position: "fixed",
+      top: "-120px"
+    });
+
+    const sourceVisibility = ratio(source.getBoundingClientRect());
+    const anchorVisibility = ratio(anchor.getBoundingClientRect());
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    anchor.dispatchEvent(event);
+    return {
+      anchorVisibility,
+      imageSnapshotCount: document.querySelectorAll("[data-cinematic-route-snapshot] img").length,
+      prevented: event.defaultPrevented,
+      snapshotCount: document.querySelectorAll("[data-cinematic-route-snapshot]").length,
+      sourceVisibility
+    };
+  });
+
+  expect(result).not.toBeNull();
+  expect(result.sourceVisibility).toBe(1);
+  expect(result.anchorVisibility).toBeLessThan(meaningfulSnapshotVisibility);
+  expect(result.prevented).toBe(false);
+  expect(result.snapshotCount).toBe(0);
+  expect(result.imageSnapshotCount).toBe(0);
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test("service related handoffs replace an offscreen hero with a visible bounded anchor surface", async ({ page }) => {
   activeViewport(page);
   await page.goto("/services/electrical-installation/");
