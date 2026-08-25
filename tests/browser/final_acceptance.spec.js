@@ -614,10 +614,14 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   await page.setContent("<main><p>Не публікуємо ціну і ціна системи становить 24 000 грн.</p></main>");
   await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
   for (const [category, copy] of [
+    ["telemetry", "Не публікуємо телеметрію і live-статус системи доступний."],
+    ["portal", "Не надаємо портал і портал дає доступ до керування."],
+    ["vendor", "Не заявляємо сумісність і конфігурація сумісна з KNX."],
     ["price", "Не публікуємо ціну і ціна системи становить 24 000 грн."],
     ["guarantee", "Не надаємо гарантій і гарантуємо результат."],
     ["certificate", "Без сертифікатів і маємо сертифікат відповідності."],
-    ["review", "Не публікуємо відгуків і показуємо відгук замовника."]
+    ["review", "Не публікуємо відгуків і показуємо відгук замовника."],
+    ["project", "Не публікуємо проєктів і реалізований клієнтський проєкт підтверджує підхід."]
   ]) {
     await page.setContent("<main><p>" + copy + "</p></main>");
     await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause " + category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
