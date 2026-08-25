@@ -15,6 +15,7 @@
 - Jekyll 4.4 із власною збіркою в GitHub Actions;
 - SCSS та vanilla HTML/Liquid без клієнтського framework;
 - Playwright + axe для responsive та accessibility перевірок;
+- pure Ruby перевірки інвентарю production WebP і публічних тверджень;
 - HTMLProofer для згенерованих сторінок і внутрішніх посилань;
 - GitHub Pages за адресою <https://smart-electrics.github.io/>.
 
@@ -43,6 +44,7 @@ make check
 - `_layouts/`, `_includes/`, `_sass/` — Jekyll UI та дизайн-система;
 - `tests/browser/` — контракти маршрутів, viewport і доступності;
 - `scripts/validate_integrations.rb` — fail-closed guard для GA4 та Formspree;
+- `docs/acceptance/final-cinematic-acceptance.md` — рубрика фінального visual і behavioral acceptance;
 - `docs/adr/`, `CONTEXT.md` — рішення та єдина доменна мова;
 - `.agents/skills/`, `.codex/` — версіоновані skills і multi-agent ролі.
 
