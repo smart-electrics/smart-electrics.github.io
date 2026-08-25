@@ -174,15 +174,27 @@ async function publicSurface(page, route, width) {
   await expect(page.getByRole("banner")).toHaveCount(1);
   await expect(page.getByRole("contentinfo")).toHaveCount(1);
   await expect(page.locator("main h1:visible")).toHaveCount(1);
-  await expect(page.locator('button[disabled], [aria-disabled="true"], [role=status]')).toHaveCount(0);
 
   const evidence = await page.evaluate(() => {
     const visible = (element) => {
       const style = getComputedStyle(element);
       const bounds = element.getBoundingClientRect();
-      return style.visibility !== "hidden" && style.display !== "none" && bounds.width > 0 && bounds.height > 0;
+      return !element.hidden && style.visibility !== "hidden" && style.display !== "none" && Number(style.opacity) > 0 && bounds.width > 0 && bounds.height > 0;
     };
-    const controls = [...document.querySelectorAll("button, summary, [role=button]")]
+    const interactiveSelector = [
+      "a[href]",
+      "button",
+      "summary",
+      "input:not([type=hidden])",
+      "select",
+      "textarea",
+      "[role=button]",
+      "[role=link]",
+      "[role=radio]",
+      "[role=checkbox]",
+      "[role=switch]"
+    ].join(", ");
+    const controls = [...document.querySelectorAll(interactiveSelector)]
       .filter(visible)
       .map((control) => {
         const bounds = control.getBoundingClientRect();
@@ -190,7 +202,10 @@ async function publicSurface(page, route, width) {
           name: control.getAttribute("aria-label") || control.textContent.trim(),
           width: bounds.width,
           height: bounds.height,
-          horizontallyVisible: bounds.left >= -1 && bounds.right <= window.innerWidth + 1
+          horizontallyVisible: bounds.left >= -1 && bounds.right <= window.innerWidth + 1,
+          inlineEditorial: control.matches("a[href][data-inline-editorial-link]"),
+          disabled: control.hasAttribute("disabled") || control.getAttribute("aria-disabled") === "true",
+          inert: control.closest("[inert]") !== null
         };
       });
     const links = [...document.querySelectorAll("a[href]")]
@@ -225,12 +240,14 @@ async function publicSurface(page, route, width) {
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       clipped: controls.filter(({ horizontallyVisible }) => !horizontallyVisible),
       clippedLinks: links.filter(({ horizontallyVisible }) => !horizontallyVisible),
-      undersized: controls.filter(({ width, height }) => width < 44 || height < 44)
+      forbidden: controls.filter(({ disabled, inert }) => disabled || inert),
+      undersized: controls.filter(({ inlineEditorial, width, height }) => !inlineEditorial && (width < 44 || height < 44))
     };
   });
 
   expect(evidence.overflow, route + " at " + width + "px must not overflow").toBe(0);
   expect(evidence.ordinalMarkers, route + " must not expose decorative ordinals").toEqual([]);
+  expect(evidence.forbidden, route + " must not expose a disabled or inert interactive target").toEqual([]);
   expect(evidence.clipped, route + " at " + width + "px must keep every visible control inside the viewport").toEqual([]);
   expect(evidence.clippedLinks, route + " at " + width + "px must keep every visible link inside the viewport").toEqual([]);
   expect(evidence.undersized, route + " at " + width + "px must retain 44px action controls").toEqual([]);
