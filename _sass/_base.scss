@@ -67,7 +67,7 @@ a[href] {
   text-underline-offset: 0.22em;
 }
 
-a[href][data-inline-editorial-link] {
+p > a[href][data-inline-editorial-link] {
   display: inline;
   min-block-size: 0;
 }

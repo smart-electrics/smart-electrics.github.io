@@ -181,6 +181,18 @@ async function publicSurface(page, route, width) {
       const bounds = element.getBoundingClientRect();
       return !element.hidden && style.visibility !== "hidden" && style.display !== "none" && Number(style.opacity) > 0 && bounds.width > 0 && bounds.height > 0;
     };
+    const flowingInlineEditorial = (control, style) => {
+      if (!control.matches("p > a[href][data-inline-editorial-link]") || style.display !== "inline") return false;
+      const hasProseText = (direction) => {
+        let sibling = control[direction];
+        while (sibling) {
+          if (sibling.nodeType === Node.TEXT_NODE && sibling.textContent.trim() !== "") return true;
+          sibling = sibling[direction];
+        }
+        return false;
+      };
+      return hasProseText("previousSibling") && hasProseText("nextSibling");
+    };
     const interactiveSelector = [
       "a[href]",
       "button",
@@ -197,17 +209,24 @@ async function publicSurface(page, route, width) {
     const controls = [...document.querySelectorAll(interactiveSelector)]
       .filter(visible)
       .map((control) => {
+        const style = getComputedStyle(control);
         const bounds = control.getBoundingClientRect();
         return {
           name: control.getAttribute("aria-label") || control.textContent.trim(),
           width: bounds.width,
           height: bounds.height,
           horizontallyVisible: bounds.left >= -1 && bounds.right <= window.innerWidth + 1,
-          inlineEditorial: control.matches("a[href][data-inline-editorial-link]"),
+          inlineEditorial: flowingInlineEditorial(control, style),
           disabled: control.hasAttribute("disabled") || control.getAttribute("aria-disabled") === "true",
           inert: control.closest("[inert]") !== null
         };
       });
+    const statuses = [...document.querySelectorAll('[role="status"]')]
+      .filter(visible)
+      .map((status) => ({
+        name: status.getAttribute("aria-label") || status.textContent.trim(),
+        liveStatus: true
+      }));
     const links = [...document.querySelectorAll("a[href]")]
       .filter(visible)
       .map((link) => {
@@ -240,14 +259,14 @@ async function publicSurface(page, route, width) {
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       clipped: controls.filter(({ horizontallyVisible }) => !horizontallyVisible),
       clippedLinks: links.filter(({ horizontallyVisible }) => !horizontallyVisible),
-      forbidden: controls.filter(({ disabled, inert }) => disabled || inert),
+      forbidden: controls.filter(({ disabled, inert }) => disabled || inert).concat(statuses),
       undersized: controls.filter(({ inlineEditorial, width, height }) => !inlineEditorial && (width < 44 || height < 44))
     };
   });
 
   expect(evidence.overflow, route + " at " + width + "px must not overflow").toBe(0);
   expect(evidence.ordinalMarkers, route + " must not expose decorative ordinals").toEqual([]);
-  expect(evidence.forbidden, route + " must not expose a disabled or inert interactive target").toEqual([]);
+  expect(evidence.forbidden, route + " must not expose a disabled, inert, or live-status surface").toEqual([]);
   expect(evidence.clipped, route + " at " + width + "px must keep every visible control inside the viewport").toEqual([]);
   expect(evidence.clippedLinks, route + " at " + width + "px must keep every visible link inside the viewport").toEqual([]);
   expect(evidence.undersized, route + " at " + width + "px must retain 44px action controls").toEqual([]);
@@ -661,7 +680,7 @@ test("public surface rejects disabled, inert, and undersized generic interactive
     </body></html>
   `);
 
-  await expect(publicSurface(page, "fixture", 375)).rejects.toThrow(/disabled or inert interactive target/u);
+  await expect(publicSurface(page, "fixture", 375)).rejects.toThrow(/disabled, inert, or live-status surface/u);
 });
 
 test("public surface rejects visible live-status chrome", async ({ page }) => {
@@ -695,7 +714,7 @@ test("public surface permits only flowing inline editorial links below 44px", as
     <html lang="uk"><head><meta name="robots" content="noindex"></head><body>
       <header role="banner"></header>
       <main><h1>Перевірка посилань</h1>
-        <div><a href="/fixtures/action" data-inline-editorial-link style="display:inline">Дія</a></div>
+        <p><a href="/fixtures/action" data-inline-editorial-link style="display:inline">Дія</a></p>
       </main>
       <footer role="contentinfo"></footer>
     </body></html>
