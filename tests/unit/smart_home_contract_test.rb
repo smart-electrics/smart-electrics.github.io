@@ -123,13 +123,23 @@ class SmartHomeContractTest < Minitest::Test
     end
   end
 
-  def test_smart_home_picture_exposes_one_preload_safe_responsive_candidate_list
+  def test_smart_home_picture_exposes_mutually_exclusive_responsive_candidates
     layout = File.read(File.join(project_root, "_layouts", "smart-home.html"))
 
-    refute_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
-    refute_includes layout, '<source srcset="{{ visual.desktop | relative_url }}"'
-    assert_includes layout, '<img src="{{ visual.mobile | relative_url }}" srcset="{{ visual.mobile | relative_url }} 768w, {{ visual.desktop | relative_url }} 1536w"'
+    assert_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
+    assert_includes layout, '<source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}"'
+    assert_includes layout, '<img src="{{ visual.mobile | relative_url }}"'
+    refute_includes layout, '<img src="{{ visual.mobile | relative_url }}" srcset='
     assert_includes layout, 'sizes="(max-width: 767px) 100vw, 1536px"'
+  end
+
+  def test_homepage_preload_matches_the_eager_residence_scene
+    head = File.read(File.join(project_root, "_includes", "head.html"))
+
+    refute_includes head, "/assets/images/home/control-room"
+    assert_includes head, "/assets/images/cinematic/residence/room-evening-open-768.webp"
+    assert_includes head, "/assets/images/cinematic/residence/room-evening-open-1536.webp"
+    assert_includes head, 'imagesizes="(max-width: 767px) 100vw, 52vw"'
   end
 
   def test_smart_home_physical_picture_exposes_one_preload_safe_responsive_candidate_list

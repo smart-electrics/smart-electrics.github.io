@@ -32,7 +32,9 @@ layout: default
       <figure class="smart-home__scene" data-scenario-scene data-cinematic-route-source="smart-home-scene">
         {% for visual in spatial.visuals %}
           <picture class="smart-home__scene-background" data-scene-picture="{{ visual.id }}" data-motion-layer="background"{% unless visual.id == initial_system.visual %} hidden{% endunless %}>
-            <img src="{{ visual.mobile | relative_url }}" srcset="{{ visual.mobile | relative_url }} 768w, {{ visual.desktop | relative_url }} 1536w" sizes="(max-width: 767px) 100vw, 1536px" width="768" height="512" alt="{{ visual.alt }}"{% if visual.id == initial_system.visual %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
+            <source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}" width="768" height="512">
+            <source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}" width="1536" height="1024">
+            <img src="{{ visual.mobile | relative_url }}" sizes="(max-width: 767px) 100vw, 1536px" width="768" height="512" alt="{{ visual.alt }}"{% if visual.id == initial_system.visual %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
           </picture>
         {% endfor %}
         <span class="smart-home__scene-wash" data-motion-layer="light" aria-hidden="true"></span>

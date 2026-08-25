@@ -353,8 +353,10 @@ test("keeps rapid scene replacement bounded and supplies responsive media for al
   for (const [systemId] of systems) {
     const picture = root.locator(`picture[data-scene-picture="${systemId}"]`);
     const image = picture.locator("img");
-    await expect(picture.locator("source")).toHaveCount(0);
-    await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
+    await expect(picture.locator('source[media="(max-width: 767px)"]')).toHaveAttribute("srcset", /-768\.webp$/u);
+    await expect(picture.locator('source[media="(min-width: 768px)"]')).toHaveAttribute("srcset", /-1536\.webp$/u);
+    await expect(picture.locator("source")).toHaveCount(2);
+    await expect(image).not.toHaveAttribute("srcset", /./u);
     await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 1536px");
     await expect(image).toHaveAttribute("alt", /\S{8,}/);
   }
@@ -362,6 +364,40 @@ test("keeps rapid scene replacement bounded and supplies responsive media for al
   await activeImage.evaluate((image) => image.decode());
   const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
   await expect.poll(() => activeImage.evaluate((image, suffix) => new URL(image.currentSrc).pathname.endsWith(suffix), expectedVariant)).toBe(true);
+});
+
+test("compact navigation never starts the desktop smart-home scene candidate", async ({ browser }) => {
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000";
+  const context = await browser.newContext({ baseURL, locale: "uk-UA" });
+  const page = await context.newPage();
+  const requested = [];
+  const failures = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
+  });
+  page.on("requestfailed", (request) => {
+    if (request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
+  });
+
+  try {
+    for (const width of [375, 414, 540]) {
+      await page.setViewportSize({ width, height: 960 });
+      await page.goto("/about/");
+      await page.locator('img[src*="/control-room-"]').evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
+      requested.length = 0;
+      failures.length = 0;
+
+      await page.goto(route);
+      const image = page.locator('[data-scene-picture="lighting"] img');
+      await image.evaluate((element) => element.decode());
+
+      expect(await image.evaluate((element) => new URL(element.currentSrc).pathname), `${width}px selected scene candidate`).toMatch(/control-room-768\.webp$/u);
+      expect(requested.filter((url) => url.endsWith("control-room-1536.webp")), `${width}px must not start the desktop scene candidate`).toEqual([]);
+      expect(failures, `${width}px scene candidate requests`).toEqual([]);
+    }
+  } finally {
+    await context.close();
+  }
 });
 
 test("keeps a complete static explanation when JavaScript is unavailable or enhancement contract is malformed", async ({ browser, page }) => {
