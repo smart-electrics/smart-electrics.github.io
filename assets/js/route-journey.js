@@ -122,11 +122,12 @@ function exactFallback(fallback, config) {
 }
 
 function restoreSafeFallback(root, fallback, stage) {
-  if (!fallback || !stage) return;
-  fallback.hidden = false;
-  fallback.removeAttribute("aria-hidden");
-  stage.hidden = true;
   root.removeAttribute("data-route-journey-enhanced");
+  if (fallback) {
+    fallback.hidden = false;
+    fallback.removeAttribute("aria-hidden");
+  }
+  if (stage) stage.hidden = true;
 }
 
 function exactStage(root, stage, config) {
