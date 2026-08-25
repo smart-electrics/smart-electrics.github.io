@@ -19,7 +19,8 @@ test("Quality is a pinned pull-request gate with dispatch and retained success e
   assert.match(workflow, new RegExp(`uses: actions/checkout@${checkoutPin}`));
   assert.match(workflow, /uses: ruby\/setup-ruby@[0-9a-f]{40}/u);
   assert.match(workflow, /uses: actions\/setup-node@[0-9a-f]{40}/u);
-  assert.match(workflow, /^          node-version: 24$/mu);
+  assert.match(workflow, /^          node-version-file: \.nvmrc$/mu);
+  assert.match(read(".nvmrc").trim(), /^24\./u);
   assert.match(workflow, /^        run: make check$/mu);
   assert.match(
     workflow,
@@ -27,11 +28,13 @@ test("Quality is a pinned pull-request gate with dispatch and retained success e
   );
 });
 
-test("CodeQL is dispatch-only and every action is pinned", () => {
+test("CodeQL remains an automatic and manual gate with every action pinned", () => {
   const workflow = read(".github/workflows/codeql.yml");
 
-  assert.match(workflow, /^on:\n  workflow_dispatch:/mu);
-  assert.doesNotMatch(workflow, /^  (?:push|pull_request|schedule):/mu);
+  assert.match(
+    workflow,
+    /^on:\n  push:\n    branches: \[main\]\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:\n  schedule:/mu
+  );
   assert.match(workflow, new RegExp(`uses: actions/checkout@${checkoutPin}`));
   assert.match(workflow, new RegExp(`uses: github/codeql-action/init@${codeqlPin}`));
   assert.match(workflow, new RegExp(`uses: github/codeql-action/analyze@${codeqlPin}`));
