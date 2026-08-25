@@ -1,8 +1,8 @@
 ---
+layout: route
 title: Проєкти
-description: Майбутній архів підтверджених житлових і комерційних проєктів Smart Electrics.
+description: Підготовчий архів матеріалів Smart Electrics.
 permalink: /projects/
-kicker: Докази замість обіцянок
+route_content_key: projects
+route_mode: utility
 ---
-
-<p class="page-note">Маршрут збережено для майбутнього архіву й не входить до основної навігації до появи першого підтвердженого кейсу.</p>

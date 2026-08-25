@@ -55,7 +55,7 @@ class RouteContentContractTest < Minitest::Test
 
   def test_rejects_wrong_localization_shape_or_journey_order
     data = canonical_content
-    data["en"] = data.fetch("uk").dup
+    data["en"] = YAML.safe_load(YAML.dump(data.fetch("uk")), permitted_classes: [], aliases: false)
     assert_rejected(data, "route_content.yml must contain exactly one top-level uk localization")
 
     data = canonical_content
@@ -65,6 +65,10 @@ class RouteContentContractTest < Minitest::Test
     data = canonical_content
     data.fetch("uk").fetch("about").fetch("journey").fetch("nodes")[0]["ordinal"] = "01"
     assert_rejected(data, "about.journey.nodes[0] fields must be exactly id, title, input, decision, next")
+
+    data = canonical_content
+    data.fetch("uk").fetch("process").fetch("journey").fetch("panel")["focus"] = {}
+    assert_rejected(data, "process.journey.panel must provide localized assembled, focus, and reassembled panel copy")
   end
 
   def test_rejects_untruthful_copy_and_broken_static_links

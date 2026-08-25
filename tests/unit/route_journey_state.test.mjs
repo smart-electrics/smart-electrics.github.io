@@ -5,6 +5,10 @@ import { createRouteJourneyState } from "../../assets/js/route-journey-state.js"
 
 const processJourney = {
   id: "process",
+  assembled: {
+    title: "Послідовність робіт для одного об’єкта",
+    summary: "Оберіть етап, щоб побачити його робочий зв’язок."
+  },
   nodes: [
     { id: "enquiry", title: "Звернення", input: "Вхід", decision: "Рішення", next: "Далі" },
     { id: "clarification", title: "Уточнення", input: "Вхід", decision: "Рішення", next: "Далі" }
@@ -14,7 +18,7 @@ const processJourney = {
 test("keeps the route journey immutable through assembled, focus, and reassembled states", () => {
   const journey = createRouteJourneyState(processJourney);
 
-  assert.deepEqual(journey.initialState, { state: "assembled", selectedNodeId: null });
+  assert.deepEqual(journey.initialState, { state: "assembled", selectedNodeId: "enquiry" });
   assert.equal(Object.isFrozen(journey.initialState), true);
 
   const focused = journey.reduce(journey.initialState, { type: "select-node", nodeId: "clarification" });
@@ -32,8 +36,8 @@ test("rejects malformed journey data and fails closed for malformed state", () =
   for (const invalidJourney of [
     null,
     {},
-    { id: "process", nodes: [] },
-    { id: "process", nodes: [{ id: "enquiry", title: "", input: "Вхід", decision: "Рішення", next: "Далі" }] },
+    { id: "process", assembled: processJourney.assembled, nodes: [] },
+    { id: "process", assembled: processJourney.assembled, nodes: [{ id: "enquiry", title: "", input: "Вхід", decision: "Рішення", next: "Далі" }] },
     { id: "process", nodes: [processJourney.nodes[0], processJourney.nodes[0]] },
     { ...processJourney, extra: true }
   ]) {

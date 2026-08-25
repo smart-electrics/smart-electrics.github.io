@@ -1,13 +1,8 @@
 ---
+layout: route
 title: Про нас
-description: Інженерний підхід Smart Electrics до житлових і комерційних електричних систем у Львові та області.
+description: Інженерні принципи та координація електричних рішень для одного об’єкта.
 permalink: /about/
-kicker: Smart Electrics
+route_content_key: about
+route_mode: journey
 ---
-
-<section id="partners" aria-labelledby="partners-title">
-  <h2 id="partners-title">Для архітекторів і дизайнерів</h2>
-  <p>Партнерський підхід передбачає погоджені вихідні дані та координацію електричних рішень під час проєктування.</p>
-</section>
-
-<p class="page-note">Історія команди, підтверджені компетенції та повний опис інженерних принципів з’являться тут після перевірки фактичних даних.</p>

@@ -5,6 +5,19 @@ import { createRouteJourneyAdapter } from "../../assets/js/route-journey-adapter
 
 const aboutJourney = {
   id: "about",
+  assembled: {
+    title: "Принципи для одного об’єкта",
+    summary: "Оберіть принцип, щоб побачити його зв’язок із наступною роботою."
+  },
+  panel: {
+    assembled: {
+      label: "Принципи",
+      title: "Оберіть принцип",
+      summary: "Після вибору показуємо вихідні дані, інженерне рішення та його перехід до наступної роботи."
+    },
+    focus: { label: "Обраний принцип" },
+    reassembled: { label: "Наступний зв’язок", title: "Зв’язок із наступною роботою" }
+  },
   nodes: [
     {
       id: "object-context",
@@ -28,18 +41,20 @@ test("adapts immutable route states into the exact readable panel copy", () => {
 
   assert.deepEqual(adapter.initialView, {
     state: "assembled",
-    selectedNodeId: null,
-    title: "Принципи для одного об’єкта",
-    summary: "Оберіть принцип, щоб побачити його зв’язок із наступною роботою.",
+    selectedNodeId: "object-context",
+    stateLabel: "Принципи",
+    title: "Оберіть принцип",
+    summary: "Після вибору показуємо вихідні дані, інженерне рішення та його перехід до наступної роботи.",
     node: null
   });
 
-  const focused = adapter.reduce(adapter.initialView.state, { type: "select-node", nodeId: "system-logic" });
+  const focused = adapter.reduce(adapter.initialView, { type: "select-node", nodeId: "system-logic" });
   assert.deepEqual(focused, {
     state: "focus",
     selectedNodeId: "system-logic",
+    stateLabel: "Обраний принцип",
     title: "Логіка системи",
-    summary: "Навантаги",
+    summary: null,
     node: aboutJourney.nodes[1]
   });
   assert.equal(Object.isFrozen(focused), true);
@@ -48,8 +63,9 @@ test("adapts immutable route states into the exact readable panel copy", () => {
   assert.deepEqual(adapter.reduce(focused, { type: "show-relationship" }), {
     state: "reassembled",
     selectedNodeId: "system-logic",
-    title: "Наступний зв’язок",
-    summary: "Структура системи",
+    stateLabel: "Наступний зв’язок",
+    title: "Зв’язок із наступною роботою",
+    summary: null,
     node: aboutJourney.nodes[1]
   });
 });
