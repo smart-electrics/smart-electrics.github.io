@@ -13,6 +13,8 @@ const publicRoutes = [
   "/contact/",
   "/privacy/"
 ];
+const requiredViewportWidths = Object.freeze([375, 768, 1024, 1440, 1980]);
+const meaningfulSnapshotVisibility = 0.5;
 
 async function holdSnapshot(page) {
   await page.addStyleTag({
@@ -37,6 +39,57 @@ function expectGeometryToMatch(actual, expected) {
   Object.keys(expected).forEach((field) => {
     expect(Math.abs(Number.parseFloat(actual[field]) - Number.parseFloat(expected[field]))).toBeLessThanOrEqual(0.01);
   });
+}
+
+function activeViewport(page) {
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+  expect(requiredViewportWidths).toContain(viewport.width);
+  return viewport;
+}
+
+async function snapshotViewportEvidence(page) {
+  return page.locator("[data-cinematic-route-snapshot]").evaluate((snapshot) => {
+    const bounds = snapshot.getBoundingClientRect();
+    const left = Math.max(bounds.left, 0);
+    const top = Math.max(bounds.top, 0);
+    const right = Math.min(bounds.right, window.innerWidth);
+    const bottom = Math.min(bounds.bottom, window.innerHeight);
+    const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+    return {
+      bounds: {
+        height: `${bounds.height}px`, left: `${bounds.left}px`, top: `${bounds.top}px`, width: `${bounds.width}px`
+      },
+      horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      surface: {
+        height: snapshot.style.height, left: snapshot.style.left, top: snapshot.style.top, width: snapshot.style.width
+      },
+      visibilityRatio: bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0
+    };
+  });
+}
+
+async function expectOneInertSnapshot(page, { minimumVisibility = 0 } = {}) {
+  const snapshot = page.locator("[data-cinematic-route-snapshot]");
+  await expect(snapshot).toHaveCount(1);
+  await expect(snapshot).toBeVisible();
+  await expect(snapshot).toHaveAttribute("aria-hidden", "true");
+  await expect(snapshot.locator("[id], a, button, input, select, textarea, summary")).toHaveCount(0);
+  const evidence = await snapshotViewportEvidence(page);
+  expect(evidence.visibilityRatio).toBeGreaterThanOrEqual(minimumVisibility);
+  expect(evidence.horizontalOverflow).toBe(false);
+  return { evidence, snapshot };
+}
+
+async function completeAtOneDestination(page, snapshot, destination) {
+  const destinations = [];
+  page.on("framenavigated", (frame) => {
+    if (frame === page.mainFrame()) destinations.push(frame.url());
+  });
+  await snapshot.dispatchEvent("animationend");
+  await expect(page).toHaveURL(destination);
+  expect(destinations.filter((href) => href === destination)).toEqual([destination]);
+  await expect(page.locator("[data-cinematic-route-snapshot]")).toHaveCount(0);
 }
 
 test("an opted-in primary navigation creates one inert source snapshot and assigns location once", async ({ page }) => {
@@ -100,6 +153,138 @@ test("an opted-in primary navigation creates one inert source snapshot and assig
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
   await snapshot.dispatchEvent("animationend");
   await expect(page).toHaveURL(/\/smart-home\/$/);
+});
+
+test("real solutions and smart-home preset-related links keep one inert handoff through its destination", async ({ page }) => {
+  await page.goto("/solutions/");
+  await expect(page.locator('[data-cinematic-solutions-root][data-cinematic-solutions-enhanced="true"]')).toBeVisible();
+  const solutionsSource = page.locator('[data-cinematic-route-source="cinematic-solutions-media"]');
+  await expect(solutionsSource).toHaveCount(1);
+  await solutionsSource.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-cinematic-route-source="cinematic-solutions-media"] img')]
+    .some((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0));
+  const solutionLink = page.locator('[data-cinematic-solutions-panel]:not([hidden]) [data-cinematic-solutions-related] a[data-cinematic-route]').first();
+  await solutionLink.scrollIntoViewIfNeeded();
+  await expect(solutionLink).toBeVisible();
+  const solutionDestination = await solutionLink.evaluate((anchor) => anchor.href);
+  await holdSnapshot(page);
+  await solutionLink.click();
+  const solutionHandoff = await expectOneInertSnapshot(page, { minimumVisibility: 0.01 });
+  await completeAtOneDestination(page, solutionHandoff.snapshot, solutionDestination);
+
+  await page.goto("/smart-home/");
+  await expect(page.locator('[data-smart-home-simulator][data-enhanced="true"]')).toBeVisible();
+  const presetLink = page.locator('[data-preset-panel]:not([hidden]) .smart-home__preset-related a[data-cinematic-route]').first();
+  await presetLink.scrollIntoViewIfNeeded();
+  await expect(presetLink).toBeVisible();
+  const presetDestination = await presetLink.evaluate((anchor) => anchor.href);
+  await holdSnapshot(page);
+  await presetLink.click();
+  const presetHandoff = await expectOneInertSnapshot(page, { minimumVisibility: 0.01 });
+  await completeAtOneDestination(page, presetHandoff.snapshot, presetDestination);
+});
+
+test("an opted-in anchor with an unloaded selected image stays native without a snapshot", async ({ page }) => {
+  await page.goto("/");
+  const result = await page.evaluate(() => {
+    const source = document.querySelector('[data-cinematic-route-source="cinematic-stage-home"]');
+    const anchor = document.querySelector('.home-hero__actions a[data-cinematic-route][href="/smart-home/"]');
+    const images = source ? [...source.querySelectorAll("img")].filter((image) => {
+      const bounds = image.getBoundingClientRect();
+      return bounds.width > 0 && bounds.height > 0;
+    }) : [];
+    const initiallyUsable = images.length > 0 && images.every((image) => image.complete && image.naturalWidth > 0 && image.naturalHeight > 0);
+    images.forEach((image) => {
+      Object.defineProperties(image, {
+        complete: { configurable: true, value: false },
+        naturalHeight: { configurable: true, value: 0 },
+        naturalWidth: { configurable: true, value: 0 }
+      });
+    });
+    const event = new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 });
+    anchor?.dispatchEvent(event);
+    return {
+      initiallyUsable,
+      prevented: event.defaultPrevented,
+      snapshotCount: document.querySelectorAll("[data-cinematic-route-snapshot]").length
+    };
+  });
+
+  expect(result.initiallyUsable).toBe(true);
+  expect(result.prevented).toBe(false);
+  expect(result.snapshotCount).toBe(0);
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("service related handoffs replace an offscreen hero with a visible bounded anchor surface", async ({ page }) => {
+  activeViewport(page);
+  await page.goto("/services/electrical-installation/");
+  const link = page.locator(".service-detail__related-link").first();
+  await link.scrollIntoViewIfNeeded();
+  await expect(link).toBeVisible();
+  const before = await page.evaluate(() => {
+    const ratio = (bounds) => {
+      const left = Math.max(bounds.left, 0);
+      const top = Math.max(bounds.top, 0);
+      const right = Math.min(bounds.right, window.innerWidth);
+      const bottom = Math.min(bounds.bottom, window.innerHeight);
+      const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+      return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+    };
+    const source = document.querySelector('[data-cinematic-route-source="service-detail-hero"]')?.getBoundingClientRect();
+    const anchor = document.querySelector(".service-detail__related-link")?.getBoundingClientRect();
+    return {
+      anchor: anchor && { height: `${anchor.height}px`, left: `${anchor.left}px`, top: `${anchor.top}px`, width: `${anchor.width}px` },
+      sourceVisibility: source && ratio(source)
+    };
+  });
+  expect(before.sourceVisibility).toBe(0);
+  const destination = await link.evaluate((anchor) => anchor.href);
+  await holdSnapshot(page);
+  await link.click();
+  const handoff = await expectOneInertSnapshot(page, { minimumVisibility: meaningfulSnapshotVisibility });
+  await expect(handoff.snapshot).toHaveClass(/cinematic-route-snapshot--geometry/);
+  await expect(handoff.snapshot.locator("img")).toHaveCount(0);
+  expectGeometryToMatch(handoff.evidence.surface, before.anchor);
+  await completeAtOneDestination(page, handoff.snapshot, destination);
+});
+
+test("home hero handoffs retain a meaningful visible surface at every required width", async ({ page }) => {
+  const viewport = activeViewport(page);
+  await page.goto("/");
+  const link = page.locator('.home-hero__actions a[data-cinematic-route][href="/smart-home/"]');
+  await link.scrollIntoViewIfNeeded();
+  await expect(link).toBeVisible();
+  const before = await page.evaluate(() => {
+    const ratio = (bounds) => {
+      const left = Math.max(bounds.left, 0);
+      const top = Math.max(bounds.top, 0);
+      const right = Math.min(bounds.right, window.innerWidth);
+      const bottom = Math.min(bounds.bottom, window.innerHeight);
+      const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+      return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+    };
+    const source = document.querySelector('[data-cinematic-route-source="cinematic-stage-home"]')?.getBoundingClientRect();
+    const anchor = document.querySelector('.home-hero__actions a[data-cinematic-route][href="/smart-home/"]')?.getBoundingClientRect();
+    return {
+      anchor: anchor && { height: `${anchor.height}px`, left: `${anchor.left}px`, top: `${anchor.top}px`, width: `${anchor.width}px` },
+      sourceVisibility: source && ratio(source)
+    };
+  });
+  const requiresAnchorFallback = [375, 1024].includes(viewport.width);
+  if (requiresAnchorFallback) expect(before.sourceVisibility).toBeLessThan(meaningfulSnapshotVisibility);
+  else expect(before.sourceVisibility).toBeGreaterThanOrEqual(meaningfulSnapshotVisibility);
+
+  const destination = await link.evaluate((anchor) => anchor.href);
+  await holdSnapshot(page);
+  await link.click();
+  const handoff = await expectOneInertSnapshot(page, { minimumVisibility: meaningfulSnapshotVisibility });
+  if (requiresAnchorFallback) {
+    await expect(handoff.snapshot).toHaveClass(/cinematic-route-snapshot--geometry/);
+    await expect(handoff.snapshot.locator("img")).toHaveCount(0);
+    expectGeometryToMatch(handoff.evidence.surface, before.anchor);
+  }
+  await completeAtOneDestination(page, handoff.snapshot, destination);
 });
 
 test("each activated anchor gives the bounded snapshot a causal direction on desktop and mobile", async ({ page }) => {
