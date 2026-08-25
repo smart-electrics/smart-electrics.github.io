@@ -228,6 +228,7 @@ test("segment and toggle controls have native keyboard actions and update their 
   await page.goto(route);
   const root = await simulator(page);
   await root.locator('[data-phone-system="climate"]').click();
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   const cooling = root.locator('[data-phone-segment][data-control-system="climate"][data-control-id="comfort"][data-control-value="cool"]');
   await cooling.focus();
   await cooling.press("Enter");
@@ -237,6 +238,7 @@ test("segment and toggle controls have native keyboard actions and update their 
   await expect(root.locator("[data-topology-result]")).toContainText("Стан комфорту: Прохолодніше");
 
   await root.locator('[data-phone-system="panel"]').click();
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   const toggle = root.locator('[data-phone-toggle][data-control-system="panel"]');
   await toggle.focus();
   await toggle.press("Space");
@@ -395,6 +397,7 @@ test("keeps the experience elastic from phone to 1980px and removes all motion f
 
   const wideRoot = await simulator(page);
   await wideRoot.locator('[data-phone-system="audio"]').click();
+  await expect(wideRoot).toHaveAttribute("data-motion-phase", "idle");
   const audioControlsContained = await wideRoot.evaluate((simulatorRoot) => {
     const phone = simulatorRoot.querySelector("[data-smart-home-phone]").getBoundingClientRect();
     return [...simulatorRoot.querySelectorAll('[data-phone-control-panel="audio"] [data-phone-control]')].every((control) => {

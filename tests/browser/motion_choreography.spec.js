@@ -36,6 +36,20 @@ const compositions = [
     panel: "[data-cinematic-solutions-panel]",
     connector: "svg[data-cinematic-solutions-relationship-connector]",
     source: '[data-cinematic-solutions-solution-control][aria-pressed="true"]'
+  },
+  {
+    route: "/smart-home/",
+    root: "[data-smart-home-simulator]",
+    stage: "[data-smart-home-experience]",
+    trigger: "button[data-phone-system]",
+    phase: "data-motion-phase",
+    snapshot: "[data-outgoing-snapshot]",
+    scene: ".smart-home__scene",
+    panel: "[data-preset-panel]",
+    connector: "[data-topology-connector]",
+    topology: "[data-scene-topology]",
+    sceneLayer: "[data-motion-layer]",
+    smartHome: true
   }
 ];
 
@@ -87,64 +101,100 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
       const root = await ready(page, composition);
       const trigger = composition.route === "/"
         ? root.locator("[data-cinematic-direction-control]").first()
-        : root.locator(composition.trigger);
+        : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
+      const previousSmartSystem = composition.smartHome ? await root.getAttribute("data-system") : null;
+      const nextSmartSystem = composition.smartHome ? await trigger.getAttribute("data-phone-system") : null;
       await recordPhaseTimeline(root, composition.phase);
       await trigger.click();
       await expect(root).toHaveAttribute(composition.phase, "disassemble");
       await expect(root.locator(composition.snapshot)).toBeVisible();
-      await expect(root.locator(composition.connector)).toBeHidden();
+      if (composition.smartHome) {
+        await expect(root).toHaveAttribute("data-system", previousSmartSystem);
+        await expect(root.locator(`${composition.panel}:not([hidden])`)).toHaveAttribute("inert", "");
+        expect(await root.locator(composition.connector).evaluateAll((connectors) =>
+          connectors.map((connector) => getComputedStyle(connector).opacity)
+        )).toEqual(["0", "0"]);
+      } else {
+        await expect(root.locator(composition.connector)).toBeHidden();
+      }
       await expect(root).toHaveAttribute(composition.phase, "hold");
       await expect(root.locator(composition.snapshot)).toBeHidden();
       await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
       await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(0);
+      if (composition.smartHome) {
+        await expect(root).toHaveAttribute("data-system", nextSmartSystem);
+        await expect(root.locator(`${composition.panel}:not([hidden])`)).toHaveAttribute("inert", "");
+        expect(await root.locator(composition.topology).evaluate((topology) => getComputedStyle(topology).visibility)).toBe("hidden");
+      }
       await expect(root).toHaveAttribute(composition.phase, "reassemble");
-      const connector = root.locator(composition.connector);
-      await expect(connector).toBeVisible();
-      await expect(connector).toHaveAttribute("aria-hidden", "true");
-      await expect(connector.locator("path[pathLength='1']")).toHaveCount(1);
+      if (composition.smartHome) {
+        await expect(root.locator(`${composition.panel}:not([hidden])`)).not.toHaveAttribute("inert", "");
+        await expect(root.locator(composition.topology)).toBeVisible();
+        await expect(root.locator(composition.connector)).toHaveCount(2);
+        expect(await root.locator(composition.connector).evaluateAll((connectors) =>
+          connectors.every((connector) => connector.getAnimations().some((animation) => animation.animationName === "smart-home-topology-draw"))
+        )).toBe(true);
+        expect(await root.locator(`${composition.scene} ${composition.sceneLayer}:not([hidden])`).evaluateAll((layers) =>
+          layers.length === 3 && layers.every((layer) => layer.getAnimations().length > 0)
+        )).toBe(true);
+      } else {
+        const connector = root.locator(composition.connector);
+        await expect(connector).toBeVisible();
+        await expect(connector).toHaveAttribute("aria-hidden", "true");
+        await expect(connector.locator("path[pathLength='1']")).toHaveCount(1);
+      }
       expect(await root.locator(`${composition.panel}:not([hidden]), ${composition.panel}:not([hidden]) *`).evaluateAll((elements) =>
         elements.flatMap((element) => element.getAnimations()).some((animation) =>
           animation.effect?.getKeyframes().some((keyframe) => keyframe.opacity !== undefined || keyframe.filter !== undefined)
         )
       )).toBe(false);
-      const connectorGeometry = await root.evaluate((element, selectors) => {
-        const svg = element.querySelector(selectors.connector);
-        const path = svg?.querySelector("path[pathLength='1']");
-        const source = svg?.querySelector("[data-cinematic-relationship-connector-source]");
-        const target = svg?.querySelector("[data-cinematic-relationship-connector-target]");
-        const scene = element.querySelector(`${selectors.scene}:not([hidden])`);
-        const selectedControl = element.querySelector(selectors.source);
-        const headings = [...element.querySelectorAll(`${selectors.panel}:not([hidden]) h2, ${selectors.panel}:not([hidden]) h3`)];
-        if (!svg || !path || !source || !target || !scene || !selectedControl) return null;
-        const svgBounds = svg.getBoundingClientRect();
-        const viewBox = svg.viewBox.baseVal;
-        const sceneBounds = scene.getBoundingClientRect();
-        const sourceBounds = selectedControl.getBoundingClientRect();
-        const toScreen = (point) => ({
-          x: svgBounds.left + point.x * svgBounds.width / viewBox.width,
-          y: svgBounds.top + point.y * svgBounds.height / viewBox.height
-        });
-        const endpoint = toScreen({ x: Number(target.getAttribute("cx")), y: Number(target.getAttribute("cy")) });
-        const sourceEndpoint = toScreen({ x: Number(source.getAttribute("cx")), y: Number(source.getAttribute("cy")) });
-        const intersectsHeading = headings.some((heading) => {
-          const bounds = heading.getBoundingClientRect();
-          const length = path.getTotalLength();
-          for (let distance = 0; distance <= length; distance += Math.max(1, length / 40)) {
-            const point = toScreen(path.getPointAtLength(distance));
-            if (point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom) return true;
-          }
-          return false;
-        });
-        const within = (point, bounds) => point.x >= bounds.left - 0.5 && point.x <= bounds.right + 0.5 && point.y >= bounds.top - 0.5 && point.y <= bounds.bottom + 0.5;
-        return {
-          endpointInScene: within(endpoint, sceneBounds),
-          sourceEndpointOnSelectedControl: within(sourceEndpoint, sourceBounds),
-          intersectsHeading
-        };
-      }, composition);
-      expect(connectorGeometry, `${composition.route} at ${width}px`).toEqual({ endpointInScene: true, sourceEndpointOnSelectedControl: true, intersectsHeading: false });
+      if (!composition.smartHome) {
+        const connectorGeometry = await root.evaluate((element, selectors) => {
+          const svg = element.querySelector(selectors.connector);
+          const path = svg?.querySelector("path[pathLength='1']");
+          const source = svg?.querySelector("[data-cinematic-relationship-connector-source]");
+          const target = svg?.querySelector("[data-cinematic-relationship-connector-target]");
+          const scene = element.querySelector(`${selectors.scene}:not([hidden])`);
+          const selectedControl = element.querySelector(selectors.source);
+          const headings = [...element.querySelectorAll(`${selectors.panel}:not([hidden]) h2, ${selectors.panel}:not([hidden]) h3`)];
+          if (!svg || !path || !source || !target || !scene || !selectedControl) return null;
+          const svgBounds = svg.getBoundingClientRect();
+          const viewBox = svg.viewBox.baseVal;
+          const sceneBounds = scene.getBoundingClientRect();
+          const sourceBounds = selectedControl.getBoundingClientRect();
+          const toScreen = (point) => ({
+            x: svgBounds.left + point.x * svgBounds.width / viewBox.width,
+            y: svgBounds.top + point.y * svgBounds.height / viewBox.height
+          });
+          const endpoint = toScreen({ x: Number(target.getAttribute("cx")), y: Number(target.getAttribute("cy")) });
+          const sourceEndpoint = toScreen({ x: Number(source.getAttribute("cx")), y: Number(source.getAttribute("cy")) });
+          const intersectsHeading = headings.some((heading) => {
+            const bounds = heading.getBoundingClientRect();
+            const length = path.getTotalLength();
+            for (let distance = 0; distance <= length; distance += Math.max(1, length / 40)) {
+              const point = toScreen(path.getPointAtLength(distance));
+              if (point.x >= bounds.left && point.x <= bounds.right && point.y >= bounds.top && point.y <= bounds.bottom) return true;
+            }
+            return false;
+          });
+          const within = (point, bounds) => point.x >= bounds.left - 0.5 && point.x <= bounds.right + 0.5 && point.y >= bounds.top - 0.5 && point.y <= bounds.bottom + 0.5;
+          return {
+            endpointInScene: within(endpoint, sceneBounds),
+            sourceEndpointOnSelectedControl: within(sourceEndpoint, sourceBounds),
+            intersectsHeading
+          };
+        }, composition);
+        expect(connectorGeometry, `${composition.route} at ${width}px`).toEqual({ endpointInScene: true, sourceEndpointOnSelectedControl: true, intersectsHeading: false });
+      }
       await expect(root).toHaveAttribute(composition.phase, "idle");
       await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
+      if (composition.smartHome) {
+        const selectedSystem = await root.getAttribute("data-system");
+        await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", selectedSystem);
+        expect(await root.locator(composition.connector).evaluateAll((connectors) =>
+          connectors.map((connector) => getComputedStyle(connector).opacity)
+        )).toEqual(["1", "1"]);
+      }
       await expectDeliberatePhaseDurations(root, `${composition.route} at ${width}px`);
     }
   }
@@ -155,14 +205,14 @@ test("snapshot cancellation clears only the visual artifact and never aborts the
     const root = await ready(page, composition);
     const trigger = composition.route === "/"
       ? root.locator("[data-cinematic-direction-control]").first()
-      : root.locator(composition.trigger);
+      : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
     await trigger.click();
     const snapshot = root.locator(composition.snapshot);
     await expect(root).toHaveAttribute(composition.phase, "disassemble");
     await snapshot.dispatchEvent("animationcancel");
     await expect(snapshot).toBeHidden();
     await expect(root).toHaveAttribute(composition.phase, "hold");
-    await expect(root.locator(composition.connector)).toBeHidden();
+    if (!composition.smartHome) await expect(root.locator(composition.connector)).toBeHidden();
     await expect(root).toHaveAttribute(composition.phase, "reassemble");
     await expect(root).toHaveAttribute(composition.phase, "idle");
   }
@@ -192,6 +242,19 @@ test("rapid interactions restart each composition from the newest selected state
       await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-service-studio-relation-id", newestRelation);
       await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-service-studio-panel", "reassembled");
       await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-service-studio-relation-id", newestRelation);
+    } else if (composition.smartHome) {
+      const systems = root.locator("button[data-phone-system]");
+      await systems.nth(1).click();
+      const newestSystem = await systems.nth(2).getAttribute("data-phone-system");
+      await systems.nth(2).click();
+      await expect(root).toHaveAttribute("data-system", newestSystem);
+      const presets = root.locator("input[data-preset-radio]");
+      await presets.nth(1).click();
+      const newestPreset = await presets.nth(2).getAttribute("value");
+      await presets.nth(2).click();
+      await expect(root).toHaveAttribute("data-preset", newestPreset);
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+      await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", newestSystem);
     } else {
       const newestSolution = await root.getAttribute("data-cinematic-solutions-solution-id");
       await root.locator('[data-cinematic-solutions-action="select-focus"]').click();
@@ -215,7 +278,7 @@ test("reduced motion bypasses the choreography without hiding the selected state
     const root = await ready(page, composition);
     const trigger = composition.route === "/"
       ? root.locator("[data-cinematic-direction-control]").first()
-      : root.locator(composition.trigger);
+      : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
     await trigger.click();
     await expect(root).toHaveAttribute(composition.phase, "idle");
     await expect(root.locator(composition.snapshot)).toBeHidden();

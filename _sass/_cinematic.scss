@@ -600,7 +600,7 @@
 }
 
 .residence-spine__outgoing-snapshot[data-cinematic-snapshot-active="true"] {
-  animation: residence-spine-outgoing 760ms cubic-bezier(.28, .74, .22, 1) both;
+  animation: residence-spine-outgoing 320ms cubic-bezier(.28, .74, .22, 1) both;
 }
 
 .residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__scene:not([hidden]) {

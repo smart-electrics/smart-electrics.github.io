@@ -1,7 +1,7 @@
 const DEFAULT_DURATIONS = Object.freeze({
   disassemble: 360,
   hold: 640,
-  reassemble: 420
+  reassemble: 840
 });
 
 function validDuration(value) {

@@ -1,3 +1,4 @@
+import { createCinematicMotion } from "./cinematic-motion.js";
 import { createSmartHomeMachine } from "./smart-home-simulator-state.js";
 
 const isNonEmpty = (value) => typeof value === "string" && value.trim().length > 0;
@@ -172,14 +173,18 @@ function enhanceSimulator(root) {
     return;
   }
   let state = machine.initialState;
-  let motionPhase = null;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let motionPhase = "idle";
   const activePanel = () => markup.panelById.get(state.presetId);
   const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
 
   const removeSnapshots = () => root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => snapshot.dispatchEvent(new Event("smart-home:snapshot-remove")));
+  const clearTransition = () => {
+    removeSnapshots();
+    delete root.dataset.transition;
+  };
   const createOutgoingSnapshot = () => {
-    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (preference.matches) return;
+    if (reducedMotion.matches) return;
     const image = markup.scene.querySelector("picture[data-scene-picture]:not([hidden]) img");
     if (!image) return;
     removeSnapshots();
@@ -192,7 +197,7 @@ function enhanceSimulator(root) {
       snapshot.removeEventListener("animationend", onAnimationEnd);
       snapshot.removeEventListener("animationcancel", remove);
       snapshot.removeEventListener("smart-home:snapshot-remove", remove);
-      preference.removeEventListener("change", onPreference);
+      reducedMotion.removeEventListener("change", onPreference);
       snapshot.remove();
     };
     const onPreference = (event) => { if (event.matches) remove(); };
@@ -200,8 +205,13 @@ function enhanceSimulator(root) {
     snapshot.addEventListener("animationend", onAnimationEnd);
     snapshot.addEventListener("animationcancel", remove);
     snapshot.addEventListener("smart-home:snapshot-remove", remove);
-    preference.addEventListener("change", onPreference);
+    reducedMotion.addEventListener("change", onPreference);
+    root.dataset.transition = "true";
     markup.scene.append(snapshot);
+  };
+
+  const synchronizePanelInertness = (inert) => {
+    markup.panels.forEach((panel) => { panel.inert = inert; });
   };
 
   const controlValueLabel = (systemId, controlId, value) => {
@@ -240,14 +250,13 @@ function enhanceSimulator(root) {
     const controls = markup.controlsBySystem[state.systemId];
     const changedControl = controls.find((control) => control.id === changedControlId) || controls[0];
     const changedValue = state.valuesBySystem[state.systemId][changedControl.id];
-    if (initial) motionPhase = "initial";
-    else if (cinematic) motionPhase = motionPhase === "a" ? "b" : "a";
+    if (initial) motionPhase = "idle";
     root.dataset.enhanced = "true";
     root.dataset.preset = state.presetId;
     root.dataset.system = state.systemId;
     root.dataset.visual = button.dataset.systemVisual;
     root.dataset.manual = String(state.manual);
-    if (motionPhase) root.dataset.motionPhase = motionPhase;
+    root.dataset.motionPhase = motionPhase;
     markup.phone.hidden = false;
     markup.staticExplainer.hidden = true;
     markup.radios.forEach((radio) => { radio.checked = radio.value === state.presetId; });
@@ -291,19 +300,42 @@ function enhanceSimulator(root) {
 
   synchronize({ initial: true });
 
+  let pendingCinematicSync = null;
+  const applyPendingCinematicSync = () => {
+    if (!pendingCinematicSync) return;
+    const options = pendingCinematicSync;
+    pendingCinematicSync = null;
+    synchronize(options);
+  };
+  const motion = createCinematicMotion({
+    onPhase: (phase) => {
+      motionPhase = phase;
+      root.dataset.motionPhase = phase;
+      synchronizePanelInertness(phase === "disassemble" || phase === "hold");
+      if (phase === "hold" || phase === "idle") {
+        clearTransition();
+        applyPendingCinematicSync();
+      }
+    }
+  });
+
+  const beginCinematicTransition = (next) => {
+    createOutgoingSnapshot();
+    state = next;
+    pendingCinematicSync = { announce: true, cinematic: true };
+    motion.start({ reducedMotion: reducedMotion.matches });
+    if (reducedMotion.matches) applyPendingCinematicSync();
+  };
+
   const selectPreset = (presetId) => {
     const next = machine.transition(state, { type: "select-preset", presetId });
     if (next === state) return;
-    createOutgoingSnapshot();
-    state = next;
-    synchronize({ announce: true, cinematic: true });
+    beginCinematicTransition(next);
   };
   const selectSystem = (systemId) => {
     const next = machine.transition(state, { type: "select-system", systemId });
     if (next === state) return;
-    createOutgoingSnapshot();
-    state = next;
-    synchronize({ announce: true, cinematic: true });
+    beginCinematicTransition(next);
   };
   const setControl = (systemId, controlId, value) => {
     const next = machine.transition(state, { type: "set-control", systemId, controlId, value });
@@ -332,6 +364,13 @@ function enhanceSimulator(root) {
     if (target.matches("[data-phone-system]")) selectSystem(target.dataset.phoneSystem);
     if (target.matches("[data-phone-segment]")) setControl(target.dataset.controlSystem, target.dataset.controlId, target.dataset.controlValue);
     if (target.matches("[data-phone-toggle]")) setControl(target.dataset.controlSystem, target.dataset.controlId, target.getAttribute("aria-pressed") !== "true");
+  });
+
+  reducedMotion.addEventListener("change", (event) => {
+    if (!event.matches) return;
+    clearTransition();
+    motion.cancel();
+    synchronizePanelInertness(false);
   });
 }
 

@@ -19,7 +19,7 @@
 | Напрям | Доказ | Причина відмови |
 | --- | --- | --- |
 | Маршрути | 24 public routes, включно з /404.html | Невдалий HTTP-відповідь, відсутній main, dead internal link або інший lang |
-| Розміри | 375, 414, 540, 768, 900, 1024, 1280, 1440, 1536, 1720, 1980 px | documentElement.scrollWidth більший за clientWidth, обрізана недосяжна дія або зламаний layout |
+| Розміри | 375×812, 414×896, 540×960, 768×1024, 900×900, 1024×768, 1280×900, 1440×1000, 1536×1000, 1720×1100, 1980×1200 px | documentElement.scrollWidth більший за clientWidth, обрізана недосяжна дія або зламаний layout; PNG має інші dimensions |
 | Семантика | JS, no-JS і заблоковані adapters для всіх 20 dynamic routes | Звичайне посилання не працює, fallback прихований або enhancement потрібен для читання |
 | Керування | pointer, Enter, touch і focus-visible | Disabled або inert control, target менший за 44 px, стан не змінює сцену, pixels, source або topology |
 | Кінематографія | assembled, focus і reassembled для кожної stateful composition | Більше однієї видимої сцени або панелі, кадр занадто малий відносно композиції, немає зрозумілого зв'язку між control і scene |
@@ -40,9 +40,12 @@ systems і сім presets, а не лише ARIA-стан.
 tests/browser/final_acceptance.spec.js запускається один раз у project
 final-acceptance. Він записує детерміновані JSON-підсумки, 28 representative
 screenshots усіх кінематографічних composition families і чотири smart-home
-screenshots для 375, 768, 1440 і 1980 px у artifacts/final-evidence/. Кожен PNG
-декодується, звіряється з точним viewport і повторюється у тому самому settled
-стані; різний SHA-256 між двома capture є помилкою.
+component-frame screenshots для 375, 768, 1440 і 1980 px у
+artifacts/final-evidence/. Smart-home frame перед capture навмисно ставиться на
+початок simulator route section і перевіряється за window scroll, simulator top
+та внутрішнім phone scroll; interaction scroll не визначає кадр. Кожен PNG
+декодується, звіряється з точним viewport (зокрема 1980×1200) і повторюється у
+тому самому settled стані; різний SHA-256 між двома capture є помилкою.
 
 No-JavaScript fallback перевіряється на всіх одинадцяти acceptance widths.
 Окремий adapter-outage прогін блокує site JavaScript і повторює всі 20 dynamic

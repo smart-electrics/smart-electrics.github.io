@@ -33,6 +33,19 @@ const publicRoutes = Object.freeze([
   "/404.html"
 ]);
 const acceptanceWidths = Object.freeze([375, 414, 540, 768, 900, 1024, 1280, 1440, 1536, 1720, 1980]);
+const acceptanceViewportDimensions = Object.freeze([
+  { width: 375, height: 812 },
+  { width: 414, height: 896 },
+  { width: 540, height: 960 },
+  { width: 768, height: 1024 },
+  { width: 900, height: 900 },
+  { width: 1024, height: 768 },
+  { width: 1280, height: 900 },
+  { width: 1440, height: 1000 },
+  { width: 1536, height: 1000 },
+  { width: 1720, height: 1100 },
+  { width: 1980, height: 1200 }
+]);
 const sceneFamilies = Object.freeze([
   "panel",
   "stairs",
@@ -232,9 +245,28 @@ test.beforeAll(() => {
   writeEvidence("manifest.json", {
     publicRoutes,
     acceptanceWidths,
+    acceptanceViewportDimensions,
     sceneFamilies,
     project: "final-acceptance"
   });
+});
+
+test("final acceptance keeps the canonical viewport evidence contract", () => {
+  expect(acceptanceViewportDimensions).toEqual([
+    { width: 375, height: 812 },
+    { width: 414, height: 896 },
+    { width: 540, height: 960 },
+    { width: 768, height: 1024 },
+    { width: 900, height: 900 },
+    { width: 1024, height: 768 },
+    { width: 1280, height: 900 },
+    { width: 1440, height: 1000 },
+    { width: 1536, height: 1000 },
+    { width: 1720, height: 1100 },
+    { width: 1980, height: 1200 }
+  ]);
+  expect(acceptanceWidths).toEqual(acceptanceViewportDimensions.map(({ width }) => width));
+  expect(acceptanceWidths.map((width) => viewportFor(width))).toEqual(acceptanceViewportDimensions);
 });
 
 function writeEvidence(name, value) {
@@ -242,7 +274,9 @@ function writeEvidence(name, value) {
 }
 
 function viewportFor(width) {
-  return { width, height: width < 768 ? 900 : 1100 };
+  const viewport = acceptanceViewportDimensions.find((candidate) => candidate.width === width);
+  if (!viewport) throw new Error("No final-acceptance viewport contract for " + width + "px");
+  return { ...viewport };
 }
 
 async function visit(page, route) {
@@ -789,6 +823,8 @@ async function renderedPixelSignature(surface) {
 }
 
 async function captureDeterministicScreenshot(page, file, width, route, state) {
+  const smartHome = page.locator('[data-smart-home-simulator][data-enhanced="true"]');
+  if (await smartHome.count()) await waitForIdle(smartHome, "data-motion-phase");
   await expect(page.locator("[data-outgoing-snapshot]"), file + " must settle its outgoing smart-home frame before capture").toHaveCount(0);
   await page.locator("main img:visible").evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
   await page.evaluate(() => document.fonts.ready);
@@ -808,6 +844,44 @@ async function captureDeterministicScreenshot(page, file, width, route, state) {
   const repeat = inspect(second, file + " repeated capture");
   expect(repeat.sha256, file + " must be byte-deterministic within the same settled browser run").toBe(primary.sha256);
   return { file, route, state, width, ...primary };
+}
+
+async function establishSmartHomeEvidenceFrame(page, simulator, width, state) {
+  await simulator.evaluate((element) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    element.scrollIntoView({ behavior: "instant", block: "start", inline: "nearest" });
+    const phone = element.querySelector("[data-smart-home-phone]");
+    if (phone) phone.scrollTop = 0;
+  });
+  await expect.poll(() => page.evaluate(() => {
+    const simulator = document.querySelector("[data-smart-home-simulator]");
+    const bounds = simulator?.getBoundingClientRect();
+    const phone = simulator?.querySelector("[data-smart-home-phone]");
+    return {
+      scrollY: window.scrollY,
+      simulatorTop: bounds?.top ?? null,
+      phoneScrollTop: phone?.scrollTop ?? null
+    };
+  })).toEqual({ scrollY: expect.any(Number), simulatorTop: expect.any(Number), phoneScrollTop: 0 });
+
+  const frame = await page.evaluate(() => {
+    const simulator = document.querySelector("[data-smart-home-simulator]");
+    const bounds = simulator.getBoundingClientRect();
+    const phone = simulator.querySelector("[data-smart-home-phone]");
+    return {
+      name: "smart-home-simulator-top",
+      scrollY: window.scrollY,
+      simulatorTop: bounds.top,
+      simulatorBottom: bounds.bottom,
+      phoneScrollTop: phone.scrollTop
+    };
+  });
+  expect(frame.scrollY, "smart-home " + state + " at " + width + "px must expose its explicit component frame").toBeGreaterThan(0);
+  expect(frame.simulatorTop, "smart-home " + state + " at " + width + "px must align the simulator frame to the viewport top").toBeGreaterThanOrEqual(-2);
+  expect(frame.simulatorTop, "smart-home " + state + " at " + width + "px must not drift below the viewport top").toBeLessThanOrEqual(2);
+  expect(frame.simulatorBottom, "smart-home " + state + " at " + width + "px must leave the component frame visible").toBeGreaterThan(0);
+  expect(frame.phoneScrollTop, "smart-home " + state + " at " + width + "px must capture the phone from its stable initial scroll position").toBe(0);
+  return frame;
 }
 
 async function smartHomeTopologySignature(simulator) {
@@ -1300,20 +1374,32 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
       const systemId = await system.getAttribute("data-phone-system");
       await system.click();
       await expect(simulator).toHaveAttribute("data-system", systemId);
+      await waitForIdle(simulator, "data-motion-phase");
       await expectSmartHomeScenePriority(page, simulator, width, "system");
 
       const preset = simulator.locator("input[data-preset-radio]").nth(2);
       const presetId = await preset.getAttribute("value");
       await preset.click();
       await expect(simulator).toHaveAttribute("data-preset", presetId);
+      await waitForIdle(simulator, "data-motion-phase");
       await expectSmartHomeScenePriority(page, simulator, width, "preset");
 
-      const screenshot = "smart-home-" + width + "-system-preset.png";
-      screenshots.push(await captureDeterministicScreenshot(page, screenshot, width, "/smart-home/", "system-preset"));
+      const frame = await establishSmartHomeEvidenceFrame(page, simulator, width, "system-preset");
+      const screenshot = "smart-home-component-" + width + "-system-preset.png";
+      screenshots.push({
+        ...(await captureDeterministicScreenshot(page, screenshot, width, "/smart-home/", "system-preset")),
+        frame: frame.name,
+        frameScrollY: frame.scrollY,
+        frameTop: frame.simulatorTop
+      });
     }
 
-    expect(screenshots.map(({ file }) => file)).toEqual([375, 768, 1440, 1980].map((width) => "smart-home-" + width + "-system-preset.png"));
-    writeEvidence("smart-home-geometry.json", { widths: [375, 768, 1440, 1980], screenshots });
+    expect(screenshots.map(({ file }) => file)).toEqual([375, 768, 1440, 1980].map((width) => "smart-home-component-" + width + "-system-preset.png"));
+    expect(screenshots.every(({ dimensions, frame, frameTop }) =>
+      dimensions && frame === "smart-home-simulator-top" && frameTop >= -2 && frameTop <= 2
+    )).toBe(true);
+    expect(screenshots.find(({ width }) => width === 1980)?.dimensions).toEqual({ width: 1980, height: 1200 });
+    writeEvidence("smart-home-geometry.json", { widths: [375, 768, 1440, 1980], frame: "smart-home-simulator-top", screenshots });
   });
 });
 
@@ -1487,6 +1573,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     const systemId = await systemControl.getAttribute("data-phone-system");
     await systemControl.tap();
     await expect(simulator).toHaveAttribute("data-system", systemId);
+    await waitForIdle(simulator, "data-motion-phase");
     const afterSystemMedia = await mediaSignature(smartImage());
     expect(afterSystemMedia).not.toEqual(beforeSystemMedia);
     expect(await renderedPixelSignature(smartScene)).not.toBe(beforeSystemPixels);
@@ -1498,6 +1585,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     const presetId = await presetControl.getAttribute("value");
     await presetControl.tap();
     await expect(simulator).toHaveAttribute("data-preset", presetId);
+    await waitForIdle(simulator, "data-motion-phase");
     expect(await renderedPixelSignature(smartScene)).not.toBe(beforePresetPixels);
     const afterPresetTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(afterSystemTopology, afterPresetTopology, "touch smart-home preset");
@@ -1617,6 +1705,10 @@ test("settled visual evidence spans every cinematic composition family at four r
       }
     }
     expect(screenshots).toHaveLength(28);
+    expect(screenshots.every(({ width, dimensions }) => dimensions && dimensions.width === width && dimensions.height === viewportFor(width).height)).toBe(true);
+    expect(screenshots.filter(({ width }) => width === 1980).every(({ dimensions }) =>
+      dimensions?.width === 1980 && dimensions?.height === 1200
+    )).toBe(true);
     expect(new Set(screenshots.map(({ route }) => route))).toEqual(new Set([
       "/services/",
       "/services/electrical-design/",
