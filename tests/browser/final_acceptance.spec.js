@@ -74,6 +74,7 @@ const dynamicClaimRules = Object.freeze([
 ]);
 const truthfulNegativeDisclosure = /(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))/iu;
 const contrastingClauseSeparator = /\s*,?\s*(?:але|однак|проте|but)\s*/iu;
+const truthfulNegativeConjunction = /(?:\s*[,;:]\s*|\s+(?:і|й|та|and)\s+)/iu;
 const dynamicFallbacks = Object.freeze([
   { route: "/", root: "[data-cinematic-root]", fallback: "[data-cinematic-fallback]", stage: "[data-cinematic-stage]" },
   { route: "/services/electrical-design/", root: "[data-service-studio-root]", fallback: "[data-service-studio-fallback]", stage: "[data-service-studio-stage]" },
@@ -139,6 +140,15 @@ function addDiagnostics(page) {
   };
 }
 
+async function withInteractionDiagnostics(page, action) {
+  const assertDiagnostics = addDiagnostics(page);
+  try {
+    return await action();
+  } finally {
+    assertDiagnostics();
+  }
+}
+
 async function publicSurface(page, route, width) {
   await expect(page.locator('html[lang="uk"]')).toHaveCount(1);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/u);
@@ -164,13 +174,38 @@ async function publicSurface(page, route, width) {
           horizontallyVisible: bounds.left >= -1 && bounds.right <= window.innerWidth + 1
         };
       });
+    const links = [...document.querySelectorAll("a[href]")]
+      .filter(visible)
+      .map((link) => {
+        const bounds = link.getBoundingClientRect();
+        return {
+          href: link.getAttribute("href"),
+          name: link.getAttribute("aria-label") || link.textContent.trim(),
+          horizontallyVisible: bounds.left >= -1 && bounds.right <= window.innerWidth + 1
+        };
+      });
+    const stages = [
+      "[data-cinematic-stage]",
+      "[data-service-studio-stage]",
+      "[data-cinematic-solutions-stage]",
+      "[data-route-journey-stage]",
+      "[data-smart-home-experience]"
+    ].flatMap((selector) => [...document.querySelectorAll(selector)])
+      .filter(visible)
+      .map((stage) => {
+        const bounds = stage.getBoundingClientRect();
+        return { selector: stage.getAttribute("data-cinematic-stage") === "" ? "cinematic" : stage.className, height: bounds.height, width: bounds.width };
+      });
     const mainText = document.querySelector("main")?.innerText ?? "";
     return {
       anchors: [...document.querySelectorAll("a[href]")].map((anchor) => anchor.href),
       controls: controls.length,
+      minimumStageHeight: Math.min(480, window.innerHeight * 0.45),
+      stages,
       ordinalMarkers: mainText.match(/(?:^|\s)0[1-9](?=\s|$)/gmu) ?? [],
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       clipped: controls.filter(({ horizontallyVisible }) => !horizontallyVisible),
+      clippedLinks: links.filter(({ horizontallyVisible }) => !horizontallyVisible),
       undersized: controls.filter(({ width, height }) => width < 44 || height < 44)
     };
   });
@@ -178,7 +213,11 @@ async function publicSurface(page, route, width) {
   expect(evidence.overflow, route + " at " + width + "px must not overflow").toBe(0);
   expect(evidence.ordinalMarkers, route + " must not expose decorative ordinals").toEqual([]);
   expect(evidence.clipped, route + " at " + width + "px must keep every visible control inside the viewport").toEqual([]);
+  expect(evidence.clippedLinks, route + " at " + width + "px must keep every visible link inside the viewport").toEqual([]);
   expect(evidence.undersized, route + " at " + width + "px must retain 44px action controls").toEqual([]);
+  for (const stage of evidence.stages) {
+    expect(stage.height, route + " at " + width + "px must retain a substantial visible stage height").toBeGreaterThanOrEqual(evidence.minimumStageHeight);
+  }
   return evidence;
 }
 
@@ -233,7 +272,10 @@ async function expectGroundedDynamicCopy(root, name) {
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
     const claimable = fragment
       .split(contrastingClauseSeparator)
-      .map((clause) => truthfulNegativeDisclosure.test(clause) ? " " : clause)
+      .map((clause) => {
+        const segments = clause.split(truthfulNegativeConjunction).map((segment) => segment.trim()).filter(Boolean);
+        return segments.length > 0 && segments.every((segment) => truthfulNegativeDisclosure.test(segment)) ? " " : clause;
+      })
       .join(" ");
     for (const [category, patterns] of dynamicClaimRules) {
       if (patterns.some((pattern) => pattern.test(claimable))) violations.push({ category, fragment });
@@ -385,7 +427,7 @@ function expectMeaningfulTopologyChange(before, after, name) {
     if (key !== "connectors") expect(value, name + " must retain a populated " + key).not.toBe("");
   }
   const changed = ["source", "logic", "result"].filter((key) => before[key] !== after[key]);
-  expect(changed, name + " must change at least two topology facts, not only an active attribute").toHaveLength(2);
+  expect(changed.length, name + " must change at least two topology facts, not only an active attribute").toBeGreaterThanOrEqual(2);
 }
 
 async function transitResidence(page, route) {
@@ -575,81 +617,85 @@ test("every dynamic family fails closed to a visible semantic fallback when its 
 });
 
 test("every stateful composition reaches assembled, focus, and reassembled with one dominant scene and panel", async ({ page }) => {
-  await page.setViewportSize(viewportFor(1440));
-  const completed = [];
+  await withInteractionDiagnostics(page, async () => {
+    await page.setViewportSize(viewportFor(1440));
+    const completed = [];
 
-  for (const route of ["/", "/services/"]) {
-    const root = await transitResidence(page, route);
-    completed.push({ route, family: "residence", state: await root.getAttribute("data-cinematic-state") });
-  }
-  for (const route of serviceStudioRoutes) {
-    const root = await transitServiceStudio(page, route);
-    completed.push({ route, family: "service-studio", state: await root.getAttribute("data-service-studio-state") });
-  }
-  for (const route of solutionRoutes) {
-    const root = await transitSolution(page, route);
-    completed.push({ route, family: "solution", state: await root.getAttribute("data-cinematic-solutions-state") });
-  }
-  for (const route of ["/process/", "/about/"]) {
-    const root = await transitJourney(page, route);
-    completed.push({ route, family: "journey", state: await root.getAttribute("data-route-journey-state") });
-  }
+    for (const route of ["/", "/services/"]) {
+      const root = await transitResidence(page, route);
+      completed.push({ route, family: "residence", state: await root.getAttribute("data-cinematic-state") });
+    }
+    for (const route of serviceStudioRoutes) {
+      const root = await transitServiceStudio(page, route);
+      completed.push({ route, family: "service-studio", state: await root.getAttribute("data-service-studio-state") });
+    }
+    for (const route of solutionRoutes) {
+      const root = await transitSolution(page, route);
+      completed.push({ route, family: "solution", state: await root.getAttribute("data-cinematic-solutions-state") });
+    }
+    for (const route of ["/process/", "/about/"]) {
+      const root = await transitJourney(page, route);
+      completed.push({ route, family: "journey", state: await root.getAttribute("data-route-journey-state") });
+    }
 
-  expect(completed).toHaveLength(2 + serviceStudioRoutes.length + solutionRoutes.length + 2);
-  expect(completed.every(({ state }) => state === "reassembled")).toBe(true);
-  writeEvidence("composition-states.json", completed);
+    expect(completed).toHaveLength(2 + serviceStudioRoutes.length + solutionRoutes.length + 2);
+    expect(completed.every(({ state }) => state === "reassembled")).toBe(true);
+    writeEvidence("composition-states.json", completed);
+  });
 });
 
 test("smart-home keeps a dominant scene and a wholly usable phone surface after initial, system, and preset states", async ({ page }) => {
   const screenshots = [];
+  await withInteractionDiagnostics(page, async () => {
+    for (const width of [375, 1440]) {
+      await page.setViewportSize(viewportFor(width));
+      await visit(page, "/smart-home/");
+      const simulator = page.locator("[data-smart-home-simulator]");
+      const phone = simulator.locator("[data-smart-home-phone]");
+      const scrollHint = phone.locator(".smart-home__phone-scroll-hint");
+      await expect(simulator).toHaveAttribute("data-enhanced", "true");
+      await expect(phone).toHaveAttribute("tabindex", "0");
+      await expect(phone).toHaveAttribute("aria-label", /прокруч/iu);
+      await expectSmartHomeScenePriority(page, simulator, width, "initial");
 
-  for (const width of [375, 1440]) {
-    await page.setViewportSize(viewportFor(width));
-    await visit(page, "/smart-home/");
-    const simulator = page.locator("[data-smart-home-simulator]");
-    const phone = simulator.locator("[data-smart-home-phone]");
-    const scrollHint = phone.locator(".smart-home__phone-scroll-hint");
-    await expect(simulator).toHaveAttribute("data-enhanced", "true");
-    await expect(phone).toHaveAttribute("tabindex", "0");
-    await expect(phone).toHaveAttribute("aria-label", /прокруч/iu);
-    await expectSmartHomeScenePriority(page, simulator, width, "initial");
+      if (width === 375) {
+        await expect(scrollHint).toBeVisible();
+        await expect(scrollHint).toContainText("Прокручуйте панель");
+        await phone.focus();
+        const before = await phone.evaluate((element) => ({ scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, clientHeight: element.clientHeight }));
+        expect(before.scrollHeight, "mobile phone must expose additional controls through its own scroll surface").toBeGreaterThan(before.clientHeight);
+        await page.keyboard.press("End");
+        await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(before.scrollTop);
+        await page.keyboard.press("Home");
+        await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBe(0);
+      } else {
+        await expect(scrollHint).toBeHidden();
+      }
 
-    if (width === 375) {
-      await expect(scrollHint).toBeVisible();
-      await expect(scrollHint).toContainText("Прокручуйте панель");
-      await phone.focus();
-      const before = await phone.evaluate((element) => ({ scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, clientHeight: element.clientHeight }));
-      expect(before.scrollHeight, "mobile phone must expose additional controls through its own scroll surface").toBeGreaterThan(before.clientHeight);
-      await page.keyboard.press("End");
-      await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(before.scrollTop);
-      await page.keyboard.press("Home");
-      await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBe(0);
-    } else {
-      await expect(scrollHint).toBeHidden();
+      const system = simulator.locator("button[data-phone-system]").nth(1);
+      const systemId = await system.getAttribute("data-phone-system");
+      await system.click();
+      await expect(simulator).toHaveAttribute("data-system", systemId);
+      await expectSmartHomeScenePriority(page, simulator, width, "system");
+
+      const preset = simulator.locator("input[data-preset-radio]").nth(2);
+      const presetId = await preset.getAttribute("value");
+      await preset.click();
+      await expect(simulator).toHaveAttribute("data-preset", presetId);
+      await expectSmartHomeScenePriority(page, simulator, width, "preset");
+
+      const screenshot = "smart-home-" + width + "-system-preset.png";
+      await page.screenshot({ path: resolve(evidenceDirectory, screenshot) });
+      screenshots.push(screenshot);
     }
 
-    const system = simulator.locator("button[data-phone-system]").nth(1);
-    const systemId = await system.getAttribute("data-phone-system");
-    await system.click();
-    await expect(simulator).toHaveAttribute("data-system", systemId);
-    await expectSmartHomeScenePriority(page, simulator, width, "system");
-
-    const preset = simulator.locator("input[data-preset-radio]").nth(2);
-    const presetId = await preset.getAttribute("value");
-    await preset.click();
-    await expect(simulator).toHaveAttribute("data-preset", presetId);
-    await expectSmartHomeScenePriority(page, simulator, width, "preset");
-
-    const screenshot = "smart-home-" + width + "-system-preset.png";
-    await page.screenshot({ path: resolve(evidenceDirectory, screenshot) });
-    screenshots.push(screenshot);
-  }
-
-  expect(screenshots).toEqual(["smart-home-375-system-preset.png", "smart-home-1440-system-preset.png"]);
-  writeEvidence("smart-home-geometry.json", { widths: [375, 1440], screenshots });
+    expect(screenshots).toEqual(["smart-home-375-system-preset.png", "smart-home-1440-system-preset.png"]);
+    writeEvidence("smart-home-geometry.json", { widths: [375, 1440], screenshots });
+  });
 });
 
 test("the nine residence scene families and physical controls produce real visible media changes", async ({ page }) => {
+  await withInteractionDiagnostics(page, async () => {
   await page.setViewportSize(viewportFor(1440));
   await visit(page, "/services/");
   const root = page.locator("[data-cinematic-root]");
@@ -736,6 +782,7 @@ test("the nine residence scene families and physical controls produce real visib
   expect(new Set(selectedPresets).size).toBe(7);
   await expectGroundedDynamicCopy(simulator, "smart-home controls and presets");
   expect((await new AxeBuilder({ page }).analyze()).violations, "smart-home active preset").toEqual([]);
+  });
 });
 
 test("touch dispatch follows the same state contracts as pointer and keyboard controls", async ({ browser }) => {
@@ -744,6 +791,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
   const evidence = [];
 
   try {
+    await withInteractionDiagnostics(page, async () => {
     await visit(page, "/");
     await page.locator("[data-cinematic-stage] button[data-cinematic-direction-control]").first().tap();
     await expect(page.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-state", "focus");
@@ -778,6 +826,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     await page.locator("[data-smart-home-simulator] input[data-preset-radio]").nth(2).tap();
     await expect(page.locator("[data-smart-home-simulator]")).toHaveAttribute("data-preset", /\S/u);
     evidence.push("smart-home");
+    });
   } finally {
     await context.close();
   }
@@ -792,6 +841,7 @@ test("reduced-motion produces zero running animation or transition across every 
   const evidence = [];
 
   try {
+    await withInteractionDiagnostics(page, async () => {
     for (const route of publicRoutes) {
       await page.setViewportSize(viewportFor(1024));
       await visit(page, route);
@@ -828,6 +878,7 @@ test("reduced-motion produces zero running animation or transition across every 
     await page.locator("[data-smart-home-simulator] input[data-preset-radio]").nth(2).click();
     await expectNoVisibleSnapshots(page);
     await expectNoMotion(page);
+    });
   } finally {
     await context.close();
   }
@@ -838,28 +889,30 @@ test("reduced-motion produces zero running animation or transition across every 
 
 test("selected assembled, focus, and reassembled evidence remains inspectable at four representative widths", async ({ page }) => {
   const screenshots = [];
-  for (const width of [375, 768, 1440, 1980]) {
-    await page.setViewportSize(viewportFor(width));
-    await visit(page, "/services/");
-    const root = page.locator("[data-cinematic-root]");
-    const stage = root.locator("[data-cinematic-stage]");
-    await waitForIdle(root, "data-cinematic-motion-phase");
-    const assembled = "services-" + width + "-assembled.png";
-    await page.screenshot({ path: resolve(evidenceDirectory, assembled) });
-    screenshots.push(assembled);
-    await stage.locator("button[data-cinematic-direction-control]").first().click();
-    await expect(root).toHaveAttribute("data-cinematic-state", "focus");
-    await waitForIdle(root, "data-cinematic-motion-phase");
-    const focus = "services-" + width + "-focus.png";
-    await page.screenshot({ path: resolve(evidenceDirectory, focus) });
-    screenshots.push(focus);
-    await stage.locator("[data-cinematic-relation-switcher]:visible button").first().click();
-    await expect(root).toHaveAttribute("data-cinematic-state", "reassembled");
-    await waitForIdle(root, "data-cinematic-motion-phase");
-    const reassembled = "services-" + width + "-reassembled.png";
-    await page.screenshot({ path: resolve(evidenceDirectory, reassembled) });
-    screenshots.push(reassembled);
-  }
-  expect(screenshots).toHaveLength(12);
-  writeEvidence("screenshots.json", screenshots);
+  await withInteractionDiagnostics(page, async () => {
+    for (const width of [375, 768, 1440, 1980]) {
+      await page.setViewportSize(viewportFor(width));
+      await visit(page, "/services/");
+      const root = page.locator("[data-cinematic-root]");
+      const stage = root.locator("[data-cinematic-stage]");
+      await waitForIdle(root, "data-cinematic-motion-phase");
+      const assembled = "services-" + width + "-assembled.png";
+      await page.screenshot({ path: resolve(evidenceDirectory, assembled) });
+      screenshots.push(assembled);
+      await stage.locator("button[data-cinematic-direction-control]").first().click();
+      await expect(root).toHaveAttribute("data-cinematic-state", "focus");
+      await waitForIdle(root, "data-cinematic-motion-phase");
+      const focus = "services-" + width + "-focus.png";
+      await page.screenshot({ path: resolve(evidenceDirectory, focus) });
+      screenshots.push(focus);
+      await stage.locator("[data-cinematic-relation-switcher]:visible button").first().click();
+      await expect(root).toHaveAttribute("data-cinematic-state", "reassembled");
+      await waitForIdle(root, "data-cinematic-motion-phase");
+      const reassembled = "services-" + width + "-reassembled.png";
+      await page.screenshot({ path: resolve(evidenceDirectory, reassembled) });
+      screenshots.push(reassembled);
+    }
+    expect(screenshots).toHaveLength(12);
+    writeEvidence("screenshots.json", screenshots);
+  });
 });

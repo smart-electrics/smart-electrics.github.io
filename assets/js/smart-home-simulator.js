@@ -279,8 +279,8 @@ function enhanceSimulator(root) {
     markup.topologySource.textContent = diagnostics ? button.dataset.diagnosticObservation : text(panel.querySelector("[data-preset-event]"));
     markup.topologyLogic.textContent = diagnostics ? button.dataset.diagnosticIsolation : button.dataset.topologyLabel;
     markup.topologyResult.textContent = diagnostics
-      ? `${button.dataset.diagnosticNextStep}: ${controlLabel(state.systemId, changedControl.id)}, ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`
-      : `${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`;
+      ? `${panel.dataset.sceneLabel}: ${button.dataset.diagnosticNextStep}; ${controlLabel(state.systemId, changedControl.id)}, ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`
+      : `${panel.dataset.sceneLabel}: ${controlLabel(state.systemId, changedControl.id)}, ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`;
     updateControls();
     const status = state.manual
       ? `Ручне коригування на основі «${panel.querySelector("h3").textContent.trim()}»: ${text(button)}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
