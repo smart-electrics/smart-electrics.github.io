@@ -57,43 +57,71 @@ const sceneFamilies = Object.freeze([
   "shading",
   "diagnostics"
 ]);
+const unicodeClaim = (source) => new RegExp(`(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`, "iu");
+const unicodeGlobalSpan = (source) => new RegExp(`(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`, "giu");
 const dynamicClaimRules = Object.freeze([
   ["telemetry/status", [
-    /телеметр[\p{L}\p{N}]*/iu,
-    /\bтелеметр[\p{L}\p{N}]*/iu,
-    /\b(?:live|онлайн)[\s-]*(?:статус|status)\b/iu,
-    /(?:поточн[\p{L}\p{N}]*|актуальн[\p{L}\p{N}]*|реальн[\p{L}\p{N}]*(?:\s+час[\p{L}\p{N}]*)?)\s+(?:стан|статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)/iu,
-    /(?:статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)/iu
+    unicodeClaim(String.raw`телеметр[\p{L}\p{N}]*`),
+    unicodeClaim(String.raw`(?:live|онлайн)[\s-]*(?:статус|status)`),
+    unicodeClaim(String.raw`(?:поточн[\p{L}\p{N}]*|актуальн[\p{L}\p{N}]*|реальн[\p{L}\p{N}]*(?:\s+час[\p{L}\p{N}]*)?)\s+(?:стан|статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)`),
+    unicodeClaim(String.raw`(?:статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)`)
   ]],
   ["portal/account/control", [
-    /(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*))|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*/iu,
-    /\b(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*)|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*)\b/iu,
-    /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu
+    unicodeClaim(String.raw`(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*)|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*)`),
+    unicodeClaim(String.raw`(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)`)
   ]],
   ["vendor compatibility", [
-    /(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)/iu,
-    /\b(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b/iu,
-    /\b(?:сумісн[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*)\s+(?:з|із)\s+(?:(?:конкретн[\p{L}\p{N}]*\s+)?(?:виробник[\p{L}\p{N}]*|бренд[\p{L}\p{N}]*|платформ[\p{L}\p{N}]*|протокол[\p{L}\p{N}]*|систем[\p{L}\p{N}]*))\b/iu,
-    /\b(?:compatible|compatibility)\s+(?:with|vendor|protocol)\b/iu
+    unicodeClaim(String.raw`(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)`),
+    unicodeClaim(String.raw`(?:сумісн[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*)\s+(?:з|із)\s+(?:(?:конкретн[\p{L}\p{N}]*\s+)?(?:виробник[\p{L}\p{N}]*|бренд[\p{L}\p{N}]*|платформ[\p{L}\p{N}]*|протокол[\p{L}\p{N}]*|систем[\p{L}\p{N}]*))`),
+    unicodeClaim(String.raw`(?:compatible|compatibility)\s+(?:with|vendor|protocol)`)
   ]],
-  ["price", [/(?:ціна|вартіст[\p{L}\p{N}]*|кошту[\p{L}\p{N}]*|бюджет[\p{L}\p{N}]*|кошторис[\p{L}\p{N}]*)/iu, /[₴€]/u, /грн/iu, /\$\s*\d/u]],
-  ["guarantee", [/(?:гаранті[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)/iu]],
-  ["certificate", [/(?:сертифік[\p{L}\p{N}]*|certified)/iu]],
-  ["review", [/(?:відгук[\p{L}\p{N}]*|рейтинг[\p{L}\p{N}]*|testimonial[\p{L}\p{N}]*|review[\p{L}\p{N}]*)/iu]],
+  ["price", [
+    unicodeClaim(String.raw`(?:ціна|вартіст[\p{L}\p{N}]*|кошту[\p{L}\p{N}]*|бюджет[\p{L}\p{N}]*|кошторис[\p{L}\p{N}]*)`),
+    /[₴€]/u,
+    unicodeClaim("грн"),
+    /\$\s*\d/u
+  ]],
+  ["guarantee", [unicodeClaim(String.raw`(?:гаранті[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)`)]],
+  ["certificate", [unicodeClaim(String.raw`(?:сертифік[\p{L}\p{N}]*|certified)`)]],
+  ["review", [unicodeClaim(String.raw`(?:відгук[\p{L}\p{N}]*|рейтинг[\p{L}\p{N}]*|testimonial[\p{L}\p{N}]*|review[\p{L}\p{N}]*)`)]],
   ["client project as fact", [
-    /(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)\s+(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)/iu,
-    /(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)/iu
+    unicodeClaim(String.raw`(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)\s+(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)`),
+    unicodeClaim(String.raw`(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)`),
+    unicodeClaim(String.raw`(?:кейс|case)\s+(?:клієнт[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*)`),
+    unicodeClaim(String.raw`(?:клієнт[\p{L}\p{N}]*|власник[\p{L}\p{N}]*)\s+(?:отримав[\p{L}\p{N}]*|отримала[\p{L}\p{N}]*|підтверд[\p{L}\p{N}]*)\s+(?:результат[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)`)
   ]]
 ]);
-const unicodeWord = (value) => new RegExp("(?:^|[^\\p{L}\\p{N}])" + value + "(?=$|[^\\p{L}\\p{N}])", "iu");
-const truthfulNegativeDisclosure = /(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))/iu;
-const scopedTruthfulNegativeDisclosures = Object.freeze([
-  /не\s+публіку[\p{L}\p{N}]*\s+(?:тут\s+)?підтверджен[\p{L}\p{N}]*\s+кейс[\p{L}\p{N}]*\s+(?:чи|або|та|і)\s+матеріал[\p{L}\p{N}]*\s+про\s+виконан[\p{L}\p{N}]*\s+об[’']?єкт[\p{L}\p{N}]*/iu
+const negativeDisclosureItemSource = [
+  String.raw`телеметр[\p{L}\p{N}]*`,
+  String.raw`(?:live|онлайн)[\s-]*(?:статус|status)(?:\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*))?`,
+  String.raw`(?:поточн[\p{L}\p{N}]*|актуальн[\p{L}\p{N}]*|реальн[\p{L}\p{N}]*(?:\s+час[\p{L}\p{N}]*)?)\s+(?:стан|статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)`,
+  String.raw`(?:статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)`,
+  String.raw`(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*)|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*)`,
+  String.raw`(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)(?:\s+точк[\p{L}\p{N}]*\s+вход[\p{L}\p{N}]*)?`,
+  String.raw`(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)`,
+  String.raw`(?:сумісн[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*)\s+(?:з|із)\s+(?:(?:конкретн[\p{L}\p{N}]*\s+)?(?:виробник[\p{L}\p{N}]*|бренд[\p{L}\p{N}]*|платформ[\p{L}\p{N}]*|протокол[\p{L}\p{N}]*|систем[\p{L}\p{N}]*))`,
+  String.raw`(?:compatible|compatibility)\s+(?:with|vendor|protocol)`,
+  String.raw`(?:цін[\p{L}\p{N}]*|вартіст[\p{L}\p{N}]*|кошту[\p{L}\p{N}]*|бюджет[\p{L}\p{N}]*|кошторис[\p{L}\p{N}]*)`,
+  String.raw`(?:гаранті[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)`,
+  String.raw`(?:сертифік[\p{L}\p{N}]*|certified)(?:\s+(?:рішенн[\p{L}\p{N}]*|систем[\p{L}\p{N}]*|продукт[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*))?`,
+  String.raw`(?:відгук[\p{L}\p{N}]*|рейтинг[\p{L}\p{N}]*|testimonial[\p{L}\p{N}]*|review[\p{L}\p{N}]*)`,
+  String.raw`(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)\s+(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)`,
+  String.raw`(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)`,
+  String.raw`(?:кейс|case)\s+(?:клієнт[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*)`,
+  String.raw`(?:клієнт[\p{L}\p{N}]*|власник[\p{L}\p{N}]*)\s+(?:отримав[\p{L}\p{N}]*|отримала[\p{L}\p{N}]*|підтверд[\p{L}\p{N}]*)\s+(?:результат[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)`
+].join("|");
+const negativeDisclosureTerminatorSource = String.raw`(?=(?:\s*[.!?])?\s*(?![\s\S])|\s+(?:і|та|або|чи)\s+(?:не(?=$|[^\p{L}\p{N}_])|без(?=$|[^\p{L}\p{N}_])))`;
+const truthfulNegativeDisclosureSpans = Object.freeze([
+  unicodeGlobalSpan(String.raw`не\s+публіку[\p{L}\p{N}]*\s+(?:тут\s+)?підтверджен[\p{L}\p{N}]*\s+кейс[\p{L}\p{N}]*\s+(?:чи|або|та|і)\s+матеріал[\p{L}\p{N}]*\s+про\s+виконан[\p{L}\p{N}]*\s+об[’']?єкт[\p{L}\p{N}]*${negativeDisclosureTerminatorSource}`),
+  unicodeGlobalSpan(String.raw`не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)[\p{L}\p{N}]*${negativeDisclosureTerminatorSource}`),
+  unicodeGlobalSpan(String.raw`не\s+публіку[\p{L}\p{N}]*\s+цін[\p{L}\p{N}]*,\s*гаранті[\p{L}\p{N}]*,\s*сертифік[\p{L}\p{N}]*,\s*відгук[\p{L}\p{N}]*,\s*телеметр[\p{L}\p{N}]*,\s*портал[\p{L}\p{N}]*\s+чи\s+тверджен[\p{L}\p{N}]*\s+про\s+сумісн[\p{L}\p{N}]*\s+із\s+конкретн[\p{L}\p{N}]*\s+виробник[\p{L}\p{N}]*${negativeDisclosureTerminatorSource}`),
+  unicodeGlobalSpan(String.raw`не\s+публіку[\p{L}\p{N}]*\s+цін[\p{L}\p{N}]*,\s*гаранті[\p{L}\p{N}]*,\s*сертифік[\p{L}\p{N}]*\s+(?:та|і)\s+відгук[\p{L}\p{N}]*${negativeDisclosureTerminatorSource}`),
+  unicodeGlobalSpan(String.raw`не\s+гаранту[\p{L}\p{N}]*(?:\s+(?:жодн[\p{L}\p{N}]*\s+)?(?:результат[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*))?${negativeDisclosureTerminatorSource}`),
+  unicodeGlobalSpan(String.raw`не\s+(?:публіку[\p{L}\p{N}]*|ма[єе]мо|нада[\p{L}\p{N}]*|пропону[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)\s+(?:${negativeDisclosureItemSource})${negativeDisclosureTerminatorSource}`),
+  unicodeGlobalSpan(String.raw`без\s+(?:підтверджен[\p{L}\p{N}]*|${negativeDisclosureItemSource})${negativeDisclosureTerminatorSource}`)
 ]);
-const contrastingClauseSeparator = /\s*,?\s*(?:але|однак|проте|but)\s*/iu;
 const publicCopyAttributes = Object.freeze(["alt", "aria-label", "aria-description", "aria-valuetext", "aria-roledescription", "title", "placeholder"]);
 const publicCopyAttributeSelector = publicCopyAttributes.map((attribute) => "[" + attribute + "]").join(", ");
-const positiveAssertionContext = /(?:^|[^\p{L}\p{N}])(?:а|але|однак|проте|but|доступн[\p{L}\p{N}]*|дає|дозвол|підтвердж[\p{L}\p{N}]*|показ[\p{L}\p{N}]*|станов[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*|сертифікован[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|отримав|отримала|маємо|knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue|грн)(?=$|[^\p{L}\p{N}])|[₴€]|\$\s*\d/iu;
 const claimCategories = (fragment) => dynamicClaimRules
   .filter(([, patterns]) => patterns.some((pattern) => pattern.test(fragment)))
   .map(([category]) => category);
@@ -638,13 +666,6 @@ async function expectNoVisibleSnapshots(page) {
   await expect(snapshots, "reduced-motion interactions must not create outgoing snapshots").toHaveCount(0);
 }
 
-function mixedNegativePositiveClaim(clause) {
-  const disclosure = clause.match(truthfulNegativeDisclosure);
-  if (!disclosure || disclosure.index === undefined) return false;
-  const tail = clause.slice(disclosure.index + disclosure[0].length);
-  return positiveAssertionContext.test(tail) && claimCategories(tail).length > 0;
-}
-
 async function expectGroundedDynamicCopy(root, name) {
   const text = await root.evaluate((element, [attributeSelector, attributes]) => {
     const visible = (candidate) => {
@@ -665,13 +686,10 @@ async function expectGroundedDynamicCopy(root, name) {
   }, [publicCopyAttributeSelector, publicCopyAttributes]);
   const violations = [];
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
-    const claimable = fragment
-      .split(contrastingClauseSeparator)
-      .map((clause) => {
-        const scoped = scopedTruthfulNegativeDisclosures.reduce((copy, pattern) => copy.replace(pattern, " "), clause);
-        return truthfulNegativeDisclosure.test(scoped) && !mixedNegativePositiveClaim(scoped) ? " " : scoped;
-      })
-      .join(" ");
+    const claimable = truthfulNegativeDisclosureSpans.reduce(
+      (copy, pattern) => copy.replace(pattern, " "),
+      fragment
+    );
     claimCategories(claimable).forEach((category) => violations.push({ category, fragment }));
   }
   expect(violations, name + " must not surface unsupported public claims through dynamic copy").toEqual([]);
@@ -1067,6 +1085,23 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   await expectGroundedDynamicCopy(page.locator("main"), "truthful negative dynamic copy");
   await page.setContent("<main><p>Ми не публікуємо ціни, гарантії, сертифікати та відгуки.</p></main>");
   await expectGroundedDynamicCopy(page.locator("main"), "truthful negative list dynamic copy");
+  for (const [category, copy] of [
+    ["online status", "Не публікуємо онлайн-статус системи."],
+    ["personal account", "Не надаємо особистий кабінет."],
+    ["vendor", "Не заявляємо KNX."],
+    ["cost", "Не публікуємо вартість."],
+    ["rating", "Не публікуємо рейтинг."],
+    ["current status", "Не публікуємо поточний статус системи."],
+    ["realized project", "Не публікуємо реалізований проєкт."],
+    ["guaranteed result", "Не гарантуємо результат."],
+    ["any guarantee", "Не гарантуємо жодних гарантій."],
+    ["certified solution", "Не публікуємо сертифіковане рішення."]
+  ]) {
+    await page.setContent("<main><p>" + copy + "</p></main>");
+    await expectGroundedDynamicCopy(page.locator("main"), "truthful negative " + category + " dynamic copy");
+  }
+  await page.setContent("<main><p>Експертелеметрія — один внутрішній термін, а не окреме публічне твердження.</p></main>");
+  await expectGroundedDynamicCopy(page.locator("main"), "unicode claim boundary dynamic copy");
   await page.setContent("<main><p>Ми не публікуємо цін, але ціна конфігурації становить 24 000 грн.</p></main>");
   await expect(expectGroundedDynamicCopy(page.locator("main"), "mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
   await page.setContent("<main><p>Не публікуємо ціну і ціна системи становить 24 000 грн.</p></main>");
@@ -1083,7 +1118,10 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
     ["guarantee", "Не надаємо гарантій і гарантуємо результат."],
     ["certificate", "Без сертифікатів і маємо сертифікат відповідності."],
     ["review", "Не публікуємо відгуків і показуємо відгук замовника."],
-    ["project", "Не публікуємо проєктів і реалізований клієнтський проєкт підтверджує підхід."]
+    ["project", "Не публікуємо проєктів і реалізований клієнтський проєкт підтверджує підхід."],
+    ["telemetry repeated", "Ми не публікуємо телеметрії і телеметрії доступні в реальному часі."],
+    ["review repeated", "Ми не публікуємо відгуків і відгуки клієнтів це підтверджують."],
+    ["vendor repeated", "Ми не публікуємо тверджень про сумісність і сумісність із протоколом доступна."]
   ]) {
     await page.setContent("<main><p>" + copy + "</p></main>");
     await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause " + category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
@@ -1091,10 +1129,44 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   for (const [category, copy] of [
     ["telemetry full tail", "Не заявляємо, а поточний статус системи доступний."],
     ["review full tail", "Не публікуємо, а рейтинг клієнтів підтверджує якість робіт."],
-    ["compatibility full tail", "Не заявляємо, а compatibility with protocol доступна."]
+    ["compatibility full tail", "Не заявляємо, а compatibility with protocol доступна."],
+    ["telemetry live-status tail", "Не публікуємо live-status системи є."],
+    ["guarantee assertion tail", "Не надаємо гарантій, гарантія діє."],
+    ["certificate assertion tail", "Без сертифікатів, сертифікат додається."],
+    ["negated guarantee assertion tail", "Не гарантуємо результат, гарантія діє."],
+    ["negated certificate assertion tail", "Не публікуємо сертифіковане рішення, сертифікат додається."],
+    ["owner result tail", "Не публікуємо проєктів, власник отримав результат."]
   ]) {
     await page.setContent("<main><p>" + copy + "</p></main>");
-    await expect(expectGroundedDynamicCopy(page.locator("main"), category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+    await expect(expectGroundedDynamicCopy(page.locator("main"), category + " dynamic copy"), category).rejects.toThrow(/unsupported public claims/u);
+  }
+  for (const [category, copy] of [
+    ["telemetry semicolon", "Не публікуємо; телеметрія."],
+    ["telemetry comma", "Не публікуємо, телеметрія."],
+    ["portal colon", "Не публікуємо, портал: особистий кабінет."],
+    ["compatibility comma", "Не заявляємо; сумісність із конкретним виробником."],
+    ["price semicolon", "Не публікуємо; ціна: значення."],
+    ["guarantee colon", "Не надаємо; гарантія: гарантія діє."],
+    ["certificate semicolon", "Без; сертифікат: сертифікат додається."],
+    ["review comma", "Не публікуємо; відгуки, рейтинг."],
+    ["project semicolon", "Не публікуємо; кейс клієнта."]
+  ]) {
+    await page.setContent("<main><p>" + copy + "</p></main>");
+    await expect(expectGroundedDynamicCopy(page.locator("main"), category + " dynamic copy"), category).rejects.toThrow(/unsupported public claims/u);
+  }
+  await page.setContent("<main><p>Подію доступу пов’язують із потрібною дією без дистанційного керування точкою входу.</p></main>");
+  await expectGroundedDynamicCopy(page.locator("main"), "negative remote-control disclosure");
+});
+
+test("runtime claim scanning covers all four client-project claim patterns", async ({ page }) => {
+  for (const [category, copy] of [
+    ["project noun after participle", "Реалізований клієнтський проєкт у приватному будинку."],
+    ["system noun after participle", "Виконана система автоматизації працює у демонстраційній конфігурації."],
+    ["client case noun", "Кейс клієнта описує погоджений підхід."],
+    ["owner received result", "Власник отримав результат для свого об’єкта."]
+  ]) {
+    await page.setContent("<main><p>" + copy + "</p></main>");
+    await expect(expectGroundedDynamicCopy(page.locator("main"), category)).rejects.toThrow(/unsupported public claims/u);
   }
 });
 
@@ -1108,6 +1180,11 @@ test("runtime claim scanning includes public-copy accessibility attributes", asy
     await page.setContent("<main>" + markup + "</main>");
     await expect(expectGroundedDynamicCopy(page.locator("main"), category)).rejects.toThrow(/unsupported public claims/u);
   }
+});
+
+test("runtime claim scanning preserves copy before a negative attribute disclosure", async ({ page }) => {
+  await page.setContent('<main><div title="Ціна електромонтажного проєкту — 24 000 грн." style="width:240px;height:40px"><span aria-label="Ми не публікуємо цін." style="display:block;width:120px;height:20px"></span></div></main>');
+  await expect(expectGroundedDynamicCopy(page.locator("main"), "ordered attribute copy")).rejects.toThrow(/unsupported public claims/u);
 });
 
 test("runtime claim scanning covers every settled public route", async ({ page }) => {

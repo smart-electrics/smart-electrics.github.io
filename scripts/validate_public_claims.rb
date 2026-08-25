@@ -28,9 +28,35 @@ module PublicClaims
     placeholder
   ].freeze
   LIQUID_OUTPUT = /\{[{%].*?[}%]\}/m
-  CONTRASTING_CLAUSE_SEPARATOR = /\s*,?\s*\b(?:але|однак|проте|but)\b\s*/iu
-  POSITIVE_ASSERTION_CONTEXT = /\b(?:а|але|однак|проте|but|доступн[\p{L}\p{N}]*|дає|дозвол|підтвердж|показ|станов|підтрим[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*|сертифікован[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|отримав|отримала|knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b|[₴€]|\bгрн\b|\$\s*\d/iu
-  NEGATIVE_DISCLOSURE = /\b(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))\b/iu
+  NEGATIVE_DISCLOSURE_ITEM = [
+    "телеметр[\\p{L}\\p{N}]*",
+    "(?:live|онлайн)[\\s-]*(?:статус|status)(?:\\s+(?:систем[\\p{L}\\p{N}]*|об[’']?єкт[\\p{L}\\p{N}]*|інженер[\\p{L}\\p{N}]*))?",
+    "(?:поточн[\\p{L}\\p{N}]*|актуальн[\\p{L}\\p{N}]*|реальн[\\p{L}\\p{N}]*(?:\\s+час[\\p{L}\\p{N}]*)?)\\s+(?:стан|статус|показник[\\p{L}\\p{N}]*)\\s+(?:систем[\\p{L}\\p{N}]*|об[’']?єкт[\\p{L}\\p{N}]*|інженер[\\p{L}\\p{N}]*)",
+    "(?:статус|показник[\\p{L}\\p{N}]*)\\s+(?:систем[\\p{L}\\p{N}]*|об[’']?єкт[\\p{L}\\p{N}]*|інженер[\\p{L}\\p{N}]*)",
+    "(?:портал[\\p{L}\\p{N}]*|особист[\\p{L}\\p{N}]*\\s+кабінет[\\p{L}\\p{N}]*|кабінет[\\p{L}\\p{N}]*\\s+(?:клієнт[\\p{L}\\p{N}]*|користувач[\\p{L}\\p{N}]*)|account[\\p{L}\\p{N}]*|dashboard[\\p{L}\\p{N}]*)",
+    "(?:віддален[\\p{L}\\p{N}]*|дистанційн[\\p{L}\\p{N}]*)\\s+(?:керуван[\\p{L}\\p{N}]*|контрол[\\p{L}\\p{N}]*)(?:\\s+точк[\\p{L}\\p{N}]*\\s+вход[\\p{L}\\p{N}]*)?",
+    "(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\\s+home|philips\\s+hue)",
+    "(?:сумісн[\\p{L}\\p{N}]*|підтрим[\\p{L}\\p{N}]*)\\s+(?:з|із)\\s+(?:(?:конкретн[\\p{L}\\p{N}]*\\s+)?(?:виробник[\\p{L}\\p{N}]*|бренд[\\p{L}\\p{N}]*|платформ[\\p{L}\\p{N}]*|протокол[\\p{L}\\p{N}]*|систем[\\p{L}\\p{N}]*))",
+    "(?:compatible|compatibility)\\s+(?:with|vendor|protocol)",
+    "(?:цін[\\p{L}\\p{N}]*|вартіст[\\p{L}\\p{N}]*|кошту[\\p{L}\\p{N}]*|бюджет[\\p{L}\\p{N}]*|кошторис[\\p{L}\\p{N}]*)",
+    "(?:гаранті[\\p{L}\\p{N}]*|гаранту[\\p{L}\\p{N}]*)",
+    "(?:сертифік[\\p{L}\\p{N}]*|certified)(?:\\s+(?:рішенн[\\p{L}\\p{N}]*|систем[\\p{L}\\p{N}]*|продукт[\\p{L}\\p{N}]*|об[’']?єкт[\\p{L}\\p{N}]*))?",
+    "(?:відгук[\\p{L}\\p{N}]*|рейтинг[\\p{L}\\p{N}]*|testimonial[\\p{L}\\p{N}]*|review[\\p{L}\\p{N}]*)",
+    "(?:клієнтськ[\\p{L}\\p{N}]*\\s+)?(?:кейс|проєкт|об[’']?єкт)\\s+(?:реалізован[\\p{L}\\p{N}]*|виконан[\\p{L}\\p{N}]*|завершен[\\p{L}\\p{N}]*|встановлен[\\p{L}\\p{N}]*|змонтован[\\p{L}\\p{N}]*)",
+    "(?:реалізован[\\p{L}\\p{N}]*|виконан[\\p{L}\\p{N}]*|завершен[\\p{L}\\p{N}]*|встановлен[\\p{L}\\p{N}]*|змонтован[\\p{L}\\p{N}]*)\\s+(?:клієнтськ[\\p{L}\\p{N}]*\\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\\p{L}\\p{N}]*|рішенн[\\p{L}\\p{N}]*)",
+    "(?:кейс|case)\\s+(?:клієнт[\\p{L}\\p{N}]*|об[’']?єкт[\\p{L}\\p{N}]*)",
+    "(?:клієнт[\\p{L}\\p{N}]*|власник[\\p{L}\\p{N}]*)\\s+(?:отримав[\\p{L}\\p{N}]*|отримала[\\p{L}\\p{N}]*|підтверд[\\p{L}\\p{N}]*)\\s+(?:результат[\\p{L}\\p{N}]*|рішенн[\\p{L}\\p{N}]*)"
+  ].then { |patterns| "(?:#{patterns.join('|')})" }.freeze
+  NEGATIVE_DISCLOSURE_TERMINATOR = "(?=(?:\\s*[.!?])?\\s*\\z|\\s+(?:і|та|або|чи)\\s+(?:не\\b|без\\b))".freeze
+  TRUTHFUL_NEGATIVE_DISCLOSURE_SPANS = [
+    /\bне\s+публіку[\p{L}\p{N}]*\s+(?:тут\s+)?підтверджен[\p{L}\p{N}]*\s+кейс[\p{L}\p{N}]*\s+(?:чи|або|та|і)\s+матеріал[\p{L}\p{N}]*\s+про\s+виконан[\p{L}\p{N}]*\s+об[’']?єкт[\p{L}\p{N}]*#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu,
+    /\bне\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)[\p{L}\p{N}]*#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu,
+    /\bне\s+публіку[\p{L}\p{N}]*\s+цін[\p{L}\p{N}]*,\s*гаранті[\p{L}\p{N}]*,\s*сертифік[\p{L}\p{N}]*,\s*відгук[\p{L}\p{N}]*,\s*телеметр[\p{L}\p{N}]*,\s*портал[\p{L}\p{N}]*\s+чи\s+тверджен[\p{L}\p{N}]*\s+про\s+сумісн[\p{L}\p{N}]*\s+із\s+конкретн[\p{L}\p{N}]*\s+виробник[\p{L}\p{N}]*#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu,
+    /\bне\s+публіку[\p{L}\p{N}]*\s+цін[\p{L}\p{N}]*,\s*гаранті[\p{L}\p{N}]*,\s*сертифік[\p{L}\p{N}]*\s+(?:та|і)\s+відгук[\p{L}\p{N}]*#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu,
+    /\bне\s+гаранту[\p{L}\p{N}]*(?:\s+(?:жодн[\p{L}\p{N}]*\s+)?(?:результат[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*))?\b#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu,
+    /\bне\s+(?:публіку[\p{L}\p{N}]*|ма[єе]мо|нада[\p{L}\p{N}]*|пропону[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)\s+#{NEGATIVE_DISCLOSURE_ITEM}\b#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu,
+    /\bбез\s+(?:підтверджен[\p{L}\p{N}]*|#{NEGATIVE_DISCLOSURE_ITEM})\b#{NEGATIVE_DISCLOSURE_TERMINATOR}/iu
+  ].freeze
   CLAIM_PATTERNS = {
     "telemetry/status" => [
       /\bтелеметр[\p{L}\p{N}]*\b/iu,
@@ -113,7 +139,7 @@ module PublicClaims
       end
 
       visible_fragments(document).each do |fragment|
-        claimable = mask_truthful_negative_clauses(fragment)
+        claimable = mask_truthful_negative_spans(fragment)
 
         claim_categories(claimable).each do |category|
           errors << "#{surface}:#{relative_path(path, root)}: #{category}"
@@ -141,30 +167,10 @@ module PublicClaims
        .reject(&:empty?)
   end
 
-  def truthful_negative_disclosure?(fragment)
-    NEGATIVE_DISCLOSURE.match?(fragment)
-  end
-
-  def mask_truthful_negative_clauses(fragment)
-    fragment.split(CONTRASTING_CLAUSE_SEPARATOR)
-            .map do |clause|
-              if truthful_negative_disclosure?(clause) && !mixed_negative_positive_claim?(clause)
-                " "
-              else
-                clause
-              end
-            end
-            .join(" ")
-  end
-
-  def mixed_negative_positive_claim?(fragment)
-    disclosure = NEGATIVE_DISCLOSURE.match(fragment)
-    return false unless disclosure
-
-    tail = fragment[disclosure.end(0)..]
-    return false unless tail
-
-    POSITIVE_ASSERTION_CONTEXT.match?(tail) && !claim_categories(tail).empty?
+  def mask_truthful_negative_spans(fragment)
+    TRUTHFUL_NEGATIVE_DISCLOSURE_SPANS.reduce(fragment) do |claimable, pattern|
+      claimable.gsub(pattern, " ")
+    end
   end
 
   def claim_categories(fragment)

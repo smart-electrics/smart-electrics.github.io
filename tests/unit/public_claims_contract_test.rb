@@ -23,7 +23,55 @@ class PublicClaimsContractTest < Minitest::Test
     ["client project as fact", "Це не підтверджений клієнтський кейс, але реалізований проєкт вже завершено."],
     ["telemetry/status", "Не заявляємо, а поточний статус системи доступний."],
     ["review", "Не публікуємо, а рейтинг клієнтів підтверджує якість робіт."],
-    ["vendor compatibility", "Не заявляємо, а compatibility with protocol доступна."]
+    ["vendor compatibility", "Не заявляємо, а compatibility with protocol доступна."],
+    ["telemetry/status", "Ми не публікуємо телеметрії і телеметрії доступні в реальному часі."],
+    ["review", "Ми не публікуємо відгуків і відгуки клієнтів це підтверджують."],
+    ["vendor compatibility", "Ми не публікуємо тверджень про сумісність і сумісність із протоколом доступна."],
+    ["telemetry/status", "Не публікуємо live-status системи є."],
+    ["guarantee", "Не надаємо гарантій, гарантія діє."],
+    ["certificate", "Без сертифікатів, сертифікат додається."],
+    ["guarantee", "Не гарантуємо результат, гарантія діє."],
+    ["certificate", "Не публікуємо сертифіковане рішення, сертифікат додається."],
+    ["client project as fact", "Не публікуємо проєктів, власник отримав результат."]
+  ].freeze
+  CLIENT_PROJECT_CLAIMS = [
+    "Реалізований клієнтський проєкт у приватному будинку.",
+    "Виконана система автоматизації працює у демонстраційній конфігурації.",
+    "Кейс клієнта описує погоджений підхід.",
+    "Власник отримав результат для свого об’єкта."
+  ].freeze
+  COMPACT_CATEGORY_TAILS = [
+    ["telemetry/status", "Не публікуємо; телеметрія."],
+    ["telemetry/status", "Не публікуємо, телеметрія."],
+    ["portal/account/control", "Не публікуємо, портал: особистий кабінет."],
+    ["vendor compatibility", "Не заявляємо; сумісність із конкретним виробником."],
+    ["price", "Не публікуємо; ціна: значення."],
+    ["guarantee", "Не надаємо; гарантія: гарантія діє."],
+    ["certificate", "Без; сертифікат: сертифікат додається."],
+    ["review", "Не публікуємо; відгуки, рейтинг."],
+    ["client project as fact", "Не публікуємо; кейс клієнта."]
+  ].freeze
+  ORDERED_ATTRIBUTE_CLAIMS = [
+    ["price", '<div title="Ціна електромонтажного проєкту — 24 000 грн."><span aria-label="Ми не публікуємо цін."></span></div>']
+  ].freeze
+  TRUTHFUL_NEGATIVE_FRAGMENTS = [
+    "Ми не публікуємо цін і не надаємо гарантій.",
+    "Ми не публікуємо ціни, гарантії, сертифікати та відгуки.",
+    "Наразі ми не публікуємо тут підтверджених кейсів чи матеріалів про виконані об’єкти.",
+    "Подію доступу пов’язують із потрібною дією без дистанційного керування точкою входу.",
+    "Не публікуємо онлайн-статус системи.",
+    "Не надаємо особистий кабінет.",
+    "Не заявляємо KNX.",
+    "Не публікуємо вартість.",
+    "Не публікуємо рейтинг.",
+    "Не публікуємо поточний статус системи.",
+    "Не публікуємо реалізований проєкт.",
+    "Не гарантуємо результат.",
+    "Не гарантуємо жодних гарантій.",
+    "Не публікуємо сертифіковане рішення."
+  ].freeze
+  NEUTRAL_BOUNDARY_FRAGMENTS = [
+    "Експертелеметрія — один внутрішній термін, а не окреме публічне твердження."
   ].freeze
   ATTRIBUTE_CLAIMS = [
     ["telemetry/status", '<img alt="Онлайн-статус системи доступний у реальному часі." width="100" height="20">'],
@@ -111,6 +159,40 @@ class PublicClaimsContractTest < Minitest::Test
     end
   end
 
+  def test_rejects_all_four_client_project_claim_shapes
+    CLIENT_PROJECT_CLAIMS.each do |claim|
+      assert_rejected(surface: :source, claim:, category: "client project as fact")
+      assert_rejected(surface: :built, claim:, category: "client project as fact")
+    end
+  end
+
+  def test_rejects_compact_category_only_tails_after_unknown_negative_wording
+    COMPACT_CATEGORY_TAILS.each do |category, claim|
+      assert_rejected(surface: :source, claim:, category:)
+      assert_rejected(surface: :built, claim:, category:)
+    end
+  end
+
+  def test_allows_only_explicitly_recognized_truthful_negative_disclosures
+    TRUTHFUL_NEGATIVE_FRAGMENTS.each do |copy|
+      with_public_copy(source: copy, built: "<main><p>#{copy}</p></main>") do |root, site|
+        _stdout, stderr, status = validate(root, site)
+
+        assert_predicate status, :success?, stderr
+      end
+    end
+  end
+
+  def test_claim_keywords_require_unicode_word_boundaries
+    NEUTRAL_BOUNDARY_FRAGMENTS.each do |copy|
+      with_public_copy(source: copy, built: "<main><p>#{copy}</p></main>") do |root, site|
+        _stdout, stderr, status = validate(root, site)
+
+        assert_predicate status, :success?, stderr
+      end
+    end
+  end
+
   def test_rejects_claims_in_public_copy_attributes_on_source_and_built_surfaces
     ATTRIBUTE_CLAIMS.each do |category, markup|
       [[:source, markup], [:built, markup]].each do |surface, attribute_copy|
@@ -121,6 +203,22 @@ class PublicClaimsContractTest < Minitest::Test
           _stdout, stderr, status = validate(root, site)
 
           refute_predicate status, :success?, "#{surface} must reject #{category} in an accessibility attribute"
+          assert_includes stderr, "#{surface}:index.#{surface == :source ? 'md' : 'html'}: #{category}"
+        end
+      end
+    end
+  end
+
+  def test_keeps_copy_before_a_negative_attribute_disclosure
+    ORDERED_ATTRIBUTE_CLAIMS.each do |category, markup|
+      [[:source, markup], [:built, markup]].each do |surface, attribute_copy|
+        source = surface == :source ? attribute_copy : TRUTHFUL_NEGATIVE_DISCLOSURE
+        built = surface == :built ? attribute_copy : "<main><p>#{TRUTHFUL_NEGATIVE_DISCLOSURE}</p></main>"
+
+        with_public_copy(source:, built:) do |root, site|
+          _stdout, stderr, status = validate(root, site)
+
+          refute_predicate status, :success?, "#{surface} must reject #{category} before a negative disclosure"
           assert_includes stderr, "#{surface}:index.#{surface == :source ? 'md' : 'html'}: #{category}"
         end
       end
