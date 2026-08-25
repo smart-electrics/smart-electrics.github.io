@@ -154,6 +154,72 @@ const dynamicFallbacks = Object.freeze([
     enhancedAttribute: "data-route-journey-enhanced"
   }))
 ]);
+const geometryWidths = Object.freeze([375, 768, 900, 1024, 1440, 1980]);
+const compositionGeometryContracts = Object.freeze([
+  {
+    family: "residence",
+    route: "/",
+    root: "[data-cinematic-root]",
+    enhancedAttribute: "data-cinematic-enhanced",
+    phaseAttribute: "data-cinematic-motion-phase",
+    stateAttribute: "data-cinematic-state",
+    stage: "[data-cinematic-stage]",
+    composition: ".residence-spine__composition",
+    scene: "[data-cinematic-scene]:not([hidden])",
+    panel: "[data-cinematic-panel]:not([hidden])",
+    control: ".residence-spine__rail",
+    overlay: "residence"
+  },
+  ...serviceStudioRoutes.map((route) => ({
+    family: "service-studio",
+    route,
+    root: "[data-service-studio-root]",
+    enhancedAttribute: "data-service-studio-enhanced",
+    phaseAttribute: "data-service-studio-motion-phase",
+    stateAttribute: "data-service-studio-state",
+    stage: "[data-service-studio-stage]",
+    composition: ".service-studio__composition",
+    scene: "[data-service-studio-scene]:not([hidden])",
+    panel: "[data-service-studio-panel]:not([hidden])",
+    control: ".service-studio__rail"
+  })),
+  ...solutionRoutes.map((route) => ({
+    family: "solutions",
+    route,
+    root: "[data-cinematic-solutions-root]",
+    enhancedAttribute: "data-cinematic-solutions-enhanced",
+    phaseAttribute: "data-cinematic-solutions-motion-phase",
+    stateAttribute: "data-cinematic-solutions-state",
+    stage: "[data-cinematic-solutions-stage]",
+    composition: ".cinematic-solutions__composition",
+    scene: "[data-cinematic-solutions-scene]:not([hidden])",
+    panel: "[data-cinematic-solutions-panel]:not([hidden])",
+    control: ".cinematic-solutions__rail"
+  })),
+  {
+    family: "journey",
+    route: "/process/",
+    root: "[data-route-journey-root]",
+    enhancedAttribute: "data-route-journey-enhanced",
+    phaseAttribute: "data-route-journey-motion-phase",
+    stateAttribute: "data-route-journey-state",
+    stage: "[data-route-journey-stage]",
+    composition: ".route-journey__composition",
+    scene: "[data-route-journey-scene]",
+    panel: "[data-route-journey-panel]",
+    control: ".route-journey__rail"
+  },
+  {
+    family: "smart-home",
+    route: "/smart-home/",
+    root: "[data-smart-home-simulator]",
+    enhancedAttribute: "data-enhanced",
+    stage: "[data-smart-home-experience]",
+    composition: "[data-smart-home-experience]",
+    scene: ".smart-home__scene",
+    panel: "[data-smart-home-phone]"
+  }
+]);
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(600_000);
@@ -238,6 +304,115 @@ async function expectFallbackInternalTargets(page, hrefs, label) {
     const response = await page.request.get(new URL(route, baseURL).href);
     expect(response.ok(), label + " fallback target " + route + " must resolve").toBe(true);
   }
+}
+
+async function expectCompositionGeometry(root, contract, width, state) {
+  const geometry = await root.evaluate((element, selectors) => {
+    const visible = (candidate) => {
+      const style = getComputedStyle(candidate);
+      const bounds = candidate.getBoundingClientRect();
+      return !candidate.hidden && style.visibility !== "hidden" && style.display !== "none" && bounds.width > 0 && bounds.height > 0;
+    };
+    const boundsFor = (candidate) => {
+      if (!candidate) return null;
+      const bounds = candidate.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        top: bounds.top,
+        right: bounds.right,
+        bottom: bounds.bottom,
+        width: bounds.width,
+        height: bounds.height,
+        finite: [bounds.left, bounds.top, bounds.right, bounds.bottom, bounds.width, bounds.height].every(Number.isFinite)
+      };
+    };
+    const single = (selector) => {
+      if (!selector) return { count: 0, bounds: null };
+      const matches = [...element.querySelectorAll(selector)].filter(visible);
+      return { count: matches.length, bounds: boundsFor(matches[0]) };
+    };
+    const scroll = (candidate) => candidate && {
+      clientWidth: candidate.clientWidth,
+      clientHeight: candidate.clientHeight,
+      scrollWidth: candidate.scrollWidth,
+      scrollHeight: candidate.scrollHeight,
+      overflowX: getComputedStyle(candidate).overflowX,
+      overflowY: getComputedStyle(candidate).overflowY
+    };
+    const stage = single(selectors.stage);
+    const composition = single(selectors.composition);
+    const scene = single(selectors.scene);
+    const panel = single(selectors.panel);
+    const control = single(selectors.control);
+    const structural = [scene.bounds, panel.bounds, control.bounds].filter(Boolean);
+    const maxStructuralBottom = Math.max(...structural.map(({ bottom }) => bottom));
+    const overlap = (left, right) => {
+      if (!left || !right) return null;
+      return {
+        width: Math.max(0, Math.min(left.right, right.right) - Math.max(left.left, right.left)),
+        height: Math.max(0, Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top))
+      };
+    };
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      stage,
+      composition,
+      scene,
+      panel,
+      control,
+      stageScroll: scroll(element.querySelector(selectors.stage)),
+      compositionScroll: scroll(element.querySelector(selectors.composition)),
+      trailingStageSpace: stage.bounds ? stage.bounds.bottom - maxStructuralBottom : null,
+      overlaps: {
+        scenePanel: overlap(scene.bounds, panel.bounds),
+        controlScene: overlap(control.bounds, scene.bounds),
+        controlPanel: overlap(control.bounds, panel.bounds)
+      }
+    };
+  }, contract);
+
+  const name = contract.family + " " + state + " at " + width + "px";
+  for (const [part, required] of [["stage", true], ["composition", true], ["scene", true], ["panel", true], ["control", Boolean(contract.control)]]) {
+    if (!required) continue;
+    expect(geometry[part].count, name + " needs exactly one visible " + part).toBe(1);
+    expect(geometry[part].bounds.finite, name + " needs finite " + part + " bounds").toBe(true);
+    expect(geometry[part].bounds.width, name + " needs positive " + part + " width").toBeGreaterThan(0);
+    expect(geometry[part].bounds.height, name + " needs positive " + part + " height").toBeGreaterThan(0);
+  }
+
+  const inside = (inner, outer) => inner.left >= outer.left - 2 && inner.right <= outer.right + 2 && inner.top >= outer.top - 2 && inner.bottom <= outer.bottom + 2;
+  for (const part of ["composition", "scene", "panel", ...(contract.control ? ["control"] : [])]) {
+    expect(inside(geometry[part].bounds, geometry.stage.bounds), name + " " + part + " must stay wholly inside its stage").toBe(true);
+  }
+  for (const part of ["scene", "panel", ...(contract.control ? ["control"] : [])]) {
+    expect(inside(geometry[part].bounds, geometry.composition.bounds), name + " " + part + " must stay wholly inside its composition").toBe(true);
+  }
+
+  expect(geometry.stage.bounds.height, name + " must not grow into a runaway empty stage").toBeLessThanOrEqual(Math.max(geometry.viewport.height * 2.25, 1400));
+  expect(geometry.trailingStageSpace, name + " stage must not clip its structural union").toBeGreaterThanOrEqual(-2);
+  expect(geometry.trailingStageSpace, name + " stage must not end in uncontrolled empty height").toBeLessThanOrEqual(Math.max(80, geometry.stage.bounds.height * 0.1));
+  for (const [part, scroll] of [["stage", geometry.stageScroll], ["composition", geometry.compositionScroll]]) {
+    expect(scroll.scrollWidth, name + " " + part + " must not hide horizontal overflow").toBeLessThanOrEqual(scroll.clientWidth + 2);
+    expect(scroll.scrollHeight, name + " " + part + " must not hide vertical overflow").toBeLessThanOrEqual(scroll.clientHeight + 2);
+  }
+
+  const disjoint = (overlap, pair) => {
+    expect(overlap.width <= 2 || overlap.height <= 2, name + " " + pair + " must not overlap").toBe(true);
+  };
+  if (contract.overlay === "residence" && width > 864) {
+    const { scene, panel } = geometry;
+    expect(inside(panel.bounds, scene.bounds), name + " residence panel overlay must remain wholly inside the scene frame").toBe(true);
+    expect(geometry.overlaps.scenePanel.width, name + " residence panel must overlap the full panel width").toBeGreaterThanOrEqual(panel.bounds.width - 2);
+    expect(geometry.overlaps.scenePanel.height, name + " residence panel must overlap the full panel height").toBeGreaterThanOrEqual(panel.bounds.height - 2);
+    expect(scene.bounds.width * scene.bounds.height, name + " residence scene must remain larger than its overlay panel").toBeGreaterThanOrEqual(panel.bounds.width * panel.bounds.height);
+  } else {
+    disjoint(geometry.overlaps.scenePanel, "scene and panel");
+  }
+  if (contract.control) {
+    disjoint(geometry.overlaps.controlScene, "control rail and scene");
+    disjoint(geometry.overlaps.controlPanel, "control rail and panel");
+  }
+  return { family: contract.family, route: contract.route, width, state, geometry };
 }
 
 function addDiagnostics(page) {
@@ -552,6 +727,13 @@ async function waitForIdle(root, attribute) {
   await expect(root).toHaveAttribute(attribute, "idle");
 }
 
+async function residenceDirectionWithRelation(stage) {
+  const relation = stage.locator("button[data-cinematic-relation-control]").first();
+  const directionId = await relation.evaluate((button) => button.closest("[data-cinematic-focus-panel]")?.getAttribute("data-cinematic-focus-panel"));
+  expect(directionId, "residence needs a relation-capable direction").toMatch(/^[a-z0-9-]+$/u);
+  return stage.locator(`button[data-cinematic-direction-control][data-direction-id="${directionId}"]`);
+}
+
 async function mediaSignature(image) {
   return image.evaluate(async (element) => {
     await element.decode();
@@ -603,13 +785,13 @@ async function transitResidence(page, route) {
   await waitForIdle(root, "data-cinematic-motion-phase");
   await expect(root).toHaveAttribute("data-cinematic-state", "assembled");
   await inspectCompositionState(page, root, "[data-cinematic-scene]", "[data-cinematic-panel]", route + " assembled");
-  const focus = stage.locator("button[data-cinematic-direction-control]").first();
+  const focus = await residenceDirectionWithRelation(stage);
   await expectFocusVisible(focus);
   await page.keyboard.press("Enter");
   await expect(root).toHaveAttribute("data-cinematic-state", "focus");
   await waitForIdle(root, "data-cinematic-motion-phase");
   await inspectCompositionState(page, root, "[data-cinematic-scene]", "[data-cinematic-panel]", route + " focus");
-  await stage.locator("[data-cinematic-relation-switcher]:visible button").first().click();
+  await stage.locator("[data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().click();
   await expect(root).toHaveAttribute("data-cinematic-state", "reassembled");
   await waitForIdle(root, "data-cinematic-motion-phase");
   await inspectCompositionState(page, root, "[data-cinematic-scene]", "[data-cinematic-panel]", route + " reassembled");
@@ -672,7 +854,7 @@ async function transitJourney(page, route) {
   await expect(root).toHaveAttribute("data-route-journey-state", "focus");
   await waitForIdle(root, "data-route-journey-motion-phase");
   await inspectCompositionState(page, root, "[data-route-journey-scene]", "[data-route-journey-panel]", route + " focus");
-  await stage.locator('button[data-route-journey-action="show-relationship"]:visible').click();
+  await stage.locator('button[data-route-journey-action="show-relationship"]:not([hidden])').click();
   await expect(root).toHaveAttribute("data-route-journey-state", "reassembled");
   await waitForIdle(root, "data-route-journey-motion-phase");
   await inspectCompositionState(page, root, "[data-route-journey-scene]", "[data-route-journey-panel]", route + " reassembled");
@@ -865,6 +1047,97 @@ test("every dynamic family fails closed to a visible semantic fallback when its 
   writeEvidence("adapter-failure-fallbacks.json", evidence);
 });
 
+async function exerciseGeometryContract(page, contract, width, evidence) {
+  await visit(page, contract.route);
+  const root = page.locator(contract.root);
+  const stage = root.locator(contract.stage);
+  await expect(root).toHaveAttribute(contract.enhancedAttribute, "true");
+  if (contract.phaseAttribute) await waitForIdle(root, contract.phaseAttribute);
+  const capture = async (state) => {
+    evidence.push(await expectCompositionGeometry(root, contract, width, state));
+  };
+
+  if (contract.family === "residence") {
+    await expect(root).toHaveAttribute(contract.stateAttribute, "assembled");
+    await capture("assembled");
+    await (await residenceDirectionWithRelation(stage)).click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "focus");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("focus");
+    await stage.locator("[data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "reassembled");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("reassembled");
+    return;
+  }
+
+  if (contract.family === "service-studio") {
+    await expect(root).toHaveAttribute(contract.stateAttribute, "assembled");
+    await capture("assembled");
+    await stage.locator('button[data-service-studio-action="select-focus"]').click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "focus");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("focus");
+    await stage.locator('button[data-service-studio-action="select-reassembled"]').click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "reassembled");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("reassembled");
+    return;
+  }
+
+  if (contract.family === "solutions") {
+    await expect(root).toHaveAttribute(contract.stateAttribute, "assembled");
+    await capture("assembled");
+    await stage.locator('button[data-cinematic-solutions-action="select-focus"]').click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "focus");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("focus");
+    await stage.locator('button[data-cinematic-solutions-action="select-reassembled"]').click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "reassembled");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("reassembled");
+    return;
+  }
+
+  if (contract.family === "journey") {
+    await expect(root).toHaveAttribute(contract.stateAttribute, "assembled");
+    await capture("assembled");
+    await stage.locator('button[data-route-journey-action="select-node"]').first().click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "focus");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("focus");
+    await stage.locator('button[data-route-journey-action="show-relationship"]:not([hidden])').click();
+    await expect(root).toHaveAttribute(contract.stateAttribute, "reassembled");
+    await waitForIdle(root, contract.phaseAttribute);
+    await capture("reassembled");
+    return;
+  }
+
+  await capture("assembled");
+  await root.locator("button[data-phone-system]").nth(1).click();
+  await capture("focus");
+  await root.locator("input[data-preset-radio]").nth(2).click();
+  await capture("reassembled");
+}
+
+test("every composition family retains bounded, non-overlapping settled geometry", async ({ page }) => {
+  const evidence = [];
+  const contractRoutes = (family) => compositionGeometryContracts.filter((contract) => contract.family === family).map(({ route }) => route).sort();
+  expect(contractRoutes("service-studio")).toEqual([...serviceStudioRoutes].sort());
+  expect(contractRoutes("solutions")).toEqual([...solutionRoutes].sort());
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await withInteractionDiagnostics(page, async () => {
+    for (const width of geometryWidths) {
+      await page.setViewportSize(viewportFor(width));
+      for (const contract of compositionGeometryContracts) {
+        await exerciseGeometryContract(page, contract, width, evidence);
+      }
+    }
+  });
+  expect(evidence).toHaveLength(geometryWidths.length * compositionGeometryContracts.length * 3);
+  writeEvidence("composition-geometry.json", evidence);
+});
+
 test("every stateful composition reaches assembled, focus, and reassembled with one dominant scene and panel", async ({ page }) => {
   await withInteractionDiagnostics(page, async () => {
     await page.setViewportSize(viewportFor(1440));
@@ -1042,9 +1315,9 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
   try {
     await withInteractionDiagnostics(page, async () => {
     await visit(page, "/");
-    await page.locator("[data-cinematic-stage] button[data-cinematic-direction-control]").first().tap();
+    await (await residenceDirectionWithRelation(page.locator("[data-cinematic-stage]"))).tap();
     await expect(page.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-state", "focus");
-    await page.locator("[data-cinematic-stage] [data-cinematic-relation-switcher]:visible button").first().tap();
+    await page.locator("[data-cinematic-stage] [data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().tap();
     await expect(page.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-state", "reassembled");
     evidence.push("residence");
 
@@ -1065,7 +1338,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     await visit(page, "/process/");
     await page.locator('[data-route-journey-stage] button[data-route-journey-action="select-node"]').first().tap();
     await expect(page.locator("[data-route-journey-root]")).toHaveAttribute("data-route-journey-state", "focus");
-    await page.locator('[data-route-journey-stage] button[data-route-journey-action="show-relationship"]:visible').tap();
+    await page.locator('[data-route-journey-stage] button[data-route-journey-action="show-relationship"]:not([hidden])').tap();
     await expect(page.locator("[data-route-journey-root]")).toHaveAttribute("data-route-journey-state", "reassembled");
     evidence.push("journey");
 
@@ -1099,8 +1372,8 @@ test("reduced-motion produces zero running animation or transition across every 
     }
 
     await visit(page, "/");
-    await page.locator("[data-cinematic-stage] button[data-cinematic-direction-control]").first().click();
-    await page.locator("[data-cinematic-stage] [data-cinematic-relation-switcher]:visible button").first().click();
+    await (await residenceDirectionWithRelation(page.locator("[data-cinematic-stage]"))).click();
+    await page.locator("[data-cinematic-stage] [data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().click();
     await expectNoVisibleSnapshots(page);
     await expectNoMotion(page);
 
@@ -1118,7 +1391,7 @@ test("reduced-motion produces zero running animation or transition across every 
 
     await visit(page, "/process/");
     await page.locator('[data-route-journey-stage] button[data-route-journey-action="select-node"]').first().click();
-    await page.locator('[data-route-journey-stage] button[data-route-journey-action="show-relationship"]:visible').click();
+    await page.locator('[data-route-journey-stage] button[data-route-journey-action="show-relationship"]:not([hidden])').click();
     await expectNoVisibleSnapshots(page);
     await expectNoMotion(page);
 
@@ -1148,13 +1421,13 @@ test("selected assembled, focus, and reassembled evidence remains inspectable at
       const assembled = "services-" + width + "-assembled.png";
       await page.screenshot({ path: resolve(evidenceDirectory, assembled) });
       screenshots.push(assembled);
-      await stage.locator("button[data-cinematic-direction-control]").first().click();
+      await (await residenceDirectionWithRelation(stage)).click();
       await expect(root).toHaveAttribute("data-cinematic-state", "focus");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const focus = "services-" + width + "-focus.png";
       await page.screenshot({ path: resolve(evidenceDirectory, focus) });
       screenshots.push(focus);
-      await stage.locator("[data-cinematic-relation-switcher]:visible button").first().click();
+      await stage.locator("[data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().click();
       await expect(root).toHaveAttribute("data-cinematic-state", "reassembled");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const reassembled = "services-" + width + "-reassembled.png";
