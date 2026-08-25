@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-js-unit test-browser verify-skills validate validate-public-claims validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-cinematic-route-transitions validate-quality-policy html check clean
+.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-js-unit test-browser verify-skills validate validate-production-assets validate-public-claims validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-cinematic-route-transitions validate-quality-policy html check clean
 
 help: ## Показати доступні команди
 	@awk 'BEGIN {FS = ":.*## "; printf "Smart Electrics\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -36,6 +36,7 @@ test-unit: ## Перевірити guard інтеграцій
 	bundle exec ruby -Itest tests/unit/service_studio_contract_test.rb
 	bundle exec ruby -Itest tests/unit/route_content_contract_test.rb
 	bundle exec ruby -Itest tests/unit/cinematic_route_transition_contract_test.rb
+	bundle exec ruby -Itest tests/unit/production_assets_contract_test.rb
 	bundle exec ruby -Itest tests/unit/public_claims_contract_test.rb
 	$(MAKE) test-js-unit
 
@@ -50,6 +51,9 @@ verify-skills: ## Перевірити склад і контрольні сум
 
 validate: ## Перевірити, що зовнішні інтеграції безпечно вимкнені або повністю налаштовані
 	bundle exec ruby scripts/validate_integrations.rb
+
+validate-production-assets: ## Перевірити production WebP inventory, provenance і responsive-пари
+	bundle exec ruby scripts/validate_production_assets.rb
 
 validate-public-claims: build ## Перевірити source і зібрану видиму публічну копію
 	bundle exec ruby scripts/validate_public_claims.rb
@@ -87,7 +91,7 @@ validate-quality-policy: ## Перевірити fail-closed налаштува�
 html: validate-public-claims ## Перевірити згенерований HTML і внутрішні посилання
 	bundle exec htmlproofer ./_site --disable-external --no-enforce-https
 
-check: verify-skills test-unit validate-quality-policy validate-public-claims validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-cinematic-route-transitions html test-browser ## Повний локальний quality gate
+check: verify-skills test-unit validate-quality-policy validate-production-assets validate-public-claims validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-cinematic-route-transitions html test-browser ## Повний локальний quality gate
 
 clean: ## Прибрати лише згенеровані артефакти Jekyll
 	bundle exec jekyll clean

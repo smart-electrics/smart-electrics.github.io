@@ -41,6 +41,19 @@ test("CodeQL remains an automatic and manual gate with every action pinned", () 
   assert.doesNotMatch(workflow, /uses:\s+[^\n]+@v\d+/u);
 });
 
+test("the local gate retains production assets, public claims, and one final acceptance project", () => {
+  const makefile = read("Makefile");
+  const playwright = read("playwright.config.js");
+
+  assert.match(makefile, /^validate-production-assets:.*\n\tbundle exec ruby scripts\/validate_production_assets\.rb$/mu);
+  assert.match(makefile, /^validate-public-claims: build(?:\s+##.*)?$/mu);
+  assert.match(makefile, /^check:.*\bvalidate-production-assets\b.*\bvalidate-public-claims\b.*\btest-browser\b/mu);
+  assert.match(makefile, /^\tbundle exec ruby -Itest tests\/unit\/production_assets_contract_test\.rb$/mu);
+  assert.match(makefile, /^\tbundle exec ruby -Itest tests\/unit\/public_claims_contract_test\.rb$/mu);
+  assert.match(playwright, /name: "final-acceptance"/u);
+  assert.match(playwright, /testMatch: finalAcceptanceFile/u);
+});
+
 test("the local quality validator approves the final PR-gate policy", () => {
   const result = spawnSync(process.execPath, ["scripts/validate_quality_policy.js"], {
     cwd: repositoryRoot,

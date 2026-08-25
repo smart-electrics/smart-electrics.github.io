@@ -154,6 +154,8 @@ assertPrerequisites("test", ["test-unit", "test-browser"]);
 assertPrerequisites("check", [
   "test-unit",
   "validate-quality-policy",
+  "validate-production-assets",
+  "validate-public-claims",
   "html",
   "test-browser",
 ]);
@@ -162,6 +164,26 @@ if (!targetRecipe("test-unit").includes("$(MAKE) test-js-unit")) {
   failures.push(
     "Make target test-unit must run test-js-unit so JavaScript unit failures remain blocking."
   );
+}
+
+if (!targetRecipe("test-unit").includes("tests/unit/production_assets_contract_test.rb")) {
+  failures.push(
+    "Make target test-unit must run the production asset contract so stale media metadata remains blocking."
+  );
+}
+
+if (!targetRecipe("test-unit").includes("tests/unit/public_claims_contract_test.rb")) {
+  failures.push(
+    "Make target test-unit must run the public claims contract so source and built copy remain blocking."
+  );
+}
+
+if (!targetRecipe("validate-production-assets").includes("scripts/validate_production_assets.rb")) {
+  failures.push("Make target validate-production-assets must execute the production WebP validator.");
+}
+
+if (!targetRecipe("validate-public-claims").includes("scripts/validate_public_claims.rb")) {
+  failures.push("Make target validate-public-claims must execute the public claims validator.");
 }
 
 if (packageJson.scripts?.["test:unit"] !== "node --test") {
@@ -186,6 +208,15 @@ for (const project of playwrightConfig.projects ?? []) {
       `Playwright project ${project.name ?? "<unnamed>"} must use 0 retries (received ${effectiveRetries}).`
     );
   }
+}
+
+const finalAcceptanceProjects = (playwrightConfig.projects ?? []).filter(
+  (project) => project.name === "final-acceptance"
+);
+if (finalAcceptanceProjects.length !== 1 || !finalAcceptanceProjects[0].testMatch?.test("final_acceptance.spec.js")) {
+  failures.push(
+    "Playwright must run final_acceptance.spec.js exactly once in the final-acceptance project."
+  );
 }
 
 for (const scriptName of ["test", "test:browser"]) {
