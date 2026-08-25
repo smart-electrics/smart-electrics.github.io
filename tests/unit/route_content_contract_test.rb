@@ -48,6 +48,17 @@ class RouteContentContractTest < Minitest::Test
     end
   end
 
+  def assert_controlled_rejection(content, error)
+    with_content(content) do |path|
+      _stdout, stderr, status = validate(path)
+
+      refute_predicate status, :success?
+      assert_includes stderr, error
+      refute_includes stderr, "NoMethodError"
+      refute_includes stderr, "stack trace"
+    end
+  end
+
   def test_accepts_the_single_ukrainian_route_content_seam
     _stdout, stderr, status = validate
 
@@ -97,6 +108,64 @@ class RouteContentContractTest < Minitest::Test
       data = duplicate_content
       mutate.call(data.fetch("uk").fetch("process").fetch("journey"))
       assert_rejected(data, "process.journey must match the detached canonical fingerprint")
+    end
+  end
+
+  def test_rejects_nil_journey_structures_with_controlled_contract_errors
+    mutations = {
+      "nodes" => [
+        lambda { |journey| journey["nodes"] = nil },
+        "process.journey.nodes must be an ordered array"
+      ],
+      "visual" => [
+        lambda { |journey| journey.fetch("nodes")[0]["visual"] = nil },
+        "process.journey.nodes[0].visual must provide bounded exact focus and next coordinates"
+      ],
+      "media" => [
+        lambda { |journey| journey["media"] = nil },
+        "process.journey.media fields must be exactly image_1536, image_768, image_alt, image_focus"
+      ],
+      "labels" => [
+        lambda { |journey| journey["labels"] = nil },
+        "process.journey.labels fields must be exactly input, decision, next with non-empty copy"
+      ],
+      "actions" => [
+        lambda { |journey| journey["actions"] = nil },
+        "process.journey.actions fields must be exactly show_relationship, return with non-empty copy"
+      ]
+    }
+
+    mutations.each_value do |mutate, error|
+      data = duplicate_content
+      mutate.call(data.fetch("uk").fetch("process").fetch("journey"))
+      assert_controlled_rejection(data, error)
+    end
+  end
+
+  def test_rejects_nil_utility_body_and_links_with_controlled_contract_errors
+    mutations = {
+      "projects body" => [
+        lambda { |localized| localized.fetch("projects")["body"] = nil },
+        "projects.body must be a non-empty static text array"
+      ],
+      "projects links" => [
+        lambda { |localized| localized.fetch("projects")["links"] = nil },
+        "projects.links must be a static link array"
+      ],
+      "contact body" => [
+        lambda { |localized| localized.fetch("contact")["body"] = nil },
+        "contact.body must be a non-empty static text array"
+      ],
+      "privacy body" => [
+        lambda { |localized| localized.fetch("privacy")["body"] = nil },
+        "privacy.body must be a non-empty static text array"
+      ]
+    }
+
+    mutations.each_value do |mutate, error|
+      data = duplicate_content
+      mutate.call(data.fetch("uk"))
+      assert_controlled_rejection(data, error)
     end
   end
 

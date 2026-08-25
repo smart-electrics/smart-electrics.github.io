@@ -295,6 +295,10 @@ test("journeys fail closed when a rendered localized or semantic contract change
       apply: (body) => body.replace('<h2 id="process-enquiry-title">Звернення</h2>', '<h2 id="process-enquiry-title">Змінене звернення</h2>')
     },
     {
+      name: "initially hidden fallback",
+      apply: (body) => body.replace('class="route-journey__fallback" data-route-journey-fallback', 'class="route-journey__fallback" data-route-journey-fallback hidden aria-hidden="true"')
+    },
+    {
       name: "fallback source order",
       apply: (body) => body.replace(/(<li id="process-enquiry">[\s\S]*?<\/li>)(\s*)(<li id="process-clarification">[\s\S]*?<\/li>)/u, "$3$2$1")
     },
@@ -358,6 +362,7 @@ test("journeys fail closed when a rendered localized or semantic contract change
     expect(changed, `${mutation.name} must change the response fixture`).toBe(true);
     await expect(root, mutation.name).not.toHaveAttribute("data-route-journey-enhanced", "true");
     await expectCompleteFallback(root, 7, mutation.name);
+    await expect(root.locator("[data-route-journey-fallback]"), mutation.name).not.toHaveAttribute("aria-hidden");
     await expect(root.locator("[data-route-journey-stage]"), mutation.name).toBeHidden();
     await page.unroute("**/process/");
   }
