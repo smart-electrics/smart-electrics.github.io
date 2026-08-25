@@ -1,7 +1,8 @@
 name: Quality
 
 on:
-  # Owner opt-in only; local make check remains the acceptance gate.
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +16,7 @@ jobs:
   quality:
     name: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
@@ -40,6 +41,15 @@ jobs:
 
       - name: Run quality gate
         run: make check
+
+      - name: Upload final acceptance evidence
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: final-acceptance-evidence-${{ github.run_id }}
+          path: artifacts/final-evidence/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload browser diagnostics on failure
         if: failure()

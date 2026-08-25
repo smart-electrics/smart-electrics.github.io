@@ -6,7 +6,7 @@
   "description": "Browser quality gates for the Smart Electrics Jekyll site.",
   "scripts": {
     "test": "playwright test",
-    "test:unit": "node --test tests/unit/smart_home_simulator_state.test.mjs tests/unit/cinematic_state.test.mjs tests/unit/physical_scene_state.test.mjs tests/unit/service_studio_state.test.mjs tests/unit/cinematic_solutions_state.test.mjs tests/unit/cinematic_solutions_integrity.test.mjs tests/unit/route_journey_state.test.mjs tests/unit/route_journey_adapter.test.mjs tests/unit/route_journey_integrity.test.mjs tests/unit/cinematic_route_transition.test.mjs",
+    "test:unit": "node --test",
     "test:browser": "playwright test",
     "test:browser:headed": "playwright test --headed",
     "test:browser:update": "playwright test --update-snapshots",

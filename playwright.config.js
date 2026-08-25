@@ -7,7 +7,7 @@ export default defineConfig({
   testDir: "./tests/browser",
   outputDir: "artifacts/playwright-results",
   fullyParallel: false,
-  forbidOnly: Boolean(process.env.CI),
+  forbidOnly: true,
   // A failed attempt is a failed quality gate; flakes must remain visible.
   retries: 0,
   workers: process.env.CI ? 1 : undefined,

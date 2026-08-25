@@ -16,13 +16,18 @@ const pagesWorkflow = readFileSync(
   new URL("../.github/workflows/pages.yml", import.meta.url),
   "utf8"
 );
+const codeqlWorkflow = readFileSync(
+  new URL("../.github/workflows/codeql.yml", import.meta.url),
+  "utf8"
+);
 const makefile = readFileSync(new URL("../Makefile", import.meta.url), "utf8");
+const nodeVersion = readFileSync(new URL("../.nvmrc", import.meta.url), "utf8").trim();
 
-function collectPlaywrightSourceFiles(directory) {
+function collectTestSourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = join(directory, entry.name);
 
-    if (entry.isDirectory()) return collectPlaywrightSourceFiles(entryPath);
+    if (entry.isDirectory()) return collectTestSourceFiles(entryPath);
     return /\.[cm]?[jt]s$/u.test(entry.name) ? [entryPath] : [];
   });
 }
@@ -59,22 +64,71 @@ function workflowTriggers(workflow) {
   );
 }
 
-const qualityTriggers = workflowTriggers(qualityWorkflow);
-const automaticQualityTriggers = qualityTriggers.filter(
-  (trigger) => trigger !== "workflow_dispatch"
-);
-const pagesTriggers = workflowTriggers(pagesWorkflow);
-
-if (!qualityTriggers.includes("workflow_dispatch") || automaticQualityTriggers.length > 0) {
-  failures.push("Quality must be manual-only with workflow_dispatch as its sole trigger.");
+function assertPinnedActions(workflow, workflowName) {
+  for (const [, action, revision] of workflow.matchAll(/^\s*uses:\s+([^@\s]+)@([^\s#]+)/gmu)) {
+    if (!/^[0-9a-f]{40}$/u.test(revision)) {
+      failures.push(`${workflowName} must pin ${action} to an immutable full SHA.`);
+    }
+  }
 }
 
-if (qualityTriggers.some((trigger) => ["push", "pull_request"].includes(trigger))) {
-  failures.push("Quality must not start automatically from push or pull_request.");
+function assertWorkflowHasAction(workflow, workflowName, action, revision) {
+  if (!workflow.includes(`uses: ${action}@${revision}`)) {
+    failures.push(`${workflowName} must use ${action}@${revision}.`);
+  }
+}
+
+const qualityTriggers = workflowTriggers(qualityWorkflow);
+const pagesTriggers = workflowTriggers(pagesWorkflow);
+const codeqlTriggers = workflowTriggers(codeqlWorkflow);
+
+if (qualityTriggers.join(",") !== "pull_request,workflow_dispatch") {
+  failures.push("Quality must trigger only for pull requests to main and workflow_dispatch.");
+}
+
+if (!/^on:\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:/mu.test(qualityWorkflow)) {
+  failures.push("Quality pull_request trigger must target main exactly.");
 }
 
 if (!/^\s+run:\s+make check\s*$/mu.test(qualityWorkflow)) {
-  failures.push("Manual Quality must still execute the real make check gate.");
+  failures.push("Quality must execute the real make check gate.");
+}
+
+if (!/^  quality:\n    name: quality$/mu.test(qualityWorkflow)) {
+  failures.push("Quality must retain the required quality job/context name.");
+}
+
+if (!/^    timeout-minutes: 45$/mu.test(qualityWorkflow)) {
+  failures.push("Quality must allow the bounded 45-minute final acceptance gate.");
+}
+
+if (!/^          node-version-file: \.nvmrc$/mu.test(qualityWorkflow) || !/^24\./u.test(nodeVersion)) {
+  failures.push("Quality must resolve Node 24 from .nvmrc.");
+}
+
+if (!/if: success\(\)[\s\S]*path: artifacts\/final-evidence\/[\s\S]*if-no-files-found: error/u.test(qualityWorkflow)) {
+  failures.push("Quality must retain the successful final-evidence artifact and fail when it is missing.");
+}
+
+assertPinnedActions(qualityWorkflow, "Quality");
+assertWorkflowHasAction(qualityWorkflow, "Quality", "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1");
+
+if (codeqlTriggers.join(",") !== "push,pull_request,workflow_dispatch,schedule") {
+  failures.push("CodeQL must retain push, pull_request, workflow_dispatch, and schedule triggers.");
+}
+
+if (!/^on:\n  push:\n    branches: \[main\]\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:\n  schedule:/mu.test(codeqlWorkflow)) {
+  failures.push("CodeQL push and pull_request triggers must target main exactly.");
+}
+
+assertPinnedActions(codeqlWorkflow, "CodeQL");
+assertWorkflowHasAction(codeqlWorkflow, "CodeQL", "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1");
+assertWorkflowHasAction(codeqlWorkflow, "CodeQL", "github/codeql-action/init", "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28");
+assertWorkflowHasAction(codeqlWorkflow, "CodeQL", "github/codeql-action/analyze", "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28");
+
+const codeqlLanguages = [...codeqlWorkflow.matchAll(/^\s*- language: ([a-z-]+)$/gmu)].map(([, language]) => language);
+if (codeqlLanguages.join(",") !== "actions,javascript-typescript,python,ruby") {
+  failures.push("CodeQL must retain the actions, JavaScript, Python, and Ruby matrix.");
 }
 
 if (!/^on:\n\s+push:\n\s+branches:\s*\[main\]/mu.test(pagesWorkflow)) {
@@ -93,6 +147,9 @@ if (!/ref:\s*\$\{\{ github\.sha \}\}/u.test(pagesWorkflow)) {
   failures.push("Pages must check out the exact pushed SHA.");
 }
 
+assertPinnedActions(pagesWorkflow, "Pages");
+assertWorkflowHasAction(pagesWorkflow, "Pages", "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1");
+
 assertPrerequisites("test", ["test-unit", "test-browser"]);
 assertPrerequisites("check", [
   "test-unit",
@@ -105,6 +162,14 @@ if (!targetRecipe("test-unit").includes("$(MAKE) test-js-unit")) {
   failures.push(
     "Make target test-unit must run test-js-unit so JavaScript unit failures remain blocking."
   );
+}
+
+if (packageJson.scripts?.["test:unit"] !== "node --test") {
+  failures.push("npm test:unit must auto-discover every JavaScript unit test with node --test.");
+}
+
+if (playwrightConfig.forbidOnly !== true) {
+  failures.push("Playwright forbidOnly must be true in every local and CI run.");
 }
 
 if (playwrightConfig.retries !== 0) {
@@ -134,15 +199,15 @@ for (const scriptName of ["test", "test:browser"]) {
   }
 }
 
-for (const filePath of collectPlaywrightSourceFiles(join(repositoryRoot, "tests/browser"))) {
+for (const filePath of collectTestSourceFiles(join(repositoryRoot, "tests"))) {
   const source = readFileSync(filePath, "utf8");
-  const forbiddenAnnotation = /\b(?:test|testInfo)\s*(?:\.\s*describe\s*)?\.\s*(?:skip|fixme)\s*\(/gu;
+  const forbiddenAnnotation = /\b(?:test|describe|testInfo)\s*(?:\.\s*describe\s*)?\.\s*(?:skip|fixme|only)\s*\(/gu;
 
   for (const match of source.matchAll(forbiddenAnnotation)) {
     const line = source.slice(0, match.index).split("\n").length;
     failures.push(
       `${relative(repositoryRoot, filePath)}:${line} uses ${match[0].replace(/\s+/gu, "")} ` +
-      "so the test suite can report a non-executed check instead of the real quality state."
+      "so the test suite can avoid the real quality state."
     );
   }
 }
@@ -165,5 +230,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Local quality policy is fail-closed; GitHub Quality is manual-only.");
+  console.log("Quality policy is fail-closed and blocks pull requests.");
 }
