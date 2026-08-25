@@ -39,13 +39,16 @@ systems і сім presets, а не лише ARIA-стан.
 
 tests/browser/final_acceptance.spec.js запускається один раз у project
 final-acceptance. Він записує детерміновані JSON-підсумки, 28 representative
-screenshots усіх кінематографічних composition families і чотири smart-home
-component-frame screenshots для 375, 768, 1440 і 1980 px у
-artifacts/final-evidence/. Smart-home frame перед capture навмисно ставиться на
-початок simulator route section і перевіряється за window scroll, simulator top
-та внутрішнім phone scroll; interaction scroll не визначає кадр. Кожен PNG
-декодується, звіряється з точним viewport (зокрема 1980×1200) і повторюється у
-тому самому settled стані; різний SHA-256 між двома capture є помилкою.
+component-frame screenshots усіх кінематографічних composition families і
+чотири smart-home component-frame screenshots для 375, 768, 1440 і 1980 px у
+artifacts/final-evidence/. Перед кожним capture звичайної композиції її frame
+детерміновано повертається до scene/control anchor; перевіряються межі
+composition, scene, panel і control, а також їхня змістовна видима частина.
+Smart-home frame окремо ставиться на початок simulator route section і
+перевіряється за window scroll, simulator top та внутрішнім phone scroll;
+interaction scroll не визначає жоден evidence-кадр. Кожен PNG декодується,
+звіряється з точним viewport (зокрема 1980×1200) і повторюється у тому самому
+settled стані; різний SHA-256 між двома capture є помилкою.
 
 No-JavaScript fallback перевіряється на всіх одинадцяти acceptance widths.
 Окремий adapter-outage прогін блокує site JavaScript і повторює всі 20 dynamic

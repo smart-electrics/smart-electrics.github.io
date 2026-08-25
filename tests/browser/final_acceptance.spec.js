@@ -122,6 +122,7 @@ const truthfulNegativeDisclosureSpans = Object.freeze([
 ]);
 const publicCopyAttributes = Object.freeze(["alt", "aria-label", "aria-description", "aria-valuetext", "aria-roledescription", "title", "placeholder"]);
 const publicCopyAttributeSelector = publicCopyAttributes.map((attribute) => "[" + attribute + "]").join(", ");
+const nonCopyInputTypes = Object.freeze(["checkbox", "color", "file", "hidden", "image", "password", "radio", "range"]);
 const claimCategories = (fragment) => dynamicClaimRules
   .filter(([, patterns]) => patterns.some((pattern) => pattern.test(fragment)))
   .map(([category]) => category);
@@ -667,7 +668,7 @@ async function expectNoVisibleSnapshots(page) {
 }
 
 async function expectGroundedDynamicCopy(root, name) {
-  const text = await root.evaluate((element, [attributeSelector, attributes]) => {
+  const text = await root.evaluate((element, [attributeSelector, attributes, ignoredInputTypes]) => {
     const visible = (candidate) => {
       const style = getComputedStyle(candidate);
       const bounds = candidate.getBoundingClientRect();
@@ -682,8 +683,12 @@ async function expectGroundedDynamicCopy(root, name) {
     const attributeCopy = attributeCandidates
       .flatMap((candidate) => attributes.map((attribute) => candidate.getAttribute(attribute)))
       .filter(Boolean);
-    return [element.innerText, ...liveLabels, ...attributeCopy].join("\n");
-  }, [publicCopyAttributeSelector, publicCopyAttributes]);
+    const valueCopy = [element, ...element.querySelectorAll("input")]
+      .filter((candidate) => candidate instanceof HTMLInputElement && visible(candidate) && !ignoredInputTypes.includes(candidate.type))
+      .map((candidate) => candidate.value)
+      .filter(Boolean);
+    return [element.innerText, ...liveLabels, ...attributeCopy, ...valueCopy].join("\n");
+  }, [publicCopyAttributeSelector, publicCopyAttributes, nonCopyInputTypes]);
   const violations = [];
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
     const claimable = truthfulNegativeDisclosureSpans.reduce(
@@ -852,6 +857,79 @@ async function captureDeterministicScreenshot(page, file, width, route, state) {
   const repeat = inspect(second, file + " repeated capture");
   expect(repeat.sha256, file + " must be byte-deterministic within the same settled browser run").toBe(primary.sha256);
   return { file, route, state, width, ...primary };
+}
+
+async function establishCompositionEvidenceFrame(page, root, contract, width, state) {
+  const composition = root.locator(contract.composition);
+  await expect(composition, contract.family + " " + state + " must retain one evidence composition").toHaveCount(1);
+  await composition.evaluate((element) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    element.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+  });
+  const adjustment = await root.evaluate((element, selectors) => {
+    const control = element.querySelector(selectors.control);
+    const bounds = control?.getBoundingClientRect();
+    if (!bounds) return 0;
+    const requiredVisibleHeight = Math.min(44, bounds.height);
+    return Math.max(0, bounds.top - (window.innerHeight - requiredVisibleHeight));
+  }, contract);
+  if (adjustment > 0) {
+    await page.evaluate((offset) => window.scrollBy({ top: offset, left: 0, behavior: "auto" }), adjustment);
+  }
+  await page.evaluate(() => new Promise((resolveAnimationFrame) => requestAnimationFrame(resolveAnimationFrame)));
+
+  const frame = await root.evaluate((element, [selectors, scrollAdjustment]) => {
+    const boundsFor = (selector) => {
+      const candidate = element.querySelector(selector);
+      const bounds = candidate?.getBoundingClientRect();
+      return bounds && {
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+        bottom: bounds.bottom,
+        width: bounds.width,
+        height: bounds.height
+      };
+    };
+    const visibleHeight = (bounds) => Math.max(0, Math.min(bounds.bottom, window.innerHeight) - Math.max(bounds.top, 0));
+    const composition = boundsFor(selectors.composition);
+    const scene = boundsFor(selectors.scene);
+    const panel = boundsFor(selectors.panel);
+    const control = boundsFor(selectors.control);
+    return {
+      name: "composition-scene-control-frame",
+      scrollY: window.scrollY,
+      adjustment: scrollAdjustment,
+      composition,
+      scene,
+      panel,
+      control,
+      visibleSceneHeight: visibleHeight(scene),
+      visiblePanelHeight: visibleHeight(panel),
+      visibleControlHeight: visibleHeight(control),
+      viewport: { width: window.innerWidth, height: window.innerHeight }
+    };
+  }, [contract, adjustment]);
+
+  const label = contract.family + " " + state + " evidence at " + width + "px";
+  for (const part of ["composition", "scene", "panel", "control"]) {
+    expect(frame[part], label + " needs " + part + " bounds before capture").not.toBeNull();
+    expect(frame[part].left, label + " " + part + " must not clip left").toBeGreaterThanOrEqual(-2);
+    expect(frame[part].right, label + " " + part + " must not clip right").toBeLessThanOrEqual(frame.viewport.width + 2);
+  }
+  expect(Math.abs(frame.composition.top + frame.adjustment), label + " must use its explicit composition anchor").toBeLessThanOrEqual(2);
+  expect(frame.visibleSceneHeight, label + " must retain scene depth in the captured viewport").toBeGreaterThanOrEqual(Math.min(frame.scene.height, frame.viewport.height * 0.25));
+  expect(frame.visiblePanelHeight, label + " must retain explanatory copy in the captured viewport").toBeGreaterThanOrEqual(Math.min(frame.panel.height, 44));
+  expect(frame.visibleControlHeight, label + " must retain a causal control surface in the captured viewport").toBeGreaterThanOrEqual(Math.min(frame.control.height, 44) - 1);
+  return frame;
+}
+
+async function captureCompositionEvidence(page, root, contract, file, width, route, state) {
+  const frame = await establishCompositionEvidenceFrame(page, root, contract, width, state);
+  return {
+    ...(await captureDeterministicScreenshot(page, file, width, route, state)),
+    frame
+  };
 }
 
 async function establishSmartHomeEvidenceFrame(page, simulator, width, state) {
@@ -1170,16 +1248,26 @@ test("runtime claim scanning covers all four client-project claim patterns", asy
   }
 });
 
-test("runtime claim scanning includes public-copy accessibility attributes", async ({ page }) => {
+test("runtime claim scanning includes public-copy attributes and visible input values", async ({ page }) => {
   for (const [category, markup] of [
     ["telemetry alt", '<img alt="Не заявляємо, а поточний статус системи доступний." src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="width:40px;height:20px">'],
     ["review aria-label", '<button aria-label="Не публікуємо, а рейтинг клієнтів підтверджує якість робіт.">Відкрити</button>'],
     ["compatibility title", '<span title="Не заявляємо, а compatibility with protocol доступна." style="display:block;width:100px;height:20px">Підпис</span>'],
-    ["telemetry placeholder", '<input placeholder="Не заявляємо, а поточний статус системи доступний." style="width:220px">']
+    ["telemetry placeholder", '<input placeholder="Не заявляємо, а поточний статус системи доступний." style="width:220px">'],
+    ["price button value", '<input type="button" value="Ціна електромонтажного проєкту — 24 000 грн." style="width:240px;height:44px">']
   ]) {
     await page.setContent("<main>" + markup + "</main>");
     await expect(expectGroundedDynamicCopy(page.locator("main"), category)).rejects.toThrow(/unsupported public claims/u);
   }
+
+  await page.setContent('<main><input type="button" value="Нейтральна дія" style="width:240px;height:44px"></main>');
+  await page.locator("input").evaluate((input) => {
+    input.value = "Ціна електромонтажного проєкту — 24 000 грн.";
+  });
+  await expect(expectGroundedDynamicCopy(page.locator("main"), "dynamic price button value")).rejects.toThrow(/unsupported public claims/u);
+
+  await page.setContent('<main><input type="hidden" value="Ціна електромонтажного проєкту — 24 000 грн."><input type="radio" value="KNX"></main>');
+  await expectGroundedDynamicCopy(page.locator("main"), "non-copy control values");
 });
 
 test("runtime claim scanning preserves copy before a negative attribute disclosure", async ({ page }) => {
@@ -1741,6 +1829,11 @@ test("reduced-motion produces zero running animation or transition across every 
 
 test("settled visual evidence spans every cinematic composition family at four representative widths", async ({ page }) => {
   const screenshots = [];
+  const contractFor = (route) => {
+    const contract = compositionGeometryContracts.find((candidate) => candidate.route === route);
+    expect(contract, route + " must retain a geometry contract for visual evidence").toBeDefined();
+    return contract;
+  };
   await withInteractionDiagnostics(page, async () => {
     for (const width of [375, 768, 1440, 1980]) {
       await page.setViewportSize(viewportFor(width));
@@ -1749,17 +1842,17 @@ test("settled visual evidence spans every cinematic composition family at four r
       const stage = root.locator("[data-cinematic-stage]");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const assembled = "services-" + width + "-assembled.png";
-      screenshots.push(await captureDeterministicScreenshot(page, assembled, width, "/services/", "assembled"));
+      screenshots.push(await captureCompositionEvidence(page, root, contractFor("/services/"), assembled, width, "/services/", "assembled"));
       await (await residenceDirectionWithRelation(stage)).click();
       await expect(root).toHaveAttribute("data-cinematic-state", "focus");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const focus = "services-" + width + "-focus.png";
-      screenshots.push(await captureDeterministicScreenshot(page, focus, width, "/services/", "focus"));
+      screenshots.push(await captureCompositionEvidence(page, root, contractFor("/services/"), focus, width, "/services/", "focus"));
       await stage.locator("[data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().click();
       await expect(root).toHaveAttribute("data-cinematic-state", "reassembled");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const reassembled = "services-" + width + "-reassembled.png";
-      screenshots.push(await captureDeterministicScreenshot(page, reassembled, width, "/services/", "reassembled"));
+      screenshots.push(await captureCompositionEvidence(page, root, contractFor("/services/"), reassembled, width, "/services/", "reassembled"));
 
       await visit(page, "/services/electrical-design/");
       const serviceStudio = page.locator("[data-service-studio-root]");
@@ -1767,7 +1860,7 @@ test("settled visual evidence spans every cinematic composition family at four r
       await expect(serviceStudio).toHaveAttribute("data-service-studio-state", "focus");
       await waitForIdle(serviceStudio, "data-service-studio-motion-phase");
       const serviceFocus = "service-detail-" + width + "-focus.png";
-      screenshots.push(await captureDeterministicScreenshot(page, serviceFocus, width, "/services/electrical-design/", "focus"));
+      screenshots.push(await captureCompositionEvidence(page, serviceStudio, contractFor("/services/electrical-design/"), serviceFocus, width, "/services/electrical-design/", "focus"));
 
       await visit(page, "/solutions/");
       const solution = page.locator("[data-cinematic-solutions-root]");
@@ -1777,7 +1870,7 @@ test("settled visual evidence spans every cinematic composition family at four r
       await expect(solution).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
       await waitForIdle(solution, "data-cinematic-solutions-motion-phase");
       const solutionReassembled = "solutions-" + width + "-reassembled.png";
-      screenshots.push(await captureDeterministicScreenshot(page, solutionReassembled, width, "/solutions/", "reassembled"));
+      screenshots.push(await captureCompositionEvidence(page, solution, contractFor("/solutions/"), solutionReassembled, width, "/solutions/", "reassembled"));
 
       for (const [slug, route] of [["process", "/process/"], ["about", "/about/"]]) {
         await visit(page, route);
@@ -1788,7 +1881,7 @@ test("settled visual evidence spans every cinematic composition family at four r
         await expect(journey).toHaveAttribute("data-route-journey-state", "reassembled");
         await waitForIdle(journey, "data-route-journey-motion-phase");
         const journeyReassembled = slug + "-" + width + "-reassembled.png";
-        screenshots.push(await captureDeterministicScreenshot(page, journeyReassembled, width, route, "reassembled"));
+        screenshots.push(await captureCompositionEvidence(page, journey, contractFor(route), journeyReassembled, width, route, "reassembled"));
       }
     }
     expect(screenshots).toHaveLength(28);
@@ -1796,6 +1889,7 @@ test("settled visual evidence spans every cinematic composition family at four r
     expect(screenshots.filter(({ width }) => width === 1980).every(({ dimensions }) =>
       dimensions?.width === 1980 && dimensions?.height === 1200
     )).toBe(true);
+    expect(screenshots.every(({ frame }) => frame?.name === "composition-scene-control-frame" && frame.visibleSceneHeight > 0 && frame.visibleControlHeight >= 43)).toBe(true);
     expect(new Set(screenshots.map(({ route }) => route))).toEqual(new Set([
       "/services/",
       "/services/electrical-design/",

@@ -27,6 +27,16 @@ module PublicClaims
     title
     placeholder
   ].freeze
+  NON_COPY_INPUT_TYPES = %w[
+    checkbox
+    color
+    file
+    hidden
+    image
+    password
+    radio
+    range
+  ].freeze
   LIQUID_OUTPUT = /\{[{%].*?[}%]\}/m
   NEGATIVE_DISCLOSURE_ITEM = [
     "телеметр[\\p{L}\\p{N}]*",
@@ -156,7 +166,12 @@ module PublicClaims
     fragment.css(INVISIBLE_ELEMENTS).remove
     text = (fragment.xpath(".//text()").map(&:text) +
             fragment.xpath(".//*").flat_map do |node|
-              PUBLIC_COPY_ATTRIBUTES.filter_map { |attribute| node[attribute] }
+              attributes = PUBLIC_COPY_ATTRIBUTES.filter_map { |attribute| node[attribute] }
+              input_type = node["type"].to_s.downcase
+              if node.name == "input" && node.key?("value") && !NON_COPY_INPUT_TYPES.include?(input_type)
+                attributes << node["value"]
+              end
+              attributes
             end)
            .join(" ")
            .gsub(LIQUID_OUTPUT, " ")

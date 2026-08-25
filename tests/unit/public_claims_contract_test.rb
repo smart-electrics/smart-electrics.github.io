@@ -77,7 +77,8 @@ class PublicClaimsContractTest < Minitest::Test
     ["telemetry/status", '<img alt="Онлайн-статус системи доступний у реальному часі." width="100" height="20">'],
     ["portal/account/control", '<button aria-label="Особистий кабінет дає віддалене керування об’єктом.">Кнопка</button>'],
     ["vendor compatibility", '<span title="Рішення сумісне з KNX і підтримує протокол виробника.">Підпис</span>'],
-    ["price", '<input placeholder="Ціна електромонтажного проєкту — 24 000 грн.">']
+    ["price", '<input placeholder="Ціна електромонтажного проєкту — 24 000 грн.">'],
+    ["price", '<input type="button" value="Ціна електромонтажного проєкту — 24 000 грн.">']
   ].freeze
   TRUTHFUL_NEGATIVE_DISCLOSURE = <<~COPY.strip
     Це візуальна концепція, не підтверджений клієнтський кейс.
@@ -202,7 +203,7 @@ class PublicClaimsContractTest < Minitest::Test
         with_public_copy(source:, built:) do |root, site|
           _stdout, stderr, status = validate(root, site)
 
-          refute_predicate status, :success?, "#{surface} must reject #{category} in an accessibility attribute"
+          refute_predicate status, :success?, "#{surface} must reject #{category} in a public-copy attribute"
           assert_includes stderr, "#{surface}:index.#{surface == :source ? 'md' : 'html'}: #{category}"
         end
       end
@@ -228,6 +229,8 @@ class PublicClaimsContractTest < Minitest::Test
   def test_ignores_urls_and_arbitrary_data_attributes_as_public_copy
     neutral_markup = <<~HTML
       <a href="/knx?price=24000" data-label="Рейтинг клієнта" data-copy="Телеметрія доступна">Нейтральне посилання</a>
+      <input type="hidden" value="Ціна електромонтажного проєкту — 24 000 грн.">
+      <input type="radio" value="KNX">
     HTML
 
     with_public_copy(source: neutral_markup, built: "<main>#{neutral_markup}</main>") do |root, site|
