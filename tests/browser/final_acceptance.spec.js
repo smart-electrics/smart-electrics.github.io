@@ -630,6 +630,23 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   }
 });
 
+test("public surface rejects disabled, inert, and undersized generic interactive targets", async ({ page }) => {
+  await page.setViewportSize(viewportFor(375));
+  await page.setContent(`
+    <html lang="uk"><head><meta name="robots" content="noindex"></head><body>
+      <header role="banner"></header>
+      <main><h1>Перевірка поверхні</h1>
+        <input type="button" disabled value="Недоступна дія" style="height:44px;width:160px">
+        <div inert><button type="button" style="height:44px;width:160px">Інертна дія</button></div>
+        <a href="/fixtures/target" style="display:inline">Коротке посилання</a>
+      </main>
+      <footer role="contentinfo"></footer>
+    </body></html>
+  `);
+
+  await expect(publicSurface(page, "fixture", 375)).rejects.toThrow(/disabled or inert interactive target/u);
+});
+
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
   const context = await browser.newContext({ baseURL, locale: "uk-UA", viewport: viewportFor(768) });
   await context.route("**/assets/js/**", (route) => route.abort());
