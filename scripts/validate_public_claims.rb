@@ -21,6 +21,7 @@ module PublicClaims
   HTML_TAG = /<[^>]+>/m
   BLOCK_END = /<\/(?:address|article|aside|blockquote|dd|div|dl|dt|figcaption|footer|form|h[1-6]|header|li|main|nav|ol|p|section|summary|table|td|th|tr|ul)\s*>/i
   LIQUID_OUTPUT = /\{[{%].*?[}%]\}/m
+  CONTRASTING_CLAUSE_SEPARATOR = /\s*,?\s*\b(?:але|однак|проте|but)\b\s*/iu
   NEGATIVE_DISCLOSURE = /\b(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))\b/iu
   CLAIM_PATTERNS = {
     "telemetry/status" => [
@@ -104,10 +105,10 @@ module PublicClaims
       end
 
       visible_fragments(document).each do |fragment|
-        next if truthful_negative_disclosure?(fragment)
+        claimable = mask_truthful_negative_clauses(fragment)
 
         CLAIM_PATTERNS.each do |category, patterns|
-          next unless patterns.any? { |pattern| pattern.match?(fragment) }
+          next unless patterns.any? { |pattern| pattern.match?(claimable) }
 
           errors << "#{surface}:#{relative_path(path, root)}: #{category}"
         end
@@ -133,6 +134,12 @@ module PublicClaims
 
   def truthful_negative_disclosure?(fragment)
     NEGATIVE_DISCLOSURE.match?(fragment)
+  end
+
+  def mask_truthful_negative_clauses(fragment)
+    fragment.split(CONTRASTING_CLAUSE_SEPARATOR)
+            .map { |clause| truthful_negative_disclosure?(clause) ? " " : clause }
+            .join(" ")
   end
 
   def relative_path(path, root)
