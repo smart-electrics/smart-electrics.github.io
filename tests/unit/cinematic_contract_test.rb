@@ -237,4 +237,26 @@ class CinematicContractTest < Minitest::Test
     graph.fetch("relations")[1].fetch("child")["id"] = "panel-assembly"
     assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
+
+  def test_requires_motion_compositions_to_declare_real_relationship_connectors_and_a_mobile_safe_selector
+    templates = {
+      "_includes/cinematic-stage.html" => "data-cinematic-relationship-connector",
+      "_includes/service-studio.html" => "data-service-studio-relationship-connector",
+      "_includes/cinematic-solutions.html" => "data-cinematic-solutions-relationship-connector"
+    }
+    templates.each do |path, connector|
+      source = File.read(File.join(project_root, path))
+      assert_includes source, connector, "#{path} must expose an aria-hidden SVG relationship connector"
+      assert_includes source, "pathLength=\"1\"", "#{path} connector must be drawable"
+    end
+
+    %w[cinematic-stage service-studio cinematic-solutions route-journey].each do |adapter|
+      source = File.read(File.join(project_root, "assets/js/#{adapter}.js"))
+      assert_includes source, "createCinematicMotion", "#{adapter} must run the shared bounded motion lifecycle"
+    end
+
+    styles = File.read(File.join(project_root, "_sass/_cinematic-solutions.scss"))
+    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?display:\s*grid;/, styles)
+    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?overflow:\s*visible;/, styles)
+  end
 end

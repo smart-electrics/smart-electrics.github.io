@@ -156,18 +156,26 @@ async function assertState(page, root, stage, solution, stateId) {
   }));
 }
 
-test("the atlas uses concrete wording and gives its mobile selector a visible scroll cue", async ({ page }) => {
+test("the atlas uses concrete wording and keeps every mobile selector control fully visible", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(atlasRoute);
   const { stage } = await studioFor(page);
   await expect(stage.locator(".cinematic-solutions__heading > div > p:last-child")).toHaveText("Оберіть конфігурацію, щоб побачити її системи та ключовий зв’язок між системами.");
   const selector = stage.locator(".cinematic-solutions__selector");
   expect(await selector.evaluate((element) => ({
-    maskImage: getComputedStyle(element).maskImage,
+    display: getComputedStyle(element).display,
+    overflowX: getComputedStyle(element).overflowX,
+    clipped: [...element.querySelectorAll("button")].some((button) => {
+      const parent = element.getBoundingClientRect();
+      const bounds = button.getBoundingClientRect();
+      return bounds.left < parent.left || bounds.right > parent.right;
+    }),
     scrollable: element.scrollWidth > element.clientWidth
   }))).toEqual({
-    maskImage: expect.stringContaining("linear-gradient"),
-    scrollable: true
+    display: "grid",
+    overflowX: "visible",
+    clipped: false,
+    scrollable: false
   });
 });
 
