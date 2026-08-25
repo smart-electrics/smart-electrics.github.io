@@ -218,6 +218,12 @@ if (playwrightConfig.retries !== 0) {
   );
 }
 
+if (playwrightConfig.actionTimeout !== 10_000) {
+  failures.push(
+    `Playwright action timeout must be 10_000ms so a missing control fails promptly without extending the test timeout (received ${playwrightConfig.actionTimeout}).`
+  );
+}
+
 for (const project of playwrightConfig.projects ?? []) {
   const effectiveRetries = project.retries ?? playwrightConfig.retries;
 

@@ -12,6 +12,7 @@ export default defineConfig({
   forbidOnly: true,
   // A failed attempt is a failed quality gate; flakes must remain visible.
   retries: 0,
+  actionTimeout: 10_000,
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ["list"],
