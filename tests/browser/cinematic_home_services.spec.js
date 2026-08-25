@@ -416,9 +416,13 @@ test("all nine residence scene families remain pre-rendered on both public surfa
     await expect(relationScenes).toHaveCount(sceneFamilies.length);
     for (const family of sceneFamilies) {
       const scene = stage.locator(`[data-cinematic-relation-scene][data-cinematic-scene-family='${family}']`);
+      const image = scene.locator("img");
       await expect(scene).toHaveCount(1);
-      await expect(scene.locator("img")).toHaveAttribute("src", new RegExp(`/smart-home/${family}-1536\\.webp$`));
-      await expect(scene.locator("img")).toHaveAttribute("alt", /Візуальна концепція:/);
+      await expect(scene.locator("source")).toHaveCount(0);
+      await expect(image).toHaveAttribute("src", new RegExp(`/smart-home/${family}-768\\.webp$`));
+      await expect(image).toHaveAttribute("srcset", new RegExp(`/smart-home/${family}-768\\.webp 768w, /assets/images/smart-home/${family}-1536\\.webp 1536w$`));
+      await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 52vw");
+      await expect(image).toHaveAttribute("alt", /Візуальна концепція:/);
     }
   }
 });
