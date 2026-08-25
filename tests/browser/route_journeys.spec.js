@@ -61,6 +61,7 @@ async function settledVisual(page, root) {
       },
       connector: {
         hidden: connector.hidden,
+        display: getComputedStyle(connector).display,
         state: connector.dataset.routeJourneyConnectorState,
         x1: line.getAttribute("x1"),
         y1: line.getAttribute("y1"),
@@ -115,6 +116,7 @@ test("every journey node resolves a distinct settled scene frame and causal conn
     await expect(root.locator("svg[data-route-journey-connector] circle")).toHaveCount(2);
 
     const assembled = await settledVisual(page, root);
+    const assembledSource = await root.locator("[data-route-journey-scene] img").evaluate((image) => image.currentSrc);
     expect(assembled).not.toBeNull();
     expect(assembled?.connector).toMatchObject({ hidden: true, state: "assembled" });
     const focusFrames = new Set();
@@ -128,12 +130,14 @@ test("every journey node resolves a distinct settled scene frame and causal conn
       await root.getByRole("button", { name: node.title, exact: true }).click();
       await expect(root).toHaveAttribute("data-route-journey-state", "focus");
       const focus = await settledVisual(page, root);
+      await expect(root.locator("[data-route-journey-scene] img")).toHaveJSProperty("currentSrc", assembledSource);
       expect(focus).not.toBeNull();
       expect(focus?.scene.transform).not.toBe(assembled?.scene.transform);
       expect(focus?.scene.clipPath).not.toBe(assembled?.scene.clipPath);
       expect(focus?.scene.objectPosition).not.toBe(assembled?.scene.objectPosition);
       expect(focus?.connector).toEqual({
         hidden: false,
+        display: "block",
         state: "focus",
         x1: String(node.visual.focus.x),
         y1: String(node.visual.focus.y),
@@ -145,12 +149,14 @@ test("every journey node resolves a distinct settled scene frame and causal conn
       await root.getByRole("button", { name: "Показати зв’язок", exact: true }).click();
       await expect(root).toHaveAttribute("data-route-journey-state", "reassembled");
       const reassembled = await settledVisual(page, root);
+      await expect(root.locator("[data-route-journey-scene] img")).toHaveJSProperty("currentSrc", assembledSource);
       expect(reassembled).not.toBeNull();
       expect(reassembled?.scene.transform).not.toBe(focus?.scene.transform);
       expect(reassembled?.scene.clipPath).not.toBe(focus?.scene.clipPath);
       expect(reassembled?.scene.objectPosition).not.toBe(focus?.scene.objectPosition);
       expect(reassembled?.connector).toEqual({
         hidden: false,
+        display: "block",
         state: "reassembled",
         x1: String(node.visual.focus.x),
         y1: String(node.visual.focus.y),
@@ -202,7 +208,7 @@ test("journeys fail closed for malformed JSON and an invalid node adapter surfac
     },
     {
       name: "visual mapping drift",
-      apply: (body) => body.replace('"x":24', '"x":25')
+      apply: (body) => body.replace('"x":17', '"x":18')
     },
     {
       name: "connector DOM drift",
@@ -256,6 +262,9 @@ test("journey motion recovers from cancellation and image abort, and does not ru
   const reducedReassembled = await settledVisual(page, reducedRoot);
   expect(reducedReassembled?.scene.transform).not.toBe(reducedFocus?.scene.transform);
   expect(reducedReassembled?.connector).toMatchObject({ state: "reassembled" });
+  expect(`${reducedReassembled?.connector.x1},${reducedReassembled?.connector.y1}`).not.toBe(
+    `${reducedReassembled?.connector.x2},${reducedReassembled?.connector.y2}`
+  );
   const movingElements = await reducedRoot.locator("*").evaluateAll((elements) => elements.filter((element) => {
     const style = getComputedStyle(element);
     return (style.animationName !== "none" && style.animationDuration !== "0s") || style.transitionDuration
