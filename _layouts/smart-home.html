@@ -60,11 +60,12 @@ layout: default
         </ul>
       </aside>
 
-      <section class="smart-home__phone" data-smart-home-phone hidden aria-labelledby="phone-title">
+      <section class="smart-home__phone" data-smart-home-phone hidden tabindex="0" aria-label="Налаштування простору. Прокручуйте панель, щоб переглянути всі елементи керування.">
         <header class="smart-home__phone-header">
           <p class="smart-home__phone-kicker">{{ smart_home.simulator.kicker }}</p>
           <h3 id="phone-title">Налаштування простору</h3>
         </header>
+        <p class="smart-home__phone-scroll-hint" aria-hidden="true">Прокручуйте панель, щоб переглянути всі налаштування.</p>
 
         <fieldset class="smart-home__preset-picker" data-preset-picker>
           <legend>{{ smart_home.simulator.legend }}</legend>

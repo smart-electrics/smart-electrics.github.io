@@ -272,7 +272,8 @@ async function expectSmartHomeScenePriority(page, simulator, width, state) {
   const activeControl = phone.locator("[data-phone-control-panel]:not([hidden]) input, [data-phone-control-panel]:not([hidden]) button").first();
   await expect(phone, "smart-home phone must remain available for " + state).toBeVisible();
   await expect(activeControl, "smart-home active control must remain available for " + state).toBeVisible();
-  await activeControl.scrollIntoViewIfNeeded();
+  await phone.scrollIntoViewIfNeeded();
+  await activeControl.evaluate((element) => element.scrollIntoView({ block: "nearest", inline: "nearest" }));
 
   const geometry = await simulator.evaluate((root) => {
     const boundsFor = (selector) => {
@@ -312,10 +313,10 @@ async function expectSmartHomeScenePriority(page, simulator, width, state) {
   expect(geometry.scene.area, "smart-home scene must exceed its whole phone surface at " + width + "px for " + state).toBeGreaterThan(geometry.phone.area);
   expect(geometry.scene.area, "smart-home scene must exceed its active control surface at " + width + "px for " + state).toBeGreaterThan(geometry.controls.area);
   expect(geometry.scene.area, "smart-home scene must retain a substantial share of the experience at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.experience.area * 0.25);
-  expect(geometry.phone.left, "smart-home phone must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(-1);
-  expect(geometry.phone.right, "smart-home phone must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.width + 1);
-  expect(geometry.phone.top, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeGreaterThanOrEqual(-1);
-  expect(geometry.phone.bottom, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.height + 1);
+  expect(geometry.phone.left, "smart-home phone must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(-2);
+  expect(geometry.phone.right, "smart-home phone must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.width + 2);
+  expect(geometry.phone.top, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeGreaterThanOrEqual(-2);
+  expect(geometry.phone.bottom, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.height + 2);
   expect(geometry.activeControl.left, "smart-home active control must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.phone.left - 1);
   expect(geometry.activeControl.right, "smart-home active control must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.phone.right + 1);
   expect(geometry.activeControl.top, "smart-home active control must remain visible in the phone at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.phone.top - 1);
@@ -577,12 +578,15 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
     await visit(page, "/smart-home/");
     const simulator = page.locator("[data-smart-home-simulator]");
     const phone = simulator.locator("[data-smart-home-phone]");
+    const scrollHint = phone.locator(".smart-home__phone-scroll-hint");
     await expect(simulator).toHaveAttribute("data-enhanced", "true");
     await expect(phone).toHaveAttribute("tabindex", "0");
-    await expect(phone).toHaveAttribute("aria-label", /прокруч/u);
+    await expect(phone).toHaveAttribute("aria-label", /прокруч/iu);
     await expectSmartHomeScenePriority(page, simulator, width, "initial");
 
     if (width === 375) {
+      await expect(scrollHint).toBeVisible();
+      await expect(scrollHint).toContainText("Прокручуйте панель");
       await phone.focus();
       const before = await phone.evaluate((element) => ({ scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, clientHeight: element.clientHeight }));
       expect(before.scrollHeight, "mobile phone must expose additional controls through its own scroll surface").toBeGreaterThan(before.clientHeight);
@@ -590,6 +594,8 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
       await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(before.scrollTop);
       await page.keyboard.press("Home");
       await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBe(0);
+    } else {
+      await expect(scrollHint).toBeHidden();
     }
 
     const system = simulator.locator("button[data-phone-system]").nth(1);

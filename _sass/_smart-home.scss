@@ -397,6 +397,10 @@
   text-align: end;
 }
 
+.smart-home__phone-scroll-hint {
+  display: none;
+}
+
 .smart-home__preset-picker {
   border: 0;
   margin: 0;
@@ -917,6 +921,25 @@
   .smart-home__phone,
   .smart-home__static-explainer {
     min-height: auto;
+  }
+
+  .smart-home__phone {
+    align-self: start;
+    block-size: 19rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: rgba(242, 166, 95, 0.68) transparent;
+    scrollbar-width: thin;
+  }
+
+  .smart-home__phone-scroll-hint {
+    border-block: 1px solid var(--phone-line);
+    color: var(--phone-muted);
+    display: block;
+    font-size: 0.67rem;
+    line-height: 1.4;
+    margin: 0;
+    padding-block: 0.5rem;
   }
 
   .smart-home__scene-copy {
