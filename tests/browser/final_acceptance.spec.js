@@ -62,8 +62,8 @@ const dynamicClaimRules = Object.freeze([
     /телеметр[\p{L}\p{N}]*/iu,
     /\bтелеметр[\p{L}\p{N}]*/iu,
     /\b(?:live|онлайн)[\s-]*(?:статус|status)\b/iu,
-    /\b(?:поточн[\p{L}\p{N}]*|актуальн[\p{L}\p{N}]*|реальн[\p{L}\p{N}]*(?:\s+час[\p{L}\p{N}]*)?)\s+(?:стан|статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)\b/iu,
-    /\b(?:статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)\b/iu
+    /(?:поточн[\p{L}\p{N}]*|актуальн[\p{L}\p{N}]*|реальн[\p{L}\p{N}]*(?:\s+час[\p{L}\p{N}]*)?)\s+(?:стан|статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)/iu,
+    /(?:статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)/iu
   ]],
   ["portal/account/control", [
     /(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*))|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*/iu,
@@ -91,25 +91,12 @@ const scopedTruthfulNegativeDisclosures = Object.freeze([
   /не\s+публіку[\p{L}\p{N}]*\s+(?:тут\s+)?підтверджен[\p{L}\p{N}]*\s+кейс[\p{L}\p{N}]*\s+(?:чи|або|та|і)\s+матеріал[\p{L}\p{N}]*\s+про\s+виконан[\p{L}\p{N}]*\s+об[’']?єкт[\p{L}\p{N}]*/iu
 ]);
 const contrastingClauseSeparator = /\s*,?\s*(?:але|однак|проте|but)\s*/iu;
-const positiveClaimAfterDisclosure = Object.freeze([
-  /телеметрія/iu,
-  /(?:онлайн|live)[\s-]*(?:статус|status)/iu,
-  /портал[\p{L}\p{N}]*\s+(?:дає|доступн|дозвол|керуван)/iu,
-  /особист[\p{L}\p{N}]*\s+кабінет/iu,
-  /(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)/iu,
-  /(?:сумісн(?:ий|а|е|і)|підтримує(?:мо|те)?|підтримується)\s+(?:з|із)/iu,
-  /(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)/iu,
-  unicodeWord("ціна"),
-  /[₴€]/u,
-  unicodeWord("грн"),
-  /\$\s*\d/u,
-  /гаранту[\p{L}\p{N}]*/iu,
-  /сертифікован[\p{L}\p{N}]*/iu,
-  unicodeWord("сертифікат"),
-  unicodeWord("відгук"),
-  /(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)\s+(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)/iu,
-  /(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)/iu
-]);
+const publicCopyAttributes = Object.freeze(["alt", "aria-label", "aria-description", "aria-valuetext", "aria-roledescription", "title", "placeholder"]);
+const publicCopyAttributeSelector = publicCopyAttributes.map((attribute) => "[" + attribute + "]").join(", ");
+const positiveAssertionContext = /(?:^|[^\p{L}\p{N}])(?:а|але|однак|проте|but|доступн[\p{L}\p{N}]*|дає|дозвол|підтвердж[\p{L}\p{N}]*|показ[\p{L}\p{N}]*|станов[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*|сертифікован[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|отримав|отримала|маємо|knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue|грн)(?=$|[^\p{L}\p{N}])|[₴€]|\$\s*\d/iu;
+const claimCategories = (fragment) => dynamicClaimRules
+  .filter(([, patterns]) => patterns.some((pattern) => pattern.test(fragment)))
+  .map(([category]) => category);
 const serviceStudioRoutes = publicRoutes.filter((route) => route.startsWith("/services/") && route !== "/services/");
 const solutionRoutes = publicRoutes.filter((route) => route.startsWith("/solutions/"));
 const expectedDynamicFallbackRoutes = Object.freeze([
@@ -655,22 +642,27 @@ function mixedNegativePositiveClaim(clause) {
   const disclosure = clause.match(truthfulNegativeDisclosure);
   if (!disclosure || disclosure.index === undefined) return false;
   const tail = clause.slice(disclosure.index + disclosure[0].length);
-  return positiveClaimAfterDisclosure.some((pattern) => pattern.test(tail));
+  return positiveAssertionContext.test(tail) && claimCategories(tail).length > 0;
 }
 
 async function expectGroundedDynamicCopy(root, name) {
-  const text = await root.evaluate((element) => {
+  const text = await root.evaluate((element, [attributeSelector, attributes]) => {
     const visible = (candidate) => {
       const style = getComputedStyle(candidate);
       const bounds = candidate.getBoundingClientRect();
       return style.visibility !== "hidden" && style.display !== "none" && bounds.width > 0 && bounds.height > 0;
     };
-    const labels = [...element.querySelectorAll("[aria-label], [aria-live]")]
+    const liveLabels = [...element.querySelectorAll("[aria-live]")]
       .filter(visible)
-      .flatMap((candidate) => [candidate.getAttribute("aria-label"), candidate.textContent])
+      .map((candidate) => candidate.textContent)
       .filter(Boolean);
-    return [element.innerText, ...labels].join("\n");
-  });
+    const attributeCandidates = [element, ...element.querySelectorAll(attributeSelector)]
+      .filter((candidate) => candidate.matches(attributeSelector) && visible(candidate));
+    const attributeCopy = attributeCandidates
+      .flatMap((candidate) => attributes.map((attribute) => candidate.getAttribute(attribute)))
+      .filter(Boolean);
+    return [element.innerText, ...liveLabels, ...attributeCopy].join("\n");
+  }, [publicCopyAttributeSelector, publicCopyAttributes]);
   const violations = [];
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
     const claimable = fragment
@@ -680,9 +672,7 @@ async function expectGroundedDynamicCopy(root, name) {
         return truthfulNegativeDisclosure.test(scoped) && !mixedNegativePositiveClaim(scoped) ? " " : scoped;
       })
       .join(" ");
-    for (const [category, patterns] of dynamicClaimRules) {
-      if (patterns.some((pattern) => pattern.test(claimable))) violations.push({ category, fragment });
-    }
+    claimCategories(claimable).forEach((category) => violations.push({ category, fragment }));
   }
   expect(violations, name + " must not surface unsupported public claims through dynamic copy").toEqual([]);
 }
@@ -1097,6 +1087,26 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   ]) {
     await page.setContent("<main><p>" + copy + "</p></main>");
     await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause " + category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+  }
+  for (const [category, copy] of [
+    ["telemetry full tail", "Не заявляємо, а поточний статус системи доступний."],
+    ["review full tail", "Не публікуємо, а рейтинг клієнтів підтверджує якість робіт."],
+    ["compatibility full tail", "Не заявляємо, а compatibility with protocol доступна."]
+  ]) {
+    await page.setContent("<main><p>" + copy + "</p></main>");
+    await expect(expectGroundedDynamicCopy(page.locator("main"), category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+  }
+});
+
+test("runtime claim scanning includes public-copy accessibility attributes", async ({ page }) => {
+  for (const [category, markup] of [
+    ["telemetry alt", '<img alt="Не заявляємо, а поточний статус системи доступний." src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="width:40px;height:20px">'],
+    ["review aria-label", '<button aria-label="Не публікуємо, а рейтинг клієнтів підтверджує якість робіт.">Відкрити</button>'],
+    ["compatibility title", '<span title="Не заявляємо, а compatibility with protocol доступна." style="display:block;width:100px;height:20px">Підпис</span>'],
+    ["telemetry placeholder", '<input placeholder="Не заявляємо, а поточний статус системи доступний." style="width:220px">']
+  ]) {
+    await page.setContent("<main>" + markup + "</main>");
+    await expect(expectGroundedDynamicCopy(page.locator("main"), category)).rejects.toThrow(/unsupported public claims/u);
   }
 });
 

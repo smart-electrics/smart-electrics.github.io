@@ -103,8 +103,7 @@
             data-cinematic-scene-image="url('{{ initial_physical_scene.src_1536 | relative_url }}')"
           >
             <picture>
-              <source media="(max-width: 767px)" srcset="{{ initial_physical_scene.src_768 | relative_url }}" width="768" height="512">
-              <img src="{{ initial_physical_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="{% if stage_variant == 'home' %}eager{% else %}lazy{% endif %}"{% if stage_variant == 'home' %} fetchpriority="high"{% endif %}>
+              <img src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="{% if stage_variant == 'home' %}eager{% else %}lazy{% endif %}"{% if stage_variant == 'home' %} fetchpriority="high"{% endif %}>
             </picture>
           </figure>
 
@@ -137,8 +136,7 @@
               hidden
             >
               <picture>
-                <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
-                <img src="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="Візуальна концепція: {{ relation.child.label }}" loading="lazy">
+                <img src="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-768.webp' | relative_url }}" srcset="{{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-768.webp' | relative_url }} 768w, {{ '/assets/images/smart-home/' | append: relation.scene_family | append: '-1536.webp' | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="Візуальна концепція: {{ relation.child.label }}" loading="lazy">
               </picture>
             </figure>
           {% endfor %}
@@ -147,8 +145,7 @@
 
           <div class="residence-spine__physical-layer" data-cinematic-physical-layer hidden aria-hidden="true">
             <picture class="residence-spine__physical-picture" data-cinematic-physical-picture="room">
-              <source data-cinematic-physical-source media="(max-width: 767px)" srcset="{{ initial_physical_scene.src_768 | relative_url }}" width="768" height="512">
-              <img data-cinematic-physical-image src="{{ initial_physical_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy">
+              <img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy">
             </picture>
             <span class="residence-spine__physical-snapshot" data-cinematic-physical-snapshot aria-hidden="true" hidden></span>
           </div>

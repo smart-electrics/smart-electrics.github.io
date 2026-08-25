@@ -260,6 +260,25 @@ class CinematicContractTest < Minitest::Test
     assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?overflow:\s*visible;/, styles)
   end
 
+  def test_residence_physical_picture_exposes_one_preload_safe_responsive_candidate_list
+    template = File.read(File.join(project_root, "_includes", "cinematic-stage.html"))
+
+    refute_includes template, '<source data-cinematic-physical-source'
+    refute_includes template, '<source media="(max-width: 767px)" srcset="{{ \'/assets/images/smart-home/\' | append: relation.scene_family | append: \'-768.webp\' | relative_url }}"'
+    assert_includes template, '<img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w"'
+    assert_includes template, 'sizes="(max-width: 767px) 100vw, 52vw"'
+  end
+
+  def test_physical_scene_adapter_updates_one_responsive_candidate_list
+    adapter = File.read(File.join(project_root, "assets", "js", "physical-scene-controls.js"))
+
+    refute_includes adapter, 'source[data-cinematic-physical-source]'
+    refute_includes adapter, 'source[data-smart-home-physical-source]'
+    refute_includes adapter, 'causalSource.srcset = scene.src768'
+    refute_includes adapter, 'source.srcset = scene.src768'
+    assert_includes adapter, 'return `${scene.src768} 768w, ${scene.src1536} 1536w`'
+  end
+
   def test_keeps_panel_and_type_choreography_masked_without_opacity_or_filter_keyframes
     keyframes = {
       "_sass/_cinematic.scss" => %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal],

@@ -11,6 +11,10 @@ function cssImage(value) {
   return `url("${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}")`;
 }
 
+function responsiveCandidates(scene) {
+  return `${scene.src768} 768w, ${scene.src1536} 1536w`;
+}
+
 function stateSignature(system, state) {
   if (system.id === "room") return `${state.lighting}:${state.window_treatment}`;
   return `${system.id}:${system.controls.map((control) => `${control.id}=${state[control.id]}`).join(":")}`;
@@ -40,9 +44,8 @@ function enhancePhysicalControls(root) {
   const layer = one(root, "[data-cinematic-physical-layer]");
   const snapshot = one(root, "[data-cinematic-physical-snapshot]");
   const picture = one(layer || root, "picture[data-cinematic-physical-picture]");
-  const source = one(picture || root, "source[data-cinematic-physical-source]");
   const image = one(picture || root, "img[data-cinematic-physical-image]");
-  if (!physical || !stage || !live || !layer || !snapshot || !picture || !source || !image) return;
+  if (!physical || !stage || !live || !layer || !snapshot || !picture || !image) return;
 
   const controlContainers = [...stage.querySelectorAll("[data-cinematic-physical-controls]")];
   const containerBySystem = new Map(controlContainers.map((container) => [text(container.dataset.cinematicPhysicalControls), container]));
@@ -50,7 +53,7 @@ function enhancePhysicalControls(root) {
   const initialScene = room?.sceneFor(room.initialState);
   if (
     !room || !initialScene || picture.dataset.cinematicPhysicalPicture !== "room" ||
-    source.getAttribute("srcset") !== initialScene.src768 || image.getAttribute("src") !== initialScene.src1536 || image.alt !== initialScene.alt ||
+    image.getAttribute("src") !== initialScene.src768 || image.getAttribute("srcset") !== responsiveCandidates(initialScene) || image.alt !== initialScene.alt ||
     containerBySystem.size !== physical.systems.length || physical.systems.some((system) => !containerBySystem.get(system.id) || !controlsMatch(containerBySystem.get(system.id), system))
   ) return;
 
@@ -69,13 +72,11 @@ function enhancePhysicalControls(root) {
   const causalSceneFor = (sceneKey) => [...stage.querySelectorAll("[data-cinematic-scene-key]")].find((scene) => scene.dataset.cinematicSceneKey === sceneKey) || null;
   const synchronizeCausalScene = (system, scene) => {
     const causalScene = causalSceneFor(system.sceneKey);
-    const causalPicture = one(causalScene || root, "picture");
-    const causalSource = one(causalPicture || root, "source");
-    const causalImage = one(causalPicture || root, "img");
-    if (!causalScene || !causalSource || !causalImage) return;
+    const causalImage = one(causalScene || root, "img");
+    if (!causalScene || !causalImage) return;
     causalScene.dataset.cinematicSceneImage = cssImage(responsiveSource(scene));
-    causalSource.srcset = scene.src768;
-    causalImage.src = scene.src1536;
+    causalImage.srcset = responsiveCandidates(scene);
+    causalImage.src = scene.src768;
     causalImage.alt = scene.alt;
   };
   const synchronize = () => {
@@ -84,8 +85,8 @@ function enhancePhysicalControls(root) {
     const scene = activeSystem.sceneFor(state);
     if (!scene) return false;
     picture.dataset.cinematicPhysicalPicture = stateSignature(activeSystem, state);
-    source.srcset = scene.src768;
-    image.src = scene.src1536;
+    image.srcset = responsiveCandidates(scene);
+    image.src = scene.src768;
     image.alt = scene.alt;
     for (const control of activeSystem.controls) {
       for (const button of containerBySystem.get(activeSystem.id).querySelectorAll(`[data-physical-control-id="${control.id}"]`)) {
@@ -158,10 +159,9 @@ function enhanceSmartHomePhysicalControls(root) {
   const fallback = one(root, "[data-smart-home-physical-fallback]");
   const stage = one(root, "[data-smart-home-physical-stage]");
   const picture = one(root, "picture[data-smart-home-physical-picture]");
-  const source = one(picture || root, "source[data-smart-home-physical-source]");
   const image = one(picture || root, "img[data-smart-home-physical-image]");
   const live = one(root.closest("[data-smart-home-simulator]") || root, "[data-phone-live]");
-  if (!data || !fallback || !stage || !picture || !source || !image || !live) return;
+  if (!data || !fallback || !stage || !picture || !image || !live) return;
   let physical;
   try { physical = createPhysicalSceneState(JSON.parse(data.textContent)); } catch (_) { return; }
   const systems = physical.systems.filter((system) => system.id === "stairs" || system.id === "exterior");
@@ -177,7 +177,7 @@ function enhanceSmartHomePhysicalControls(root) {
     pickers.length !== systems.length || new Set(pickerIds).size !== pickerIds.length || !systems.every((system) => pickerIds.includes(system.id)) ||
     controlContainers.length !== systems.length || containers.size !== systems.length || new Set(containerIds).size !== containerIds.length ||
     systems.some((system) => !containers.has(system.id) || !controlsMatch(containers.get(system.id), system)) ||
-    picture.dataset.smartHomePhysicalPicture !== "stairs" || source.getAttribute("srcset") !== initialScene.src768 || image.getAttribute("src") !== initialScene.src1536 || image.alt !== initialScene.alt
+    picture.dataset.smartHomePhysicalPicture !== "stairs" || image.getAttribute("src") !== initialScene.src768 || image.getAttribute("srcset") !== responsiveCandidates(initialScene) || image.alt !== initialScene.alt
   ) return;
   const states = new Map(systems.map((system) => [system.id, system.initialState]));
   let activeSystem = initialSystem;
@@ -186,8 +186,8 @@ function enhanceSmartHomePhysicalControls(root) {
     const scene = activeSystem.sceneFor(state);
     if (!scene) return false;
     picture.dataset.smartHomePhysicalPicture = stateSignature(activeSystem, state);
-    source.srcset = scene.src768;
-    image.src = scene.src1536;
+    image.srcset = responsiveCandidates(scene);
+    image.src = scene.src768;
     image.alt = scene.alt;
     pickers.forEach((picker) => picker.setAttribute("aria-pressed", String(picker.dataset.smartHomePhysicalSystem === activeSystem.id)));
     containers.forEach((container, id) => { container.hidden = id !== activeSystem.id; });

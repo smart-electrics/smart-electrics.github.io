@@ -98,14 +98,21 @@ test("physical stair and exterior scenes are subordinate to the canonical phone 
   await expect(physical).toHaveAttribute("data-smart-home-physical-enhanced", "true");
   await expect(root.locator("button[data-phone-system]")).toHaveCount(systems.length);
   const picture = physical.locator("[data-smart-home-physical-picture]");
+  const image = picture.locator("img");
+  await expect(picture.locator("source")).toHaveCount(0);
+  await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
+  await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 100vw");
+  await image.evaluate((element) => element.decode());
+  const expectedInitialVariant = page.viewportSize().width <= 768 ? "-768.webp" : "-1536.webp";
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, expectedInitialVariant)).toBe(true);
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=off");
   await physical.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=route");
-  await expect(picture.locator("img")).toHaveAttribute("src", /stairs-route-1536\.webp$/);
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `stairs-route${expectedInitialVariant}`)).toBe(true);
   await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
   await physical.getByRole("button", { name: "Нічне зниження", exact: true }).click();
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "exterior:exterior_lighting=reduced-night");
-  await expect(picture.locator("img")).toHaveAttribute("src", /exterior-reduced-night-1536\.webp$/);
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `exterior-reduced-night${expectedInitialVariant}`)).toBe(true);
 });
 
 test("malformed subordinate physical picker, control, or initial media fails closed", async ({ page }) => {
@@ -117,7 +124,7 @@ test("malformed subordinate physical picker, control, or initial media fails clo
         if (!physical) continue;
         physical.querySelector("button[data-smart-home-physical-system='stairs']").dataset.smartHomePhysicalSystem = "unknown";
         physical.querySelector("button[data-smart-home-physical-action]").dataset.physicalValueId = "unknown";
-        physical.querySelector("[data-smart-home-physical-source]").setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp");
+        physical.querySelector("[data-smart-home-physical-image]").setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp 768w, /assets/images/cinematic/residence/wrong-1536.webp 1536w");
         observer.disconnect();
         return;
       }

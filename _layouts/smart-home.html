@@ -135,8 +135,7 @@ layout: default
       <div class="smart-home__physical-stage" data-smart-home-physical-stage hidden>
         <figure class="smart-home__physical-media">
           <picture data-smart-home-physical-picture="stairs">
-            <source data-smart-home-physical-source media="(max-width: 767px)" srcset="{{ initial_stairs_scene.src_768 | relative_url }}" width="768" height="512">
-            <img data-smart-home-physical-image src="{{ initial_stairs_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ initial_stairs_scene.alt }}" loading="lazy">
+            <img data-smart-home-physical-image src="{{ initial_stairs_scene.src_768 | relative_url }}" srcset="{{ initial_stairs_scene.src_768 | relative_url }} 768w, {{ initial_stairs_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ initial_stairs_scene.alt }}" loading="lazy">
           </picture>
           <figcaption>Візуальна концепція готової до адаптації конфігурації, не керування обладнанням.</figcaption>
         </figure>

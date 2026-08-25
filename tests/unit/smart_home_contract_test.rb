@@ -132,6 +132,14 @@ class SmartHomeContractTest < Minitest::Test
     assert_includes layout, 'sizes="(max-width: 767px) 100vw, 1536px"'
   end
 
+  def test_smart_home_physical_picture_exposes_one_preload_safe_responsive_candidate_list
+    layout = File.read(File.join(project_root, "_layouts", "smart-home.html"))
+
+    refute_includes layout, '<source data-smart-home-physical-source'
+    assert_includes layout, '<img data-smart-home-physical-image src="{{ initial_stairs_scene.src_768 | relative_url }}" srcset="{{ initial_stairs_scene.src_768 | relative_url }} 768w, {{ initial_stairs_scene.src_1536 | relative_url }} 1536w"'
+    assert_includes layout, 'sizes="(max-width: 767px) 100vw, 100vw"'
+  end
+
   def test_rejects_missing_or_reordered_scenario_zone_system_or_visual_ids
     contract = valid_contract
     contract["presets"].reverse!

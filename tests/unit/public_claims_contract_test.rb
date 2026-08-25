@@ -20,7 +20,16 @@ class PublicClaimsContractTest < Minitest::Test
   MIXED_DISCLOSURE_CLAIMS = [
     ["price", "Ми не публікуємо цін, але ціна електромонтажного проєкту — 24 000 грн."],
     ["price", "Не публікуємо ціну і ціна системи — 24 000 грн."],
-    ["client project as fact", "Це не підтверджений клієнтський кейс, але реалізований проєкт вже завершено."]
+    ["client project as fact", "Це не підтверджений клієнтський кейс, але реалізований проєкт вже завершено."],
+    ["telemetry/status", "Не заявляємо, а поточний статус системи доступний."],
+    ["review", "Не публікуємо, а рейтинг клієнтів підтверджує якість робіт."],
+    ["vendor compatibility", "Не заявляємо, а compatibility with protocol доступна."]
+  ].freeze
+  ATTRIBUTE_CLAIMS = [
+    ["telemetry/status", '<img alt="Онлайн-статус системи доступний у реальному часі." width="100" height="20">'],
+    ["portal/account/control", '<button aria-label="Особистий кабінет дає віддалене керування об’єктом.">Кнопка</button>'],
+    ["vendor compatibility", '<span title="Рішення сумісне з KNX і підтримує протокол виробника.">Підпис</span>'],
+    ["price", '<input placeholder="Ціна електромонтажного проєкту — 24 000 грн.">']
   ].freeze
   TRUTHFUL_NEGATIVE_DISCLOSURE = <<~COPY.strip
     Це візуальна концепція, не підтверджений клієнтський кейс.
@@ -99,6 +108,34 @@ class PublicClaimsContractTest < Minitest::Test
     MIXED_DISCLOSURE_CLAIMS.each do |category, claim|
       assert_rejected(surface: :source, claim:, category:)
       assert_rejected(surface: :built, claim:, category:)
+    end
+  end
+
+  def test_rejects_claims_in_public_copy_attributes_on_source_and_built_surfaces
+    ATTRIBUTE_CLAIMS.each do |category, markup|
+      [[:source, markup], [:built, markup]].each do |surface, attribute_copy|
+        source = surface == :source ? attribute_copy : TRUTHFUL_NEGATIVE_DISCLOSURE
+        built = surface == :built ? attribute_copy : "<main><p>#{TRUTHFUL_NEGATIVE_DISCLOSURE}</p></main>"
+
+        with_public_copy(source:, built:) do |root, site|
+          _stdout, stderr, status = validate(root, site)
+
+          refute_predicate status, :success?, "#{surface} must reject #{category} in an accessibility attribute"
+          assert_includes stderr, "#{surface}:index.#{surface == :source ? 'md' : 'html'}: #{category}"
+        end
+      end
+    end
+  end
+
+  def test_ignores_urls_and_arbitrary_data_attributes_as_public_copy
+    neutral_markup = <<~HTML
+      <a href="/knx?price=24000" data-label="Рейтинг клієнта" data-copy="Телеметрія доступна">Нейтральне посилання</a>
+    HTML
+
+    with_public_copy(source: neutral_markup, built: "<main>#{neutral_markup}</main>") do |root, site|
+      _stdout, stderr, status = validate(root, site)
+
+      assert_predicate status, :success?, stderr
     end
   end
 

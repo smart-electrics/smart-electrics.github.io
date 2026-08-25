@@ -18,37 +18,19 @@ module PublicClaims
     _layouts/**/*.liquid
   ].freeze
   INVISIBLE_ELEMENTS = "script, style, template"
+  PUBLIC_COPY_ATTRIBUTES = %w[
+    alt
+    aria-label
+    aria-description
+    aria-valuetext
+    aria-roledescription
+    title
+    placeholder
+  ].freeze
   LIQUID_OUTPUT = /\{[{%].*?[}%]\}/m
   CONTRASTING_CLAUSE_SEPARATOR = /\s*,?\s*\b(?:але|однак|проте|but)\b\s*/iu
+  POSITIVE_ASSERTION_CONTEXT = /\b(?:а|але|однак|проте|but|доступн[\p{L}\p{N}]*|дає|дозвол|підтвердж|показ|станов|підтрим[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*|сертифікован[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|отримав|отримала|knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b|[₴€]|\bгрн\b|\$\s*\d/iu
   NEGATIVE_DISCLOSURE = /\b(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))\b/iu
-  POSITIVE_CLAIM_AFTER_DISCLOSURE = {
-    "telemetry/status" => [
-      /\bтелеметрія\b/iu,
-      /\b(?:онлайн|live)[\s-]*(?:статус|status)\b/iu
-    ].freeze,
-    "portal/account/control" => [
-      /\bпортал\b\s+(?:дає|доступн|дозвол|керуван)/iu,
-      /\bособист[\p{L}\p{N}]*\s+кабінет\b/iu,
-      /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu
-    ].freeze,
-    "vendor compatibility" => [
-      /\b(?:сумісн(?:ий|а|е|і)|підтримує(?:мо|те)?|підтримується)\s+(?:з|із)\b/iu,
-      /\b(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b/iu
-    ].freeze,
-    "price" => [
-      /\bціна\b/iu,
-      /[₴€]/u,
-      /\bгрн\b/iu,
-      /\$\s*\d/u
-    ].freeze,
-    "guarantee" => [/\bгаранту[\p{L}\p{N}]*\b/iu].freeze,
-    "certificate" => [
-      /\bсертифікован[\p{L}\p{N}]*\b/iu,
-      /\bсертифікат\b/iu
-    ].freeze,
-    "review" => [/\bвідгук\b/iu].freeze,
-    "client project as fact" => []
-  }.freeze
   CLAIM_PATTERNS = {
     "telemetry/status" => [
       /\bтелеметр[\p{L}\p{N}]*\b/iu,
@@ -133,9 +115,7 @@ module PublicClaims
       visible_fragments(document).each do |fragment|
         claimable = mask_truthful_negative_clauses(fragment)
 
-        CLAIM_PATTERNS.each do |category, patterns|
-          next unless patterns.any? { |pattern| pattern.match?(claimable) }
-
+        claim_categories(claimable).each do |category|
           errors << "#{surface}:#{relative_path(path, root)}: #{category}"
         end
       end
@@ -148,10 +128,12 @@ module PublicClaims
   def visible_fragments(document)
     fragment = Nokogiri::HTML5.fragment(document)
     fragment.css(INVISIBLE_ELEMENTS).remove
-    text = fragment.xpath(".//text()")
-                   .map(&:text)
-                   .join(" ")
-                   .gsub(LIQUID_OUTPUT, " ")
+    text = (fragment.xpath(".//text()").map(&:text) +
+            fragment.xpath(".//*").flat_map do |node|
+              PUBLIC_COPY_ATTRIBUTES.filter_map { |attribute| node[attribute] }
+            end)
+           .join(" ")
+           .gsub(LIQUID_OUTPUT, " ")
     CGI.unescapeHTML(text)
        .gsub(/\r?\n/, " ")
        .split(/(?<=[.!?])\s+/u)
@@ -182,9 +164,12 @@ module PublicClaims
     tail = fragment[disclosure.end(0)..]
     return false unless tail
 
-    POSITIVE_CLAIM_AFTER_DISCLOSURE.any? do |category, patterns|
-      patterns.any? { |pattern| pattern.match?(tail) } ||
-        (category == "client project as fact" && CLAIM_PATTERNS[category].any? { |pattern| pattern.match?(tail) })
+    POSITIVE_ASSERTION_CONTEXT.match?(tail) && !claim_categories(tail).empty?
+  end
+
+  def claim_categories(fragment)
+    CLAIM_PATTERNS.filter_map do |category, patterns|
+      category if patterns.any? { |pattern| pattern.match?(fragment) }
     end
   end
 

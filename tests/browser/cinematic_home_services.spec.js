@@ -45,7 +45,8 @@ async function physicalSignature(stage) {
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     let hash = 0;
     for (const channel of pixels) hash = ((hash << 5) - hash + channel) | 0;
-    return { src: image.currentSrc || image.src, hash, width: image.naturalWidth, height: image.naturalHeight };
+    const src = image.currentSrc || image.src;
+    return { src, asset: src.replace(/-(?:768|1536)(?=\.webp$)/u, ""), hash, width: image.naturalWidth, height: image.naturalHeight };
   });
 }
 
@@ -94,7 +95,19 @@ test("both public cinematic surfaces expose the validated physical controls only
     await page.goto(route);
     const { root, stage } = await stageFor(page);
     await expect(root).toHaveAttribute("data-cinematic-physical-enhanced", "true");
-    await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveCount(1);
+    const picture = stage.locator("[data-cinematic-physical-picture]");
+    const image = picture.locator("img");
+    await expect(picture).toHaveCount(1);
+    await expect(picture.locator("source")).toHaveCount(0);
+    await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
+    await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 52vw");
+    await image.evaluate((element) => element.decode());
+    const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : null;
+    await expect.poll(() => image.evaluate((element, suffix) => {
+      if (!element.currentSrc) return false;
+      const path = new URL(element.currentSrc).pathname;
+      return suffix ? path.endsWith(suffix) : /-(?:768|1536)\.webp$/u.test(path);
+    }, expectedVariant)).toBe(true);
     await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(1);
   }
 });
@@ -166,7 +179,7 @@ test("assembled residence controls swap the physical room pixels without moving 
   await expect(root).toHaveAttribute("data-cinematic-state", "assembled");
   await expect(layer).toBeVisible();
   await expect(controls).toBeVisible();
-  expect(await physicalSignature(stage)).toEqual(afterLighting);
+  expect((await physicalSignature(stage)).asset).toBe(afterLighting.asset);
 });
 
 test("stair and exterior relations use the same physical layer to swap their own exact pixels", async ({ page }) => {
