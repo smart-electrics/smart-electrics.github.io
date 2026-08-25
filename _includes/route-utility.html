@@ -1,0 +1,14 @@
+<div class="route-utility" data-route-utility>
+  {% for paragraph in include.route.body %}
+    <p>{{ paragraph }}</p>
+  {% endfor %}
+  {% if include.route.links.size > 0 %}
+    <nav class="route-utility__links" aria-label="{{ include.route.links_label }}">
+      <ul>
+        {% for link in include.route.links %}
+          <li><a class="text-link" href="{{ link.url | relative_url }}">{{ link.label }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+  {% endif %}
+</div>

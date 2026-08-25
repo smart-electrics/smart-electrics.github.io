@@ -1,0 +1,88 @@
+{% assign journey = include.route.journey %}
+{% assign journey_title_id = journey.id | append: '-journey-title' %}
+{% assign journey_panel_title_id = journey.id | append: '-journey-panel-title' %}
+<section class="route-journey" data-route-journey-root data-route-journey-id="{{ journey.id }}" data-route-journey-fingerprint="{{ journey.fingerprint }}" aria-label="{{ journey.aria_label }}">
+  <div class="route-journey__fallback" data-route-journey-fallback>
+    <ol>
+      {% for node in journey.nodes %}
+        {% assign node_title_id = journey.id | append: '-' | append: node.id | append: '-title' %}
+        <li id="{{ journey.id }}-{{ node.id }}">
+          <h2 id="{{ node_title_id }}">{{ node.title }}</h2>
+          <dl>
+            <div>
+              <dt>{{ journey.labels.input }}</dt>
+              <dd>{{ node.input }}</dd>
+            </div>
+            <div>
+              <dt>{{ journey.labels.decision }}</dt>
+              <dd>{{ node.decision }}</dd>
+            </div>
+            <div>
+              <dt>{{ journey.labels.next }}</dt>
+              <dd>{{ node.next }}</dd>
+            </div>
+          </dl>
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  <div class="route-journey__stage" data-route-journey-stage hidden aria-labelledby="{{ journey_title_id }}">
+    <div class="route-journey__stage-heading">
+      <p class="section-kicker">{{ include.route.kicker }}</p>
+      <h2 id="{{ journey_title_id }}">{{ journey.assembled.title }}</h2>
+    </div>
+    <div class="route-journey__composition">
+      <div class="route-journey__media" data-route-journey-media>
+        <picture data-route-journey-scene>
+          <source media="(max-width: 767px)" srcset="{{ journey.media.image_768 | relative_url }}">
+          <img src="{{ journey.media.image_1536 | relative_url }}" alt="{{ journey.media.image_alt }}" width="1536" height="1024" style="--route-journey-scene-position: {{ journey.media.image_focus }}">
+        </picture>
+        <img class="route-journey__outgoing" data-route-journey-outgoing src="{{ journey.media.image_1536 | relative_url }}" alt="" aria-hidden="true" hidden>
+        <svg class="route-journey__connector" data-route-journey-connector data-route-journey-connector-state="assembled" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" hidden>
+          <line data-route-journey-connector-line x1="50" y1="50" x2="50" y2="50" pathLength="1"></line>
+          <circle data-route-journey-connector-source cx="50" cy="50" r="1.45"></circle>
+          <circle data-route-journey-connector-target cx="50" cy="50" r="1.45"></circle>
+        </svg>
+      </div>
+      <ol class="route-journey__rail" aria-label="{{ journey.aria_label }}">
+        {% for node in journey.nodes %}
+          <li>
+            <button type="button" data-route-journey-action="select-node" data-route-journey-node="{{ node.id }}" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ node.title }}</button>
+          </li>
+        {% endfor %}
+      </ol>
+      <section class="route-journey__panel" data-route-journey-panel aria-labelledby="{{ journey_panel_title_id }}">
+        <p class="route-journey__panel-kicker" data-route-journey-panel-state>{{ journey.panel.assembled.label }}</p>
+        <h3 id="{{ journey_panel_title_id }}" data-route-journey-panel-title>{{ journey.panel.assembled.title }}</h3>
+        <p data-route-journey-panel-summary>{{ journey.panel.assembled.summary }}</p>
+        <dl data-route-journey-details hidden>
+          <div>
+            <dt>{{ journey.labels.input }}</dt>
+            <dd data-route-journey-input></dd>
+          </div>
+          <div>
+            <dt>{{ journey.labels.decision }}</dt>
+            <dd data-route-journey-decision></dd>
+          </div>
+          <div>
+            <dt>{{ journey.labels.next }}</dt>
+            <dd data-route-journey-next></dd>
+          </div>
+        </dl>
+        <div class="route-journey__actions">
+          <button type="button" data-route-journey-action="show-relationship" hidden>{{ journey.actions.show_relationship }}</button>
+          <button type="button" data-route-journey-action="return" hidden>{{ journey.actions.return }}</button>
+        </div>
+      </section>
+    </div>
+    <p class="route-journey__live" data-route-journey-live aria-live="polite"></p>
+  </div>
+  <script type="application/json" data-route-journey-config>{"id":{{ journey.id | jsonify }},"aria_label":{{ journey.aria_label | jsonify }},"assembled":{{ journey.assembled | jsonify }},"panel":{{ journey.panel | jsonify }},"labels":{{ journey.labels | jsonify }},"actions":{{ journey.actions | jsonify }},"media":{{ journey.media | jsonify }},"nodes":{{ journey.nodes | jsonify }}}</script>
+  {% if include.route.partnership %}
+    <section class="route-journey__partnership" id="{{ include.route.partnership.id }}" aria-labelledby="{{ journey.id }}-partnership-title">
+      <h2 id="{{ journey.id }}-partnership-title">{{ include.route.partnership.title }}</h2>
+      <p>{{ include.route.partnership.body }}</p>
+    </section>
+  {% endif %}
+</section>

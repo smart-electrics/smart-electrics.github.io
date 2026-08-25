@@ -139,7 +139,8 @@ test("analytics and lead submission remain disabled until their activation gate 
 
   await expect(page.locator('script[src*="googletagmanager"]')).toHaveCount(0);
   await expect(page.locator('form[action*="formspree"]')).toHaveCount(0);
-  await expect(page.locator("main").getByText("Форма запиту готується", { exact: true })).toBeVisible();
+  await expect(page.locator("main")).toContainText("Контактна форма не активна");
+  await expect(page.locator("main")).toContainText("не збирає контактні дані");
 });
 
 test("key surfaces have no automatically detectable accessibility violations", async ({ page }) => {

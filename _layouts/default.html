@@ -27,6 +27,9 @@
     {% if page.solutions_catalogue or page.layout == 'solution' %}
       <script type="module" src="{{ '/assets/js/cinematic-solutions.js' | relative_url }}"></script>
     {% endif %}
+    {% if page.route_mode == 'journey' %}
+      <script type="module" src="{{ '/assets/js/route-journey.js' | relative_url }}"></script>
+    {% endif %}
     {% if page.url == '/smart-home/' %}
       <script type="module" src="{{ '/assets/js/smart-home-simulator.js' | relative_url }}"></script>
     {% endif %}

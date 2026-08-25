@@ -1,0 +1,17 @@
+---
+layout: default
+---
+{% assign route_locale = site.data.route_content[site.lang] %}
+{% assign route = route_locale[page.route_content_key] %}
+<article class="route-page route-page--{{ page.route_content_key }} shell" data-route-content-key="{{ page.route_content_key }}">
+  <header class="route-page__header">
+    <p class="section-kicker">{{ route.kicker }}</p>
+    <h1>{{ route.title }}</h1>
+    <p class="route-page__lede">{{ route.lede }}</p>
+  </header>
+  {% if page.route_mode == 'journey' %}
+    {% include route-journey.html route=route %}
+  {% else %}
+    {% include route-utility.html route=route %}
+  {% endif %}
+</article>

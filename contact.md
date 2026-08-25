@@ -1,11 +1,8 @@
 ---
+layout: route
 title: Контакти
-description: Сторінка майбутнього запиту на первинний прорахунок електричних робіт.
+description: Поточний статус контактних можливостей на підготовчій версії сайту.
 permalink: /contact/
-kicker: Запит на прорахунок
+route_content_key: contact
+route_mode: utility
 ---
-
-<div class="integration-placeholder" role="status">
-  <p class="integration-placeholder__title">Форма запиту готується</p>
-  <p>Formspree буде активовано лише після додавання перевіреної адреси форми, контактних реквізитів і завершеної політики конфіденційності.</p>
-</div>
