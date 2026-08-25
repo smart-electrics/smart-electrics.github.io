@@ -45,30 +45,34 @@ const sceneFamilies = Object.freeze([
 ]);
 const dynamicClaimRules = Object.freeze([
   ["telemetry/status", [
+    /телеметр[\p{L}\p{N}]*/iu,
     /\bтелеметр[\p{L}\p{N}]*/iu,
     /\b(?:live|онлайн)[\s-]*(?:статус|status)\b/iu,
     /\b(?:поточн[\p{L}\p{N}]*|актуальн[\p{L}\p{N}]*|реальн[\p{L}\p{N}]*(?:\s+час[\p{L}\p{N}]*)?)\s+(?:стан|статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)\b/iu,
     /\b(?:статус|показник[\p{L}\p{N}]*)\s+(?:систем[\p{L}\p{N}]*|об[’']?єкт[\p{L}\p{N}]*|інженер[\p{L}\p{N}]*)\b/iu
   ]],
   ["portal/account/control", [
+    /(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*))|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*/iu,
     /\b(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*)|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*)\b/iu,
     /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu
   ]],
   ["vendor compatibility", [
+    /(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)/iu,
     /\b(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b/iu,
     /\b(?:сумісн[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*)\s+(?:з|із)\s+(?:(?:конкретн[\p{L}\p{N}]*\s+)?(?:виробник[\p{L}\p{N}]*|бренд[\p{L}\p{N}]*|платформ[\p{L}\p{N}]*|протокол[\p{L}\p{N}]*|систем[\p{L}\p{N}]*))\b/iu,
     /\b(?:compatible|compatibility)\s+(?:with|vendor|protocol)\b/iu
   ]],
-  ["price", [/\b(?:ціна|вартіст[\p{L}\p{N}]*|кошту[\p{L}\p{N}]*|бюджет[\p{L}\p{N}]*|кошторис[\p{L}\p{N}]*)\b/iu, /[₴€]/u, /\bгрн\b/iu, /\$\s*\d/u]],
-  ["guarantee", [/\b(?:гаранті[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)\b/iu]],
-  ["certificate", [/\b(?:сертифік[\p{L}\p{N}]*|certified)\b/iu]],
-  ["review", [/\b(?:відгук[\p{L}\p{N}]*|рейтинг[\p{L}\p{N}]*|testimonial[\p{L}\p{N}]*|review[\p{L}\p{N}]*)\b/iu]],
+  ["price", [/(?:ціна|вартіст[\p{L}\p{N}]*|кошту[\p{L}\p{N}]*|бюджет[\p{L}\p{N}]*|кошторис[\p{L}\p{N}]*)/iu, /[₴€]/u, /грн/iu, /\$\s*\d/u]],
+  ["guarantee", [/(?:гаранті[\p{L}\p{N}]*|гаранту[\p{L}\p{N}]*)/iu]],
+  ["certificate", [/(?:сертифік[\p{L}\p{N}]*|certified)/iu]],
+  ["review", [/(?:відгук[\p{L}\p{N}]*|рейтинг[\p{L}\p{N}]*|testimonial[\p{L}\p{N}]*|review[\p{L}\p{N}]*)/iu]],
   ["client project as fact", [
     /\b(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт)\s+(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\b/iu,
     /\b(?:реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|завершен[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*)\s+(?:клієнтськ[\p{L}\p{N}]*\s+)?(?:кейс|проєкт|об[’']?єкт|систем[\p{L}\p{N}]*|рішенн[\p{L}\p{N}]*)\b/iu
   ]]
 ]);
-const truthfulNegativeDisclosure = /\b(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))\b/iu;
+const truthfulNegativeDisclosure = /(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))/iu;
+const contrastingClauseSeparator = /\s*,?\s*(?:але|однак|проте|but)\s*/iu;
 const dynamicFallbacks = Object.freeze([
   { route: "/", root: "[data-cinematic-root]", fallback: "[data-cinematic-fallback]", stage: "[data-cinematic-stage]" },
   { route: "/services/electrical-design/", root: "[data-service-studio-root]", fallback: "[data-service-studio-fallback]", stage: "[data-service-studio-stage]" },
@@ -148,39 +152,15 @@ async function publicSurface(page, route, width) {
       const bounds = element.getBoundingClientRect();
       return style.visibility !== "hidden" && style.display !== "none" && bounds.width > 0 && bounds.height > 0;
     };
-    const horizontalScroller = (element) => {
-      let ancestor = element.parentElement;
-      while (ancestor) {
-        const style = getComputedStyle(ancestor);
-        if (
-          ancestor.scrollWidth > ancestor.clientWidth + 1 &&
-          /(auto|scroll)/u.test(style.overflowX)
-        ) return ancestor;
-        ancestor = ancestor.parentElement;
-      }
-      return null;
-    };
     const controls = [...document.querySelectorAll("button, summary, [role=button]")]
       .filter(visible)
       .map((control) => {
         const bounds = control.getBoundingClientRect();
-        const outsideViewport = bounds.left < -1 || bounds.right > window.innerWidth + 1;
-        const scroller = outsideViewport ? horizontalScroller(control) : null;
-        const scrollerBounds = scroller?.getBoundingClientRect();
-        const contentLeft = scrollerBounds && scroller ? scrollerBounds.left - scroller.scrollLeft : null;
-        const safelyInsideScroller = Boolean(
-          scrollerBounds &&
-          scroller &&
-          scrollerBounds.left >= -1 &&
-          scrollerBounds.right <= window.innerWidth + 1 &&
-          bounds.left >= contentLeft - 1 &&
-          bounds.right <= contentLeft + scroller.scrollWidth + 1
-        );
         return {
           name: control.getAttribute("aria-label") || control.textContent.trim(),
           width: bounds.width,
           height: bounds.height,
-          horizontallyReachable: !outsideViewport || safelyInsideScroller
+          horizontallyVisible: bounds.left >= -1 && bounds.right <= window.innerWidth + 1
         };
       });
     const mainText = document.querySelector("main")?.innerText ?? "";
@@ -189,14 +169,14 @@ async function publicSurface(page, route, width) {
       controls: controls.length,
       ordinalMarkers: mainText.match(/(?:^|\s)0[1-9](?=\s|$)/gmu) ?? [],
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-      clipped: controls.filter(({ horizontallyReachable }) => !horizontallyReachable),
+      clipped: controls.filter(({ horizontallyVisible }) => !horizontallyVisible),
       undersized: controls.filter(({ width, height }) => width < 44 || height < 44)
     };
   });
 
   expect(evidence.overflow, route + " at " + width + "px must not overflow").toBe(0);
   expect(evidence.ordinalMarkers, route + " must not expose decorative ordinals").toEqual([]);
-  expect(evidence.clipped, route + " at " + width + "px must keep controls in the viewport or a reachable scroller").toEqual([]);
+  expect(evidence.clipped, route + " at " + width + "px must keep every visible control inside the viewport").toEqual([]);
   expect(evidence.undersized, route + " at " + width + "px must retain 44px action controls").toEqual([]);
   return evidence;
 }
@@ -250,9 +230,12 @@ async function expectGroundedDynamicCopy(root, name) {
   });
   const violations = [];
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
-    if (truthfulNegativeDisclosure.test(fragment)) continue;
+    const claimable = fragment
+      .split(contrastingClauseSeparator)
+      .map((clause) => truthfulNegativeDisclosure.test(clause) ? " " : clause)
+      .join(" ");
     for (const [category, patterns] of dynamicClaimRules) {
-      if (patterns.some((pattern) => pattern.test(fragment))) violations.push({ category, fragment });
+      if (patterns.some((pattern) => pattern.test(claimable))) violations.push({ category, fragment });
     }
   }
   expect(violations, name + " must not surface unsupported public claims through dynamic copy").toEqual([]);
@@ -280,8 +263,63 @@ async function expectDominantScene(root, sceneSelector, panelSelector, name) {
   }, [sceneSelector, panelSelector]);
   expect(geometry.scene, name + " needs a visible dominant scene").not.toBeNull();
   expect(geometry.panel, name + " needs one visible explanatory panel").not.toBeNull();
-  expect(geometry.scene.area, name + " scene must retain a substantial visual area").toBeGreaterThanOrEqual(geometry.root.area * 0.08);
-  expect(geometry.scene.area, name + " scene must not collapse beneath its explanatory panel").toBeGreaterThanOrEqual(geometry.panel.area * 0.45);
+  expect(geometry.scene.area, name + " scene must occupy at least one quarter of its composition").toBeGreaterThanOrEqual(geometry.root.area * 0.25);
+  expect(geometry.scene.area, name + " scene must remain at least as large as its explanatory panel").toBeGreaterThanOrEqual(geometry.panel.area);
+}
+
+async function expectSmartHomeScenePriority(page, simulator, width, state) {
+  const phone = simulator.locator("[data-smart-home-phone]");
+  const activeControl = phone.locator("[data-phone-control-panel]:not([hidden]) input, [data-phone-control-panel]:not([hidden]) button").first();
+  await expect(phone, "smart-home phone must remain available for " + state).toBeVisible();
+  await expect(activeControl, "smart-home active control must remain available for " + state).toBeVisible();
+  await activeControl.scrollIntoViewIfNeeded();
+
+  const geometry = await simulator.evaluate((root) => {
+    const boundsFor = (selector) => {
+      const candidate = root.querySelector(selector);
+      if (!candidate) return null;
+      const bounds = candidate.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        right: bounds.right,
+        top: bounds.top,
+        bottom: bounds.bottom,
+        width: bounds.width,
+        height: bounds.height,
+        area: bounds.width * bounds.height
+      };
+    };
+    const scene = boundsFor(".smart-home__scene");
+    const phone = boundsFor("[data-smart-home-phone]");
+    const controls = boundsFor("[data-phone-controls]");
+    const experience = boundsFor("[data-smart-home-experience]");
+    const activeControl = boundsFor("[data-phone-control-panel]:not([hidden]) input, [data-phone-control-panel]:not([hidden]) button");
+    return {
+      scene,
+      phone,
+      controls,
+      experience,
+      activeControl,
+      viewport: { width: window.innerWidth, height: window.innerHeight }
+    };
+  });
+
+  expect(geometry.scene, "smart-home needs a main scene for " + state).not.toBeNull();
+  expect(geometry.phone, "smart-home needs a phone surface for " + state).not.toBeNull();
+  expect(geometry.controls, "smart-home needs a control surface for " + state).not.toBeNull();
+  expect(geometry.experience, "smart-home needs an experience surface for " + state).not.toBeNull();
+  expect(geometry.activeControl, "smart-home needs a reachable active control for " + state).not.toBeNull();
+  expect(geometry.scene.area, "smart-home scene must exceed its whole phone surface at " + width + "px for " + state).toBeGreaterThan(geometry.phone.area);
+  expect(geometry.scene.area, "smart-home scene must exceed its active control surface at " + width + "px for " + state).toBeGreaterThan(geometry.controls.area);
+  expect(geometry.scene.area, "smart-home scene must retain a substantial share of the experience at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.experience.area * 0.25);
+  expect(geometry.phone.left, "smart-home phone must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(-1);
+  expect(geometry.phone.right, "smart-home phone must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.width + 1);
+  expect(geometry.phone.top, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeGreaterThanOrEqual(-1);
+  expect(geometry.phone.bottom, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.height + 1);
+  expect(geometry.activeControl.left, "smart-home active control must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.phone.left - 1);
+  expect(geometry.activeControl.right, "smart-home active control must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.phone.right + 1);
+  expect(geometry.activeControl.top, "smart-home active control must remain visible in the phone at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.phone.top - 1);
+  expect(geometry.activeControl.bottom, "smart-home active control must remain visible in the phone at " + width + "px for " + state).toBeLessThanOrEqual(geometry.phone.bottom + 1);
 }
 
 async function expectVisibleState(root, sceneSelector, panelSelector) {
@@ -474,6 +512,13 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
   writeEvidence("no-javascript-route-matrix.json", { matrix });
 });
 
+test("runtime claim scanning keeps a truthful negative clause but rejects a positive claim after contrast", async ({ page }) => {
+  await page.setContent("<main><p>Ми не публікуємо цін і не надаємо гарантій.</p></main>");
+  await expectGroundedDynamicCopy(page.locator("main"), "truthful negative dynamic copy");
+  await page.setContent("<main><p>Ми не публікуємо цін, але ціна конфігурації становить 24 000 грн.</p></main>");
+  await expect(expectGroundedDynamicCopy(page.locator("main"), "mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+});
+
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
   const context = await browser.newContext({ baseURL, locale: "uk-UA", viewport: viewportFor(768) });
   await context.route("**/assets/js/**", (route) => route.abort());
@@ -522,6 +567,50 @@ test("every stateful composition reaches assembled, focus, and reassembled with 
   expect(completed).toHaveLength(2 + serviceStudioRoutes.length + solutionRoutes.length + 2);
   expect(completed.every(({ state }) => state === "reassembled")).toBe(true);
   writeEvidence("composition-states.json", completed);
+});
+
+test("smart-home keeps a dominant scene and a wholly usable phone surface after initial, system, and preset states", async ({ page }) => {
+  const screenshots = [];
+
+  for (const width of [375, 1440]) {
+    await page.setViewportSize(viewportFor(width));
+    await visit(page, "/smart-home/");
+    const simulator = page.locator("[data-smart-home-simulator]");
+    const phone = simulator.locator("[data-smart-home-phone]");
+    await expect(simulator).toHaveAttribute("data-enhanced", "true");
+    await expect(phone).toHaveAttribute("tabindex", "0");
+    await expect(phone).toHaveAttribute("aria-label", /прокруч/u);
+    await expectSmartHomeScenePriority(page, simulator, width, "initial");
+
+    if (width === 375) {
+      await phone.focus();
+      const before = await phone.evaluate((element) => ({ scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, clientHeight: element.clientHeight }));
+      expect(before.scrollHeight, "mobile phone must expose additional controls through its own scroll surface").toBeGreaterThan(before.clientHeight);
+      await page.keyboard.press("End");
+      await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(before.scrollTop);
+      await page.keyboard.press("Home");
+      await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBe(0);
+    }
+
+    const system = simulator.locator("button[data-phone-system]").nth(1);
+    const systemId = await system.getAttribute("data-phone-system");
+    await system.click();
+    await expect(simulator).toHaveAttribute("data-system", systemId);
+    await expectSmartHomeScenePriority(page, simulator, width, "system");
+
+    const preset = simulator.locator("input[data-preset-radio]").nth(2);
+    const presetId = await preset.getAttribute("value");
+    await preset.click();
+    await expect(simulator).toHaveAttribute("data-preset", presetId);
+    await expectSmartHomeScenePriority(page, simulator, width, "preset");
+
+    const screenshot = "smart-home-" + width + "-system-preset.png";
+    await page.screenshot({ path: resolve(evidenceDirectory, screenshot) });
+    screenshots.push(screenshot);
+  }
+
+  expect(screenshots).toEqual(["smart-home-375-system-preset.png", "smart-home-1440-system-preset.png"]);
+  writeEvidence("smart-home-geometry.json", { widths: [375, 1440], screenshots });
 });
 
 test("the nine residence scene families and physical controls produce real visible media changes", async ({ page }) => {
