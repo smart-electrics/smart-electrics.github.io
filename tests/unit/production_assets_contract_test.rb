@@ -52,6 +52,13 @@ class ProductionAssetsContractTest < Minitest::Test
     end
   end
 
+  def test_manifest_is_reproducible_from_the_pure_ruby_generator
+    generated, stderr, status = Open3.capture3("ruby", "scripts/generate_production_asset_manifest.rb", chdir: ROOT)
+
+    assert_predicate status, :success?, stderr
+    assert_equal File.read(MANIFEST), generated
+  end
+
   def test_rejects_stale_duplicate_or_orphaned_production_assets
     data = canonical_manifest
     first = data.fetch("assets").first
@@ -62,6 +69,11 @@ class ProductionAssetsContractTest < Minitest::Test
     first = data.fetch("assets").first
     first["bytes"] = first.fetch("bytes") + 1
     assert_rejected(data, "#{first.fetch('path')}: byte size does not match the checked-in manifest")
+
+    data = canonical_manifest
+    first = data.fetch("assets").first
+    first["path"] = "assets/images/home/missing-control-room-768.webp"
+    assert_rejected(data, "#{first.fetch('path')}: checked-in production WebP must exist")
 
     data = canonical_manifest
     duplicate = data.fetch("assets").first.dup
