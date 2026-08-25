@@ -345,9 +345,16 @@ test("keeps rapid scene replacement bounded and supplies responsive media for al
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0, { timeout: 1800 });
   for (const [systemId] of systems) {
     const picture = root.locator(`picture[data-scene-picture="${systemId}"]`);
-    await expect(picture.locator("source")).toHaveCount(2);
-    await expect(picture.locator("img")).toHaveAttribute("alt", /\S{8,}/);
+    const image = picture.locator("img");
+    await expect(picture.locator("source")).toHaveCount(0);
+    await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
+    await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 1536px");
+    await expect(image).toHaveAttribute("alt", /\S{8,}/);
   }
+  const activeImage = root.locator("picture[data-scene-picture]:visible img");
+  await activeImage.evaluate((image) => image.decode());
+  const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
+  await expect.poll(() => activeImage.evaluate((image, suffix) => new URL(image.currentSrc).pathname.endsWith(suffix), expectedVariant)).toBe(true);
 });
 
 test("keeps a complete static explanation when JavaScript is unavailable or enhancement contract is malformed", async ({ browser, page }) => {

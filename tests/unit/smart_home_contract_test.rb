@@ -123,13 +123,13 @@ class SmartHomeContractTest < Minitest::Test
     end
   end
 
-  def test_smart_home_picture_uses_the_mobile_asset_as_its_fallback_source
+  def test_smart_home_picture_exposes_one_preload_safe_responsive_candidate_list
     layout = File.read(File.join(project_root, "_layouts", "smart-home.html"))
 
-    assert_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
-    assert_includes layout, '<source srcset="{{ visual.desktop | relative_url }}"'
-    assert_includes layout, '<img src="{{ visual.mobile | relative_url }}"'
-    refute_includes layout, '<img src="{{ visual.desktop | relative_url }}"'
+    refute_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
+    refute_includes layout, '<source srcset="{{ visual.desktop | relative_url }}"'
+    assert_includes layout, '<img src="{{ visual.mobile | relative_url }}" srcset="{{ visual.mobile | relative_url }} 768w, {{ visual.desktop | relative_url }} 1536w"'
+    assert_includes layout, 'sizes="(max-width: 767px) 100vw, 1536px"'
   end
 
   def test_rejects_missing_or_reordered_scenario_zone_system_or_visual_ids
