@@ -250,6 +250,7 @@ async function visit(page, route) {
   expect(response?.ok(), route + " must return a successful document").toBeTruthy();
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator("main")).toBeVisible();
+  await page.locator("main img:visible").evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
   return response;
 }
 

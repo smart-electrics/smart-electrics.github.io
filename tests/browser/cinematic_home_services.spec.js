@@ -514,7 +514,7 @@ test("mobile and desktop spine keep one-pixel connector lanes away from controls
     });
 
     if (maximumHeight) expect(geometry.scrollHeight).toBeLessThanOrEqual(maximumHeight);
-    if (expectsLandscapeScene) expect(geometry.compositionAspect).toBeCloseTo(1.6, 2);
+    if (expectsLandscapeScene) expect(geometry.compositionAspect).toBeCloseTo(4 / 3, 2);
     expect(geometry.laneThickness).toBeLessThanOrEqual(2);
     expect(geometry.bounded).toBeTruthy();
     expect(geometry.overlaps).toBeFalsy();

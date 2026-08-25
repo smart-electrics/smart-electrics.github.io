@@ -119,6 +119,18 @@ test("the quality policy bounds every Playwright action without extending test t
   assert.match(unsafeActionTimeout.stderr, /action timeout/iu);
 });
 
+test("the quality policy keeps local and CI browser execution deterministic", () => {
+  const playwright = read("playwright.config.js");
+
+  assert.match(playwright, /^  workers: 1,$/mu);
+
+  const unsafeWorkers = runPolicyAgainstWorkflowEdits({
+    "playwright.config.js": (source) => source.replace("workers: 1", "workers: 4")
+  });
+  assert.notEqual(unsafeWorkers.status, 0, "the policy must reject parallel browser workers");
+  assert.match(unsafeWorkers.stderr, /worker/iu);
+});
+
 test("the local quality validator approves the final PR-gate policy", () => {
   const result = spawnSync(process.execPath, ["scripts/validate_quality_policy.js"], {
     cwd: repositoryRoot,

@@ -224,6 +224,12 @@ if (playwrightConfig.actionTimeout !== 10_000) {
   );
 }
 
+if (playwrightConfig.workers !== 1) {
+  failures.push(
+    `Playwright workers must remain 1 so local and CI acceptance observe the same deterministic browser load (received ${playwrightConfig.workers}).`
+  );
+}
+
 for (const project of playwrightConfig.projects ?? []) {
   const effectiveRetries = project.retries ?? playwrightConfig.retries;
 

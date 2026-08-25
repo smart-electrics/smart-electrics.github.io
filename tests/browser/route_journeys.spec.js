@@ -171,6 +171,7 @@ test("process and engineering-principles journeys keep their exact ordered data 
 });
 
 test("every journey node resolves a distinct settled scene frame and causal connector from canonical visual data", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   for (const journey of journeys) {
     await page.goto(journey.route);
     const root = page.locator(`[data-route-journey-root][data-route-journey-id="${journey.id}"]`);

@@ -951,6 +951,12 @@
   }
 }
 
+@media (min-width: 36.01rem) and (max-width: 72rem) {
+  .smart-home__scene:has(.smart-home__scene-topology) figcaption {
+    bottom: 9rem;
+  }
+}
+
 @media (max-width: 36rem) {
   .smart-home__simulator {
     padding: 0.85rem;

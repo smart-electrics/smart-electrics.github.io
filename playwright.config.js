@@ -13,7 +13,7 @@ export default defineConfig({
   // A failed attempt is a failed quality gate; flakes must remain visible.
   retries: 0,
   actionTimeout: 10_000,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: [
     ["list"],
     ["html", { open: "never", outputFolder: "artifacts/playwright-report" }]
