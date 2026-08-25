@@ -43,7 +43,7 @@ test("Quality is a pinned pull-request gate with dispatch and retained success e
   assert.match(workflow, /^on:\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:/mu);
   assert.doesNotMatch(workflow, /^  push:/mu);
   assert.match(workflow, /^  quality:\n    name: quality$/mu);
-  assert.match(workflow, /^    timeout-minutes: 45$/mu);
+  assert.match(workflow, /^    timeout-minutes: 60$/mu);
   assert.match(workflow, new RegExp(`uses: actions/checkout@${checkoutPin}`));
   assert.match(workflow, pullRequestHeadRef, "Quality must check out the exact PR head SHA while retaining github.sha for dispatch.");
   assert.match(workflow, /uses: ruby\/setup-ruby@[0-9a-f]{40}/u);
@@ -55,6 +55,27 @@ test("Quality is a pinned pull-request gate with dispatch and retained success e
     workflow,
     /if: success\(\)[\s\S]*uses: actions\/upload-artifact@[0-9a-f]{40}[\s\S]*path: artifacts\/final-evidence\/[\s\S]*if-no-files-found: error/u
   );
+});
+
+test("the quality policy requires the bounded 60-minute hosted-runner budget", () => {
+  const sufficientBudget = runPolicyAgainstWorkflowEdits({
+    ".github/workflows/quality.yml": (source) =>
+      source.replace(/timeout-minutes: \d+/u, "timeout-minutes: 60")
+  });
+  assert.equal(sufficientBudget.status, 0, sufficientBudget.stderr);
+
+  for (const minutes of [59, 61]) {
+    const unsafeBudget = runPolicyAgainstWorkflowEdits({
+      ".github/workflows/quality.yml": (source) =>
+        source.replace(/timeout-minutes: \d+/u, `timeout-minutes: ${minutes}`)
+    });
+    assert.notEqual(
+      unsafeBudget.status,
+      0,
+      `Quality must reject a ${minutes}-minute execution budget`
+    );
+    assert.match(unsafeBudget.stderr, /60-minute final acceptance gate/iu);
+  }
 });
 
 test("CodeQL remains an automatic and manual gate with every action pinned", () => {

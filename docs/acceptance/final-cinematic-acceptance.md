@@ -68,6 +68,13 @@ handoff виконавець відкриває representative screenshots і п
 motion не перетворив сцену на набір карток, не створив overlay artifact та не
 сховав активну дію за межами viewport.
 
+Hosted Quality має bounded budget 60 хвилин, `workers: 1` і `retries: 0`.
+Попередній 45-хвилинний budget був недостатнім: Actions run `32884161387`
+пройшов 639 із 648 тестів без test failure і був примусово скасований самим
+workflow timeout. Timeout, скасування або незавантажений evidence artifact
+залишають gate червоним; execution budget не змінює жодного test timeout і не
+дозволяє повторні спроби.
+
 ## Локальний порядок
 
     make validate-production-assets

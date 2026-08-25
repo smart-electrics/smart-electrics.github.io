@@ -114,8 +114,8 @@ if (!/^  quality:\n    name: quality$/mu.test(qualityWorkflow)) {
   failures.push("Quality must retain the required quality job/context name.");
 }
 
-if (!/^    timeout-minutes: 45$/mu.test(qualityWorkflow)) {
-  failures.push("Quality must allow the bounded 45-minute final acceptance gate.");
+if (!/^    timeout-minutes: 60$/mu.test(qualityWorkflow)) {
+  failures.push("Quality must allow the bounded 60-minute final acceptance gate.");
 }
 
 if (!/^          node-version-file: \.nvmrc$/mu.test(qualityWorkflow) || !/^24\./u.test(nodeVersion)) {
