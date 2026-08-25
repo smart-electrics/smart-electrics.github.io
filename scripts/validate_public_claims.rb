@@ -31,8 +31,7 @@ module PublicClaims
     ].freeze,
     "portal/account/control" => [
       /\b(?:портал[\p{L}\p{N}]*|особист[\p{L}\p{N}]*\s+кабінет[\p{L}\p{N}]*|кабінет[\p{L}\p{N}]*\s+(?:клієнт[\p{L}\p{N}]*|користувач[\p{L}\p{N}]*)|account[\p{L}\p{N}]*|dashboard[\p{L}\p{N}]*)\b/iu,
-      /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu,
-      /\b(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\s+(?:об[’']?єкт[\p{L}\p{N}]*|будинк[\p{L}\p{N}]*|систем[\p{L}\p{N}]*)\b/iu
+      /\b(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)\b/iu
     ].freeze,
     "vendor compatibility" => [
       /\b(?:knx|loxone|control4|crestron|zigbee|z-wave|matter|homekit|alexa|google\s+home|philips\s+hue)\b/iu,
