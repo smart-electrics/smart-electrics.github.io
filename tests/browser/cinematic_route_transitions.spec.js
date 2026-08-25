@@ -81,6 +81,41 @@ async function expectOneInertSnapshot(page, { minimumVisibility = 0 } = {}) {
   return { evidence, snapshot };
 }
 
+async function expectedHandoffSurface(page, sourceRef, anchor) {
+  const anchorSurface = await anchor.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      height: String(bounds.height) + "px",
+      left: String(bounds.left) + "px",
+      top: String(bounds.top) + "px",
+      width: String(bounds.width) + "px"
+    };
+  });
+  return page.evaluate((sourceId) => {
+    const ratio = (bounds) => {
+      const left = Math.max(bounds.left, 0);
+      const top = Math.max(bounds.top, 0);
+      const right = Math.min(bounds.right, window.innerWidth);
+      const bottom = Math.min(bounds.bottom, window.innerHeight);
+      const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+      return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+    };
+    const toSurface = (bounds) => ({
+      height: String(bounds.height) + "px",
+      left: String(bounds.left) + "px",
+      top: String(bounds.top) + "px",
+      width: String(bounds.width) + "px"
+    });
+    const source = [...document.querySelectorAll("[data-cinematic-route-source]")]
+      .find((candidate) => candidate.dataset.cinematicRouteSource === sourceId);
+    const bounds = source?.getBoundingClientRect();
+    return {
+      source: bounds && toSurface(bounds),
+      sourceVisibility: bounds && ratio(bounds)
+    };
+  }, sourceRef).then((source) => ({ anchor: anchorSurface, ...source }));
+}
+
 async function completeAtOneDestination(page, snapshot, destination) {
   const destinations = [];
   page.on("framenavigated", (frame) => {
@@ -104,17 +139,30 @@ test("an opted-in primary navigation creates one inert source snapshot and assig
   await expect(snapshot).toHaveCount(1);
   await expect(snapshot).toHaveAttribute("aria-hidden", "true");
   await expect(snapshot.locator("[id], a, button, input, select, textarea, summary")).toHaveCount(0);
-  await expect(snapshot.locator("img")).toHaveCount(1);
 
   const sourceAndSnapshot = await page.evaluate(() => {
+    const ratio = (bounds) => {
+      const left = Math.max(bounds.left, 0);
+      const top = Math.max(bounds.top, 0);
+      const right = Math.min(bounds.right, window.innerWidth);
+      const bottom = Math.min(bounds.bottom, window.innerHeight);
+      const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+      return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+    };
     const sourceContainer = document.querySelector('[data-cinematic-route-source="cinematic-stage-home"]');
+    const anchor = document.querySelector('.home-hero__actions a[data-cinematic-route][href="/smart-home/"]');
     const source = [...sourceContainer.querySelectorAll("img")].find((image) => image.getBoundingClientRect().width > 0);
     const snapshotImage = document.querySelector("[data-cinematic-route-snapshot] img");
     const snapshotNode = document.querySelector("[data-cinematic-route-snapshot]");
     const sourceBox = sourceContainer?.getBoundingClientRect();
+    const anchorBox = anchor?.getBoundingClientRect();
     const imageBox = source?.getBoundingClientRect();
     return {
+      anchorBox: anchorBox && {
+        left: String(anchorBox.left) + "px", top: String(anchorBox.top) + "px", width: String(anchorBox.width) + "px", height: String(anchorBox.height) + "px"
+      },
       source: source?.currentSrc,
+      sourceVisibility: sourceBox && ratio(sourceBox),
       snapshot: snapshotImage?.src,
       left: snapshotNode?.style.left,
       top: snapshotNode?.style.top,
@@ -143,12 +191,22 @@ test("an opted-in primary navigation creates one inert source snapshot and assig
       }
     };
   });
-  expect(sourceAndSnapshot.snapshot).toBe(sourceAndSnapshot.source);
-  ["left", "top", "width", "height"].forEach((field) => {
-    expect(Number.parseFloat(sourceAndSnapshot[field])).toBeCloseTo(Number.parseFloat(sourceAndSnapshot.sourceBox[field]), 2);
-  });
-  expectGeometryToMatch(sourceAndSnapshot.snapshotImageGeometry, sourceAndSnapshot.imageRelativeGeometry);
-  expect(sourceAndSnapshot.snapshotStyle).toEqual(sourceAndSnapshot.sourceStyle);
+  if (sourceAndSnapshot.sourceVisibility >= meaningfulSnapshotVisibility) {
+    await expect(snapshot.locator("img")).toHaveCount(1);
+    expect(sourceAndSnapshot.snapshot).toBe(sourceAndSnapshot.source);
+    ["left", "top", "width", "height"].forEach((field) => {
+      expect(Number.parseFloat(sourceAndSnapshot[field])).toBeCloseTo(Number.parseFloat(sourceAndSnapshot.sourceBox[field]), 2);
+    });
+    expectGeometryToMatch(sourceAndSnapshot.snapshotImageGeometry, sourceAndSnapshot.imageRelativeGeometry);
+    expect(sourceAndSnapshot.snapshotStyle).toEqual(sourceAndSnapshot.sourceStyle);
+  } else {
+    await expect(snapshot).toHaveClass(/cinematic-route-snapshot--geometry/);
+    await expect(snapshot.locator("img")).toHaveCount(0);
+    expectGeometryToMatch(
+      { left: sourceAndSnapshot.left, top: sourceAndSnapshot.top, width: sourceAndSnapshot.width, height: sourceAndSnapshot.height },
+      sourceAndSnapshot.anchorBox
+    );
+  }
 
   await expect(new AxeBuilder({ page }).analyze()).resolves.toMatchObject({ violations: [] });
   await snapshot.dispatchEvent("animationend");
@@ -167,9 +225,20 @@ test("real solutions and smart-home preset-related links keep one inert handoff 
   await solutionLink.scrollIntoViewIfNeeded();
   await expect(solutionLink).toBeVisible();
   const solutionDestination = await solutionLink.evaluate((anchor) => anchor.href);
+  const solutionSurface = await expectedHandoffSurface(page, "cinematic-solutions-media", solutionLink);
   await holdSnapshot(page);
   await solutionLink.click();
-  const solutionHandoff = await expectOneInertSnapshot(page, { minimumVisibility: 0.01 });
+  const solutionHandoff = await expectOneInertSnapshot(page, { minimumVisibility: meaningfulSnapshotVisibility });
+  expectGeometryToMatch(
+    solutionHandoff.evidence.surface,
+    solutionSurface.sourceVisibility >= meaningfulSnapshotVisibility ? solutionSurface.source : solutionSurface.anchor
+  );
+  if (solutionSurface.sourceVisibility < meaningfulSnapshotVisibility) {
+    await expect(solutionHandoff.snapshot).toHaveClass(/cinematic-route-snapshot--geometry/);
+    await expect(solutionHandoff.snapshot.locator("img")).toHaveCount(0);
+  } else {
+    await expect(solutionHandoff.snapshot.locator("img")).toHaveCount(1);
+  }
   await completeAtOneDestination(page, solutionHandoff.snapshot, solutionDestination);
 
   await page.goto("/smart-home/");
@@ -178,9 +247,16 @@ test("real solutions and smart-home preset-related links keep one inert handoff 
   await presetLink.scrollIntoViewIfNeeded();
   await expect(presetLink).toBeVisible();
   const presetDestination = await presetLink.evaluate((anchor) => anchor.href);
+  const presetSurface = await expectedHandoffSurface(page, "smart-home-preset-morning", presetLink);
   await holdSnapshot(page);
   await presetLink.click();
-  const presetHandoff = await expectOneInertSnapshot(page, { minimumVisibility: 0.01 });
+  const presetHandoff = await expectOneInertSnapshot(page, { minimumVisibility: meaningfulSnapshotVisibility });
+  expectGeometryToMatch(
+    presetHandoff.evidence.surface,
+    presetSurface.sourceVisibility >= meaningfulSnapshotVisibility ? presetSurface.source : presetSurface.anchor
+  );
+  await expect(presetHandoff.snapshot).toHaveClass(/cinematic-route-snapshot--geometry/);
+  await expect(presetHandoff.snapshot.locator("img")).toHaveCount(0);
   await completeAtOneDestination(page, presetHandoff.snapshot, presetDestination);
 });
 
@@ -297,10 +373,19 @@ test("each activated anchor gives the bounded snapshot a causal direction on des
     const source = document.querySelector('[data-cinematic-route-source="cinematic-stage-home"]');
     const sourceBox = source?.getBoundingClientRect();
     const anchorBox = anchor.getBoundingClientRect();
+    const ratio = (bounds) => {
+      const left = Math.max(bounds.left, 0);
+      const top = Math.max(bounds.top, 0);
+      const right = Math.min(bounds.right, window.innerWidth);
+      const bottom = Math.min(bounds.bottom, window.innerHeight);
+      const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+      return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+    };
+    const surfaceBox = ratio(sourceBox) >= 0.5 ? sourceBox : anchorBox;
     const clamp = (value, limit) => Math.max(-limit, Math.min(limit, value));
     return {
-      x: clamp((anchorBox.left + anchorBox.width / 2) - (sourceBox.left + sourceBox.width / 2), 72),
-      y: clamp((anchorBox.top + anchorBox.height / 2) - (sourceBox.top + sourceBox.height / 2), 54)
+      x: clamp((anchorBox.left + anchorBox.width / 2) - (surfaceBox.left + surfaceBox.width / 2), 72),
+      y: clamp((anchorBox.top + anchorBox.height / 2) - (surfaceBox.top + surfaceBox.height / 2), 54)
     };
   });
 
@@ -522,12 +607,29 @@ test("focus and reassembled handoffs preserve the visible scene crop", async ({ 
     await expect(link).toBeVisible();
     await link.scrollIntoViewIfNeeded();
     const destination = await link.evaluate((anchor) => anchor.href);
+    const anchorGeometry = await link.evaluate((anchor) => {
+      const bounds = anchor.getBoundingClientRect();
+      return {
+        left: String(bounds.left) + "px",
+        top: String(bounds.top) + "px",
+        width: String(bounds.width) + "px",
+        height: String(bounds.height) + "px"
+      };
+    });
     const sourceFidelity = await page.evaluate(() => {
       const sourceContainer = document.querySelector('[data-cinematic-route-source="cinematic-stage-services"]');
       const source = [...sourceContainer.querySelectorAll("img")]
         .find((image) => image.getBoundingClientRect().width > 0);
       const sourceBox = sourceContainer?.getBoundingClientRect();
       const imageBox = source?.getBoundingClientRect();
+      const ratio = (bounds) => {
+        const left = Math.max(bounds.left, 0);
+        const top = Math.max(bounds.top, 0);
+        const right = Math.min(bounds.right, window.innerWidth);
+        const bottom = Math.min(bounds.bottom, window.innerHeight);
+        const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+        return bounds.width * bounds.height > 0 ? visibleArea / (bounds.width * bounds.height) : 0;
+      };
       const styles = (element) => ({
         currentSrc: element?.currentSrc || element?.src,
         objectFit: element && getComputedStyle(element).objectFit,
@@ -536,6 +638,7 @@ test("focus and reassembled handoffs preserve the visible scene crop", async ({ 
         filter: element && getComputedStyle(element).filter
       });
       return {
+        sourceVisibility: sourceBox && ratio(sourceBox),
         source: styles(source),
         sourceBox: sourceBox && { left: `${sourceBox.left}px`, top: `${sourceBox.top}px`, width: `${sourceBox.width}px`, height: `${sourceBox.height}px` },
         imageRelative: sourceBox && imageBox && { left: `${imageBox.left - sourceBox.left}px`, top: `${imageBox.top - sourceBox.top}px`, width: `${imageBox.width}px`, height: `${imageBox.height}px` }
@@ -554,14 +657,23 @@ test("focus and reassembled handoffs preserve the visible scene crop", async ({ 
         filter: element && getComputedStyle(element).filter
       });
       return {
+        geometryFallback: snapshotNode?.classList.contains("cinematic-route-snapshot--geometry") || false,
+        imageCount: snapshotNode?.querySelectorAll("img").length || 0,
         snapshot: styles(snapshot),
         snapshotBox: snapshotNode && { left: snapshotNode.style.left, top: snapshotNode.style.top, width: snapshotNode.style.width, height: snapshotNode.style.height },
         snapshotImage: snapshot && { left: snapshot.style.left, top: snapshot.style.top, width: snapshot.style.width, height: snapshot.style.height }
       };
     });
-    expect(snapshotFidelity.snapshot).toEqual(sourceFidelity.source);
-    expectGeometryToMatch(snapshotFidelity.snapshotBox, sourceFidelity.sourceBox);
-    expectGeometryToMatch(snapshotFidelity.snapshotImage, sourceFidelity.imageRelative);
+    if (sourceFidelity.sourceVisibility >= meaningfulSnapshotVisibility) {
+      expect(snapshotFidelity.imageCount).toBe(1);
+      expect(snapshotFidelity.snapshot).toEqual(sourceFidelity.source);
+      expectGeometryToMatch(snapshotFidelity.snapshotBox, sourceFidelity.sourceBox);
+      expectGeometryToMatch(snapshotFidelity.snapshotImage, sourceFidelity.imageRelative);
+    } else {
+      expect(snapshotFidelity.geometryFallback).toBe(true);
+      expect(snapshotFidelity.imageCount).toBe(0);
+      expectGeometryToMatch(snapshotFidelity.snapshotBox, anchorGeometry);
+    }
 
     await page.locator("[data-cinematic-route-snapshot]").dispatchEvent("animationend");
     await expect(page).toHaveURL(destination);

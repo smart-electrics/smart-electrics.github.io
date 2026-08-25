@@ -2,6 +2,7 @@ const HTTP_PROTOCOLS = new Set(["http:", "https:"]);
 const primaryButton = 0;
 const boundedDelay = 420;
 const vectorLimits = Object.freeze({ x: 72, y: 54 });
+const minimumVisibleSurface = 0.5;
 
 const isString = (value) => typeof value === "string" && value.trim().length > 0;
 
@@ -100,44 +101,68 @@ function validInitialContract(root, sources) {
   return [...root.querySelectorAll("[data-cinematic-route]")].every((anchor) => anchorContract(anchor, sources));
 }
 
-function visualFor(source) {
-  const candidates = source instanceof HTMLImageElement
-    ? [source]
-    : [...source.querySelectorAll("img")];
-  const image = candidates.find((candidate) => {
-    const bounds = candidate.getBoundingClientRect();
-    return bounds.width > 0 && bounds.height > 0 && isString(candidate.currentSrc || candidate.src);
-  });
-  return image || null;
-}
-
 function geometryFor(element) {
   const bounds = element.getBoundingClientRect();
   return bounds.width > 0 && bounds.height > 0 ? bounds : null;
 }
 
+function viewportIntersectionRatio(bounds) {
+  if (!bounds || window.innerWidth <= 0 || window.innerHeight <= 0) return 0;
+  const left = Math.max(bounds.left, 0);
+  const top = Math.max(bounds.top, 0);
+  const right = Math.min(bounds.right, window.innerWidth);
+  const bottom = Math.min(bounds.bottom, window.innerHeight);
+  const visibleArea = Math.max(0, right - left) * Math.max(0, bottom - top);
+  return visibleArea / (bounds.width * bounds.height);
+}
+
+function isMeaningfullyVisible(bounds) {
+  return viewportIntersectionRatio(bounds) >= minimumVisibleSurface;
+}
+
+function visualFor(source) {
+  const candidates = source instanceof HTMLImageElement
+    ? [source]
+    : [...source.querySelectorAll("img")];
+  const image = candidates.find((candidate) => geometryFor(candidate) && isString(candidate.currentSrc || candidate.src));
+  if (!image) return { image: null, unusable: false };
+  return {
+    image: image.complete && image.naturalWidth > 0 && image.naturalHeight > 0 ? image : null,
+    unusable: !(image.complete && image.naturalWidth > 0 && image.naturalHeight > 0)
+  };
+}
+
 function createSnapshot(source, destination) {
   if (document.querySelectorAll("[data-cinematic-route-snapshot]").length !== 0) return null;
-  const image = visualFor(source);
   const sourceGeometry = geometryFor(source);
+  const destinationGeometry = geometryFor(destination);
+  const visual = visualFor(source);
+  if (!sourceGeometry || !destinationGeometry || visual.unusable) return null;
+
+  const sourceVisible = isMeaningfullyVisible(sourceGeometry);
+  const surface = sourceVisible ? source : destination;
+  const surfaceGeometry = sourceVisible ? sourceGeometry : destinationGeometry;
+  if (!isMeaningfullyVisible(surfaceGeometry)) return null;
+
+  const image = sourceVisible ? visual.image : null;
   const imageGeometry = image && geometryFor(image);
-  if (!sourceGeometry || (image && !imageGeometry)) return null;
+  if (image && !imageGeometry) return null;
 
   const snapshot = document.createElement("div");
   snapshot.className = "cinematic-route-snapshot";
   snapshot.dataset.cinematicRouteSnapshot = "";
   snapshot.setAttribute("aria-hidden", "true");
-  const vector = boundedRouteVector(sourceGeometry, geometryFor(destination));
+  const vector = boundedRouteVector(surfaceGeometry, destinationGeometry);
   snapshot.style.setProperty("--cinematic-route-vector-mid-x", `${vector.midX}px`);
   snapshot.style.setProperty("--cinematic-route-vector-mid-y", `${vector.midY}px`);
   snapshot.style.setProperty("--cinematic-route-vector-x", `${vector.x}px`);
   snapshot.style.setProperty("--cinematic-route-vector-y", `${vector.y}px`);
   Object.assign(snapshot.style, {
-    borderRadius: window.getComputedStyle(source).borderRadius,
-    height: `${sourceGeometry.height}px`,
-    left: `${sourceGeometry.left}px`,
-    top: `${sourceGeometry.top}px`,
-    width: `${sourceGeometry.width}px`
+    borderRadius: window.getComputedStyle(surface).borderRadius,
+    height: `${surfaceGeometry.height}px`,
+    left: `${surfaceGeometry.left}px`,
+    top: `${surfaceGeometry.top}px`,
+    width: `${surfaceGeometry.width}px`
   });
 
   if (image) {
@@ -149,11 +174,11 @@ function createSnapshot(source, destination) {
     Object.assign(visual.style, {
       filter: style.filter,
       height: `${imageGeometry.height}px`,
-      left: `${imageGeometry.left - sourceGeometry.left}px`,
+      left: `${imageGeometry.left - surfaceGeometry.left}px`,
       objectFit: style.objectFit,
       objectPosition: style.objectPosition,
       position: "absolute",
-      top: `${imageGeometry.top - sourceGeometry.top}px`,
+      top: `${imageGeometry.top - surfaceGeometry.top}px`,
       transformOrigin: style.transformOrigin,
       width: `${imageGeometry.width}px`
     });
