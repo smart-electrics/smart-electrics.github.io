@@ -74,6 +74,9 @@ const dynamicClaimRules = Object.freeze([
 ]);
 const unicodeWord = (value) => new RegExp("(?:^|[^\\p{L}\\p{N}])" + value + "(?=$|[^\\p{L}\\p{N}])", "iu");
 const truthfulNegativeDisclosure = /(?:не\s+(?:є\s+)?(?:підтверджен[\p{L}\p{N}]*|публіку[\p{L}\p{N}]*|документальн[\p{L}\p{N}]*|реалізован[\p{L}\p{N}]*|виконан[\p{L}\p{N}]*|встановлен[\p{L}\p{N}]*|змонтован[\p{L}\p{N}]*|маємо|надаємо|пропонуємо|гаранту[\p{L}\p{N}]*|підтрим[\p{L}\p{N}]*|заявля[\p{L}\p{N}]*)|без\s+(?:підтверджен[\p{L}\p{N}]*|гаранті[\p{L}\p{N}]*|сертифік[\p{L}\p{N}]*|відгук[\p{L}\p{N}]*|телеметр[\p{L}\p{N}]*|портал[\p{L}\p{N}]*|сумісн[\p{L}\p{N}]*|(?:віддален[\p{L}\p{N}]*|дистанційн[\p{L}\p{N}]*)\s+(?:керуван[\p{L}\p{N}]*|контрол[\p{L}\p{N}]*)))/iu;
+const scopedTruthfulNegativeDisclosures = Object.freeze([
+  /не\s+публіку[\p{L}\p{N}]*\s+(?:тут\s+)?підтверджен[\p{L}\p{N}]*\s+кейс[\p{L}\p{N}]*\s+(?:чи|або|та|і)\s+матеріал[\p{L}\p{N}]*\s+про\s+виконан[\p{L}\p{N}]*\s+об[’']?єкт[\p{L}\p{N}]*/iu
+]);
 const contrastingClauseSeparator = /\s*,?\s*(?:але|однак|проте|but)\s*/iu;
 const positiveClaimAfterDisclosure = Object.freeze([
   /телеметрія/iu,
@@ -156,9 +159,9 @@ const dynamicFallbacks = Object.freeze([
 ]);
 const geometryWidths = Object.freeze([375, 768, 900, 1024, 1440, 1980]);
 const compositionGeometryContracts = Object.freeze([
-  {
+  ...["/", "/services/"].map((route) => ({
     family: "residence",
-    route: "/",
+    route,
     root: "[data-cinematic-root]",
     enhancedAttribute: "data-cinematic-enhanced",
     phaseAttribute: "data-cinematic-motion-phase",
@@ -169,7 +172,7 @@ const compositionGeometryContracts = Object.freeze([
     panel: "[data-cinematic-panel]:not([hidden])",
     control: ".residence-spine__rail",
     overlay: "residence"
-  },
+  })),
   ...serviceStudioRoutes.map((route) => ({
     family: "service-studio",
     route,
@@ -196,9 +199,9 @@ const compositionGeometryContracts = Object.freeze([
     panel: "[data-cinematic-solutions-panel]:not([hidden])",
     control: ".cinematic-solutions__rail"
   })),
-  {
+  ...["/process/", "/about/"].map((route) => ({
     family: "journey",
-    route: "/process/",
+    route,
     root: "[data-route-journey-root]",
     enhancedAttribute: "data-route-journey-enhanced",
     phaseAttribute: "data-route-journey-motion-phase",
@@ -208,7 +211,7 @@ const compositionGeometryContracts = Object.freeze([
     scene: "[data-route-journey-scene]",
     panel: "[data-route-journey-panel]",
     control: ".route-journey__rail"
-  },
+  })),
   {
     family: "smart-home",
     route: "/smart-home/",
@@ -536,7 +539,7 @@ async function publicSurface(page, route, width) {
       controls: controls.length,
       minimumStageHeight: Math.min(480, window.innerHeight * 0.45),
       stages,
-      ordinalMarkers: mainText.match(/(?:^|\s)0[1-9](?=\s|$)/gmu) ?? [],
+      ordinalMarkers: mainText.match(/(?:^|[\s([{])0[1-9](?=$|[\s)\]}]|[.:](?:\s|$))/gmu) ?? [],
       overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       clipped: controls.filter(({ horizontallyVisible }) => !horizontallyVisible),
       clippedLinks: links.filter(({ horizontallyVisible }) => !horizontallyVisible),
@@ -567,15 +570,37 @@ function internalRoutes(anchorHrefs) {
 }
 
 async function expectNoMotion(page) {
-  const moving = await page.locator("*").evaluateAll((elements) => elements
-    .filter((element) => {
-      const style = getComputedStyle(element);
-      const duration = (value) => value.split(",").some((item) => Number.parseFloat(item) > 0);
-      return (style.animationName !== "none" && duration(style.animationDuration)) || duration(style.transitionDuration);
-    })
-    .map((element) => ({ className: element.className, tagName: element.tagName }))
-    .slice(0, 20));
-  expect(moving, "reduced-motion must remove all running CSS animation and transition durations").toEqual([]);
+  await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))));
+  const motion = await page.evaluate(async () => {
+    const elements = [...document.querySelectorAll("*")];
+    const css = elements
+      .filter((element) => {
+        const style = getComputedStyle(element);
+        const duration = (value) => value.split(",").some((item) => Number.parseFloat(item) > 0);
+        return (style.animationName !== "none" && duration(style.animationDuration)) || duration(style.transitionDuration);
+      })
+      .map((element) => ({ className: String(element.className), tagName: element.tagName }))
+      .slice(0, 20);
+    const animations = document.getAnimations();
+    const before = new Map(animations.map((animation) => [animation, animation.currentTime]));
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 60));
+    const waapi = animations
+      .filter((animation) => {
+        const previous = before.get(animation);
+        const current = animation.currentTime;
+        const advancing = typeof previous === "number" && typeof current === "number" && Math.abs(current - previous) > 0.5;
+        return animation.playState === "running" || animation.pending || advancing;
+      })
+      .map((animation) => ({
+        currentTime: animation.currentTime,
+        playState: animation.playState,
+        target: animation.effect?.target?.tagName || "unknown"
+      }))
+      .slice(0, 20);
+    return { css, waapi };
+  });
+  expect(motion.css, "reduced-motion must remove all CSS animation and transition durations").toEqual([]);
+  expect(motion.waapi, "reduced-motion must leave no running, pending, or advancing Web Animations").toEqual([]);
 }
 
 async function expectNoVisibleSnapshots(page) {
@@ -615,7 +640,10 @@ async function expectGroundedDynamicCopy(root, name) {
   for (const fragment of text.split(/(?<=[.!?])\s+/u)) {
     const claimable = fragment
       .split(contrastingClauseSeparator)
-      .map((clause) => truthfulNegativeDisclosure.test(clause) && !mixedNegativePositiveClaim(clause) ? " " : clause)
+      .map((clause) => {
+        const scoped = scopedTruthfulNegativeDisclosures.reduce((copy, pattern) => copy.replace(pattern, " "), clause);
+        return truthfulNegativeDisclosure.test(scoped) && !mixedNegativePositiveClaim(scoped) ? " " : scoped;
+      })
       .join(" ");
     for (const [category, patterns] of dynamicClaimRules) {
       if (patterns.some((pattern) => pattern.test(claimable))) violations.push({ category, fragment });
@@ -711,11 +739,15 @@ async function expectVisibleState(root, sceneSelector, panelSelector) {
   await expect(root.locator(panelSelector + ":visible")).toHaveCount(1);
 }
 
+async function expectAxeClean(page, name) {
+  expect((await new AxeBuilder({ page }).analyze()).violations, name + " must pass Axe").toEqual([]);
+}
+
 async function inspectCompositionState(page, root, sceneSelector, panelSelector, name) {
   await expectVisibleState(root, sceneSelector, panelSelector);
   await expectDominantScene(root, sceneSelector, panelSelector, name);
   await expectGroundedDynamicCopy(root, name);
-  expect((await new AxeBuilder({ page }).analyze()).violations, name + " must pass Axe").toEqual([]);
+  await expectAxeClean(page, name);
 }
 
 async function expectFocusVisible(control) {
@@ -753,6 +785,28 @@ async function mediaSignature(image) {
 async function renderedPixelSignature(surface) {
   const pixels = await surface.screenshot({ animations: "disabled" });
   return createHash("sha256").update(pixels).digest("hex");
+}
+
+async function captureDeterministicScreenshot(page, file, width, route, state) {
+  await expect(page.locator("[data-outgoing-snapshot]"), file + " must settle its outgoing smart-home frame before capture").toHaveCount(0);
+  await page.locator("main img:visible").evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
+  await page.evaluate(() => document.fonts.ready);
+  const options = { animations: "disabled", caret: "hide" };
+  const first = await page.screenshot({ ...options, path: resolve(evidenceDirectory, file) });
+  const second = await page.screenshot(options);
+  const pngSignature = "89504e470d0a1a0a";
+  const expectedViewport = viewportFor(width);
+  const inspect = (buffer, label) => {
+    expect(buffer.length, label + " must contain encoded PNG bytes").toBeGreaterThan(24);
+    expect(buffer.subarray(0, 8).toString("hex"), label + " must retain the PNG signature").toBe(pngSignature);
+    const dimensions = { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+    expect(dimensions, label + " must decode to the requested viewport dimensions").toEqual(expectedViewport);
+    return { bytes: buffer.length, dimensions, sha256: createHash("sha256").update(buffer).digest("hex") };
+  };
+  const primary = inspect(first, file);
+  const repeat = inspect(second, file + " repeated capture");
+  expect(repeat.sha256, file + " must be byte-deterministic within the same settled browser run").toBe(primary.sha256);
+  return { file, route, state, width, ...primary };
 }
 
 async function smartHomeTopologySignature(simulator) {
@@ -898,6 +952,8 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
   const context = await browser.newContext({ baseURL, javaScriptEnabled: false, locale: "uk-UA" });
   const page = await context.newPage();
   const matrix = [];
+  const fallbackByRoute = new Map(dynamicFallbacks.map((contract) => [contract.route, contract]));
+  const fallbackHrefs = new Set();
 
   try {
     for (const width of acceptanceWidths) {
@@ -913,7 +969,12 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
           '[data-smart-home-simulator][data-enhanced="true"]'
         ].join(", ")).count();
         expect(enhancedRoots, route + " must not require JavaScript to reveal its reading order").toBe(0);
-        matrix.push({ route, width, controls: surface.controls, overflow: surface.overflow });
+        const contract = fallbackByRoute.get(route);
+        if (contract) {
+          const fallback = await expectSemanticFallback(page, contract, route + " no-JavaScript fallback at " + width + "px");
+          fallback.links.forEach(({ href }) => fallbackHrefs.add(href));
+        }
+        matrix.push({ route, width, controls: surface.controls, fallback: Boolean(contract), overflow: surface.overflow });
       }
     }
 
@@ -922,20 +983,18 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
     const mobileNavigation = page.locator(".mobile-nav");
     if (await mobileNavigation.isVisible()) await mobileNavigation.locator("summary").click();
     await followOrdinaryLink(page, 'a[href="/services/"]:visible', "no-JavaScript mobile navigation");
-    const fallbackHrefs = [];
     for (const contract of dynamicFallbacks) {
       await visit(page, contract.route);
-      const fallback = await expectSemanticFallback(page, contract, contract.route + " no-JavaScript fallback");
-      fallbackHrefs.push(...fallback.links.map(({ href }) => href));
       if (contract.fallbackLink) await followOrdinaryLink(page, contract.fallbackLink, contract.route + " no-JavaScript fallback");
     }
-    await expectFallbackInternalTargets(page, fallbackHrefs, "no-JavaScript");
+    await expectFallbackInternalTargets(page, [...fallbackHrefs], "no-JavaScript");
   } finally {
     await context.close();
   }
 
   expect(matrix).toHaveLength(publicRoutes.length * acceptanceWidths.length);
-  writeEvidence("no-javascript-route-matrix.json", { matrix });
+  expect(matrix.filter(({ fallback }) => fallback)).toHaveLength(dynamicFallbacks.length * acceptanceWidths.length);
+  writeEvidence("no-javascript-route-matrix.json", { fallbackHrefs: [...fallbackHrefs].sort(), matrix });
 });
 
 test("runtime claim scanning keeps a truthful negative clause but rejects a positive claim after contrast", async ({ page }) => {
@@ -947,6 +1006,10 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
   await expect(expectGroundedDynamicCopy(page.locator("main"), "mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
   await page.setContent("<main><p>Не публікуємо ціну і ціна системи становить 24 000 грн.</p></main>");
   await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+  await page.setContent("<main><p>Наразі ми не публікуємо тут підтверджених кейсів чи матеріалів про виконані об’єкти.</p></main>");
+  await expectGroundedDynamicCopy(page.locator("main"), "scoped project disclosure");
+  await page.setContent("<main><p>Наразі ми не публікуємо тут підтверджених кейсів чи матеріалів про виконані об’єкти і реалізований клієнтський проєкт вже завершено.</p></main>");
+  await expect(expectGroundedDynamicCopy(page.locator("main"), "scoped mixed project copy")).rejects.toThrow(/unsupported public claims/u);
   for (const [category, copy] of [
     ["telemetry", "Не публікуємо телеметрію і live-статус системи доступний."],
     ["portal", "Не надаємо портал і портал дає доступ до керування."],
@@ -960,6 +1023,20 @@ test("runtime claim scanning keeps a truthful negative clause but rejects a posi
     await page.setContent("<main><p>" + copy + "</p></main>");
     await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause " + category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
   }
+});
+
+test("runtime claim scanning covers every settled public route", async ({ page }) => {
+  const evidence = [];
+  await page.setViewportSize(viewportFor(1024));
+  await withInteractionDiagnostics(page, async () => {
+    for (const route of publicRoutes) {
+      await visit(page, route);
+      await expectGroundedDynamicCopy(page.locator("main"), route + " settled runtime copy");
+      evidence.push(route);
+    }
+  });
+  expect(evidence).toEqual(publicRoutes);
+  writeEvidence("runtime-claim-routes.json", evidence);
 });
 
 test("public surface rejects disabled, inert, and undersized generic interactive targets", async ({ page }) => {
@@ -1021,30 +1098,34 @@ test("public surface permits only flowing inline editorial links below 44px", as
 
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
   expectExactDynamicFallbackInventory();
-  const context = await browser.newContext({ baseURL, locale: "uk-UA", viewport: viewportFor(768) });
+  const fallbackWidths = [375, 768, 1440, 1980];
+  const context = await browser.newContext({ baseURL, locale: "uk-UA" });
   await context.route("**/assets/js/**", (route) => route.abort());
   const page = await context.newPage();
   const evidence = [];
-  const fallbackHrefs = [];
+  const fallbackHrefs = new Set();
 
   try {
-    for (const contract of dynamicFallbacks) {
-      await visit(page, contract.route);
-      const fallback = await expectSemanticFallback(page, contract, contract.route + " adapter-failure fallback");
-      fallbackHrefs.push(...fallback.links.map(({ href }) => href));
-      const surface = await publicSurface(page, contract.route, 768);
-      evidence.push({ route: contract.route, controls: surface.controls, overflow: surface.overflow });
-      if (contract.fallbackLink) {
-        await followOrdinaryLink(page, contract.fallbackLink, contract.route + " adapter-failure fallback");
+    for (const width of fallbackWidths) {
+      await page.setViewportSize(viewportFor(width));
+      for (const contract of dynamicFallbacks) {
+        await visit(page, contract.route);
+        const fallback = await expectSemanticFallback(page, contract, contract.route + " adapter-failure fallback at " + width + "px");
+        fallback.links.forEach(({ href }) => fallbackHrefs.add(href));
+        const surface = await publicSurface(page, contract.route, width);
+        evidence.push({ route: contract.route, width, controls: surface.controls, overflow: surface.overflow });
+        if (width === 768 && contract.fallbackLink) {
+          await followOrdinaryLink(page, contract.fallbackLink, contract.route + " adapter-failure fallback");
+        }
       }
     }
-    await expectFallbackInternalTargets(page, fallbackHrefs, "adapter-failure");
+    await expectFallbackInternalTargets(page, [...fallbackHrefs], "adapter-failure");
   } finally {
     await context.close();
   }
 
-  expect(evidence).toHaveLength(dynamicFallbacks.length);
-  writeEvidence("adapter-failure-fallbacks.json", evidence);
+  expect(evidence).toHaveLength(dynamicFallbacks.length * fallbackWidths.length);
+  writeEvidence("adapter-failure-fallbacks.json", { fallbackHrefs: [...fallbackHrefs].sort(), fallbackWidths, evidence });
 });
 
 async function exerciseGeometryContract(page, contract, width, evidence) {
@@ -1123,6 +1204,7 @@ async function exerciseGeometryContract(page, contract, width, evidence) {
 test("every composition family retains bounded, non-overlapping settled geometry", async ({ page }) => {
   const evidence = [];
   const contractRoutes = (family) => compositionGeometryContracts.filter((contract) => contract.family === family).map(({ route }) => route).sort();
+  expect(compositionGeometryContracts.map(({ route }) => route).sort()).toEqual([...expectedDynamicFallbackRoutes].sort());
   expect(contractRoutes("service-studio")).toEqual([...serviceStudioRoutes].sort());
   expect(contractRoutes("solutions")).toEqual([...solutionRoutes].sort());
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -1169,7 +1251,7 @@ test("every stateful composition reaches assembled, focus, and reassembled with 
 test("smart-home keeps a dominant scene and a wholly usable phone surface after initial, system, and preset states", async ({ page }) => {
   const screenshots = [];
   await withInteractionDiagnostics(page, async () => {
-    for (const width of [375, 1440]) {
+    for (const width of [375, 768, 1440, 1980]) {
       await page.setViewportSize(viewportFor(width));
       await visit(page, "/smart-home/");
       const simulator = page.locator("[data-smart-home-simulator]");
@@ -1180,14 +1262,18 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
       await expect(phone).toHaveAttribute("aria-label", /прокруч/iu);
       await expectSmartHomeScenePriority(page, simulator, width, "initial");
 
-      if (width === 375) {
+      const phoneScroll = await phone.evaluate((element) => ({
+        clientHeight: element.clientHeight,
+        scrollHeight: element.scrollHeight,
+        scrollTop: element.scrollTop
+      }));
+      if (phoneScroll.scrollHeight > phoneScroll.clientHeight + 1) {
         await expect(scrollHint).toBeVisible();
         await expect(scrollHint).toContainText("Прокручуйте панель");
         await phone.focus();
-        const before = await phone.evaluate((element) => ({ scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, clientHeight: element.clientHeight }));
-        expect(before.scrollHeight, "mobile phone must expose additional controls through its own scroll surface").toBeGreaterThan(before.clientHeight);
+        expect(phoneScroll.scrollHeight, "scrollable phone must expose additional controls through its own surface").toBeGreaterThan(phoneScroll.clientHeight);
         await page.keyboard.press("End");
-        await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(before.scrollTop);
+        await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(phoneScroll.scrollTop);
         await page.keyboard.press("Home");
         await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBe(0);
       } else {
@@ -1207,12 +1293,11 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
       await expectSmartHomeScenePriority(page, simulator, width, "preset");
 
       const screenshot = "smart-home-" + width + "-system-preset.png";
-      await page.screenshot({ path: resolve(evidenceDirectory, screenshot) });
-      screenshots.push(screenshot);
+      screenshots.push(await captureDeterministicScreenshot(page, screenshot, width, "/smart-home/", "system-preset"));
     }
 
-    expect(screenshots).toEqual(["smart-home-375-system-preset.png", "smart-home-1440-system-preset.png"]);
-    writeEvidence("smart-home-geometry.json", { widths: [375, 1440], screenshots });
+    expect(screenshots.map(({ file }) => file)).toEqual([375, 768, 1440, 1980].map((width) => "smart-home-" + width + "-system-preset.png"));
+    writeEvidence("smart-home-geometry.json", { widths: [375, 768, 1440, 1980], screenshots });
   });
 });
 
@@ -1257,10 +1342,14 @@ test("the nine residence scene families and physical controls produce real visib
   const simulator = page.locator("[data-smart-home-simulator]");
   const smartHomeScene = simulator.locator(".smart-home__scene");
   const visibleSmartHomeImage = () => simulator.locator("picture[data-scene-picture]:visible img");
+  const axeStates = [];
   await expect(simulator).toHaveAttribute("data-enhanced", "true");
   const systems = simulator.locator("button[data-phone-system]");
   await expect(systems).toHaveCount(9);
-  const selectedSystems = [await systems.first().getAttribute("data-phone-system")];
+  const initialSystemId = await systems.first().getAttribute("data-phone-system");
+  const selectedSystems = [initialSystemId];
+  await expectAxeClean(page, "smart-home system " + initialSystemId);
+  axeStates.push("system:" + initialSystemId);
   let previousSystemMedia = await mediaSignature(visibleSmartHomeImage());
   let previousSystemPixels = await renderedPixelSignature(smartHomeScene);
   let previousSystemTopology = await smartHomeTopologySignature(simulator);
@@ -1277,6 +1366,8 @@ test("the nine residence scene families and physical controls produce real visib
     expect(currentSystemPixels, "each smart-home system must visibly recompose the main scene").not.toBe(previousSystemPixels);
     const currentSystemTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(previousSystemTopology, currentSystemTopology, "smart-home system " + id);
+    await expectAxeClean(page, "smart-home system " + id);
+    axeStates.push("system:" + id);
     previousSystemMedia = currentSystemMedia;
     previousSystemPixels = currentSystemPixels;
     previousSystemTopology = currentSystemTopology;
@@ -1285,7 +1376,10 @@ test("the nine residence scene families and physical controls produce real visib
   expect(new Set(selectedSystems).size).toBe(9);
   const presets = simulator.getByRole("radio");
   await expect(presets).toHaveCount(7);
-  const selectedPresets = [await presets.first().getAttribute("value")];
+  const initialPresetId = await presets.first().getAttribute("value");
+  const selectedPresets = [initialPresetId];
+  await expectAxeClean(page, "smart-home preset " + initialPresetId);
+  axeStates.push("preset:" + initialPresetId);
   let previousPresetPixels = await renderedPixelSignature(smartHomeScene);
   let previousPresetTopology = await smartHomeTopologySignature(simulator);
   for (let index = 1; index < await presets.count(); index += 1) {
@@ -1297,13 +1391,17 @@ test("the nine residence scene families and physical controls produce real visib
     expect(currentPresetPixels, "each smart-home preset must visibly change scene pixels, even when it retains the selected system source").not.toBe(previousPresetPixels);
     const currentPresetTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(previousPresetTopology, currentPresetTopology, "smart-home preset " + id);
+    await expectAxeClean(page, "smart-home preset " + id);
+    axeStates.push("preset:" + id);
     previousPresetPixels = currentPresetPixels;
     previousPresetTopology = currentPresetTopology;
     selectedPresets.push(id);
   }
   expect(new Set(selectedPresets).size).toBe(7);
+  expect(axeStates.filter((state) => state.startsWith("system:"))).toHaveLength(9);
+  expect(axeStates.filter((state) => state.startsWith("preset:"))).toHaveLength(7);
   await expectGroundedDynamicCopy(simulator, "smart-home controls and presets");
-  expect((await new AxeBuilder({ page }).analyze()).violations, "smart-home active preset").toEqual([]);
+  writeEvidence("smart-home-axe-states.json", axeStates);
   });
 });
 
@@ -1315,38 +1413,79 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
   try {
     await withInteractionDiagnostics(page, async () => {
     await visit(page, "/");
+    const residence = page.locator("[data-cinematic-root]");
     await (await residenceDirectionWithRelation(page.locator("[data-cinematic-stage]"))).tap();
-    await expect(page.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-state", "focus");
+    await expect(residence).toHaveAttribute("data-cinematic-state", "focus");
+    await waitForIdle(residence, "data-cinematic-motion-phase");
+    await expectVisibleState(residence, "[data-cinematic-scene]", "[data-cinematic-panel]");
     await page.locator("[data-cinematic-stage] [data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().tap();
-    await expect(page.locator("[data-cinematic-root]")).toHaveAttribute("data-cinematic-state", "reassembled");
+    await expect(residence).toHaveAttribute("data-cinematic-state", "reassembled");
+    await waitForIdle(residence, "data-cinematic-motion-phase");
+    await expectVisibleState(residence, "[data-cinematic-scene]", "[data-cinematic-panel]");
     evidence.push("residence");
 
     await visit(page, "/services/electrical-design/");
+    const serviceStudio = page.locator("[data-service-studio-root]");
     await page.locator('[data-service-studio-stage] button[data-service-studio-action="select-focus"]').tap();
-    await expect(page.locator("[data-service-studio-root]")).toHaveAttribute("data-service-studio-state", "focus");
+    await expect(serviceStudio).toHaveAttribute("data-service-studio-state", "focus");
+    await waitForIdle(serviceStudio, "data-service-studio-motion-phase");
+    await expectVisibleState(serviceStudio, "[data-service-studio-scene]", "[data-service-studio-panel]");
     await page.locator('[data-service-studio-stage] button[data-service-studio-action="select-reassembled"]').tap();
-    await expect(page.locator("[data-service-studio-root]")).toHaveAttribute("data-service-studio-state", "reassembled");
+    await expect(serviceStudio).toHaveAttribute("data-service-studio-state", "reassembled");
+    await waitForIdle(serviceStudio, "data-service-studio-motion-phase");
+    await expectVisibleState(serviceStudio, "[data-service-studio-scene]", "[data-service-studio-panel]");
     evidence.push("service-studio");
 
     await visit(page, "/solutions/");
+    const solution = page.locator("[data-cinematic-solutions-root]");
     await page.locator('[data-cinematic-solutions-stage] button[data-cinematic-solutions-action="select-focus"]').tap();
-    await expect(page.locator("[data-cinematic-solutions-root]")).toHaveAttribute("data-cinematic-solutions-state", "focus");
+    await expect(solution).toHaveAttribute("data-cinematic-solutions-state", "focus");
+    await waitForIdle(solution, "data-cinematic-solutions-motion-phase");
+    await expectVisibleState(solution, "[data-cinematic-solutions-scene]", "[data-cinematic-solutions-panel]");
     await page.locator('[data-cinematic-solutions-stage] button[data-cinematic-solutions-action="select-reassembled"]').tap();
-    await expect(page.locator("[data-cinematic-solutions-root]")).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
+    await expect(solution).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
+    await waitForIdle(solution, "data-cinematic-solutions-motion-phase");
+    await expectVisibleState(solution, "[data-cinematic-solutions-scene]", "[data-cinematic-solutions-panel]");
     evidence.push("solution");
 
     await visit(page, "/process/");
+    const journey = page.locator("[data-route-journey-root]");
     await page.locator('[data-route-journey-stage] button[data-route-journey-action="select-node"]').first().tap();
-    await expect(page.locator("[data-route-journey-root]")).toHaveAttribute("data-route-journey-state", "focus");
+    await expect(journey).toHaveAttribute("data-route-journey-state", "focus");
+    await waitForIdle(journey, "data-route-journey-motion-phase");
+    await expectVisibleState(journey, "[data-route-journey-scene]", "[data-route-journey-panel]");
     await page.locator('[data-route-journey-stage] button[data-route-journey-action="show-relationship"]:not([hidden])').tap();
-    await expect(page.locator("[data-route-journey-root]")).toHaveAttribute("data-route-journey-state", "reassembled");
+    await expect(journey).toHaveAttribute("data-route-journey-state", "reassembled");
+    await waitForIdle(journey, "data-route-journey-motion-phase");
+    await expectVisibleState(journey, "[data-route-journey-scene]", "[data-route-journey-panel]");
     evidence.push("journey");
 
     await visit(page, "/smart-home/");
-    await page.locator("[data-smart-home-simulator] button[data-phone-system]").nth(1).tap();
-    await expect(page.locator("[data-smart-home-simulator]")).toHaveAttribute("data-system", /\S/u);
-    await page.locator("[data-smart-home-simulator] input[data-preset-radio]").nth(2).tap();
-    await expect(page.locator("[data-smart-home-simulator]")).toHaveAttribute("data-preset", /\S/u);
+    const simulator = page.locator("[data-smart-home-simulator]");
+    const smartScene = simulator.locator(".smart-home__scene");
+    const smartImage = () => simulator.locator("picture[data-scene-picture]:visible img");
+    const beforeSystemMedia = await mediaSignature(smartImage());
+    const beforeSystemPixels = await renderedPixelSignature(smartScene);
+    const beforeSystemTopology = await smartHomeTopologySignature(simulator);
+    const systemControl = simulator.locator("button[data-phone-system]").nth(1);
+    const systemId = await systemControl.getAttribute("data-phone-system");
+    await systemControl.tap();
+    await expect(simulator).toHaveAttribute("data-system", systemId);
+    const afterSystemMedia = await mediaSignature(smartImage());
+    expect(afterSystemMedia).not.toEqual(beforeSystemMedia);
+    expect(await renderedPixelSignature(smartScene)).not.toBe(beforeSystemPixels);
+    const afterSystemTopology = await smartHomeTopologySignature(simulator);
+    expectMeaningfulTopologyChange(beforeSystemTopology, afterSystemTopology, "touch smart-home system");
+    await expectSmartHomeScenePriority(page, simulator, 375, "touch system");
+    const beforePresetPixels = await renderedPixelSignature(smartScene);
+    const presetControl = simulator.locator("input[data-preset-radio]").nth(2);
+    const presetId = await presetControl.getAttribute("value");
+    await presetControl.tap();
+    await expect(simulator).toHaveAttribute("data-preset", presetId);
+    expect(await renderedPixelSignature(smartScene)).not.toBe(beforePresetPixels);
+    const afterPresetTopology = await smartHomeTopologySignature(simulator);
+    expectMeaningfulTopologyChange(afterSystemTopology, afterPresetTopology, "touch smart-home preset");
+    await expectSmartHomeScenePriority(page, simulator, 375, "touch preset");
     evidence.push("smart-home");
     });
   } finally {
@@ -1409,7 +1548,7 @@ test("reduced-motion produces zero running animation or transition across every 
   writeEvidence("reduced-motion.json", evidence);
 });
 
-test("selected assembled, focus, and reassembled evidence remains inspectable at four representative widths", async ({ page }) => {
+test("settled visual evidence spans every cinematic composition family at four representative widths", async ({ page }) => {
   const screenshots = [];
   await withInteractionDiagnostics(page, async () => {
     for (const width of [375, 768, 1440, 1980]) {
@@ -1419,22 +1558,56 @@ test("selected assembled, focus, and reassembled evidence remains inspectable at
       const stage = root.locator("[data-cinematic-stage]");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const assembled = "services-" + width + "-assembled.png";
-      await page.screenshot({ path: resolve(evidenceDirectory, assembled) });
-      screenshots.push(assembled);
+      screenshots.push(await captureDeterministicScreenshot(page, assembled, width, "/services/", "assembled"));
       await (await residenceDirectionWithRelation(stage)).click();
       await expect(root).toHaveAttribute("data-cinematic-state", "focus");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const focus = "services-" + width + "-focus.png";
-      await page.screenshot({ path: resolve(evidenceDirectory, focus) });
-      screenshots.push(focus);
+      screenshots.push(await captureDeterministicScreenshot(page, focus, width, "/services/", "focus"));
       await stage.locator("[data-cinematic-panel]:not([hidden]) button[data-cinematic-relation-control]").first().click();
       await expect(root).toHaveAttribute("data-cinematic-state", "reassembled");
       await waitForIdle(root, "data-cinematic-motion-phase");
       const reassembled = "services-" + width + "-reassembled.png";
-      await page.screenshot({ path: resolve(evidenceDirectory, reassembled) });
-      screenshots.push(reassembled);
+      screenshots.push(await captureDeterministicScreenshot(page, reassembled, width, "/services/", "reassembled"));
+
+      await visit(page, "/services/electrical-design/");
+      const serviceStudio = page.locator("[data-service-studio-root]");
+      await serviceStudio.locator('button[data-service-studio-action="select-focus"]').click();
+      await expect(serviceStudio).toHaveAttribute("data-service-studio-state", "focus");
+      await waitForIdle(serviceStudio, "data-service-studio-motion-phase");
+      const serviceFocus = "service-detail-" + width + "-focus.png";
+      screenshots.push(await captureDeterministicScreenshot(page, serviceFocus, width, "/services/electrical-design/", "focus"));
+
+      await visit(page, "/solutions/");
+      const solution = page.locator("[data-cinematic-solutions-root]");
+      await solution.locator('button[data-cinematic-solutions-action="select-focus"]').click();
+      await waitForIdle(solution, "data-cinematic-solutions-motion-phase");
+      await solution.locator('button[data-cinematic-solutions-action="select-reassembled"]').click();
+      await expect(solution).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
+      await waitForIdle(solution, "data-cinematic-solutions-motion-phase");
+      const solutionReassembled = "solutions-" + width + "-reassembled.png";
+      screenshots.push(await captureDeterministicScreenshot(page, solutionReassembled, width, "/solutions/", "reassembled"));
+
+      for (const [slug, route] of [["process", "/process/"], ["about", "/about/"]]) {
+        await visit(page, route);
+        const journey = page.locator("[data-route-journey-root]");
+        await journey.locator('button[data-route-journey-action="select-node"]').first().click();
+        await waitForIdle(journey, "data-route-journey-motion-phase");
+        await journey.locator('button[data-route-journey-action="show-relationship"]:not([hidden])').click();
+        await expect(journey).toHaveAttribute("data-route-journey-state", "reassembled");
+        await waitForIdle(journey, "data-route-journey-motion-phase");
+        const journeyReassembled = slug + "-" + width + "-reassembled.png";
+        screenshots.push(await captureDeterministicScreenshot(page, journeyReassembled, width, route, "reassembled"));
+      }
     }
-    expect(screenshots).toHaveLength(12);
+    expect(screenshots).toHaveLength(28);
+    expect(new Set(screenshots.map(({ route }) => route))).toEqual(new Set([
+      "/services/",
+      "/services/electrical-design/",
+      "/solutions/",
+      "/process/",
+      "/about/"
+    ]));
     writeEvidence("screenshots.json", screenshots);
   });
 });

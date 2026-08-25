@@ -20,10 +20,11 @@
 | --- | --- | --- |
 | Маршрути | 24 public routes, включно з /404.html | Невдалий HTTP-відповідь, відсутній main, dead internal link або інший lang |
 | Розміри | 375, 414, 540, 768, 900, 1024, 1280, 1440, 1536, 1720, 1980 px | documentElement.scrollWidth більший за clientWidth, обрізана недосяжна дія або зламаний layout |
-| Семантика | JS, no-JS і заблоковані adapters | Звичайне посилання не працює, fallback прихований або enhancement потрібен для читання |
+| Семантика | JS, no-JS і заблоковані adapters для всіх 20 dynamic routes | Звичайне посилання не працює, fallback прихований або enhancement потрібен для читання |
 | Керування | pointer, Enter, touch і focus-visible | Disabled або inert control, target менший за 44 px, стан не змінює сцену, pixels, source або topology |
 | Кінематографія | assembled, focus і reassembled для кожної stateful composition | Більше однієї видимої сцени або панелі, кадр занадто малий відносно композиції, немає зрозумілого зв'язку між control і scene |
-| Motion | disassemble, hold, reassemble, idle | Немає чистого hold, конектор не пов'язаний із вибраним станом, text opacity/filter animation або motion не зупиняється для reduced motion |
+| Геометрія | 20 composition routes × 6 widths × 3 settled states | Scene, panel або rail виходить за stage/composition, неконтрольовано перетинається, приховує overflow або лишає порожній хвіст |
+| Motion | disassemble, hold, reassemble, idle з виміряними мінімальними фазами | Немає чистого hold, остання швидка дія не перемагає, конектор не пов'язаний із вибраним станом, text opacity/filter animation або motion не зупиняється для reduced motion |
 | Доступність | Axe на початковому й кожному активному стані | Axe violation, невидимий focus, duplicated interactive content або snapshot без aria-hidden |
 | Копія | source, built visible copy і runtime dynamic copy | Непідтверджена телеметрія, status, portal, account, remote control, vendor compatibility, ціна, гарантія, сертифікат, review або клієнтський проєкт як факт |
 | Медіа | _data/production_assets.yml і pure Ruby parser | Missing, stale, orphan або semantic pair/provenance drift; WebP без перевірених bytes, hash і decoded dimensions |
@@ -37,9 +38,16 @@ systems і сім presets, а не лише ARIA-стан.
 ## Evidence
 
 tests/browser/final_acceptance.spec.js запускається один раз у project
-final-acceptance. Він записує детерміновані JSON-підсумки та обрані
-screenshots assembled, focus і reassembled для 375, 768, 1440 і 1980 px у
-artifacts/final-evidence/.
+final-acceptance. Він записує детерміновані JSON-підсумки, 28 representative
+screenshots усіх кінематографічних composition families і чотири smart-home
+screenshots для 375, 768, 1440 і 1980 px у artifacts/final-evidence/. Кожен PNG
+декодується, звіряється з точним viewport і повторюється у тому самому settled
+стані; різний SHA-256 між двома capture є помилкою.
+
+No-JavaScript fallback перевіряється на всіх одинадцяти acceptance widths.
+Окремий adapter-outage прогін блокує site JavaScript і повторює всі 20 dynamic
+routes на 375, 768, 1440 та 1980 px. Runtime claim scanner читає settled DOM
+кожного з 24 public routes, а не лише інтерактивні компоненти.
 
 Каталог ігнорується Git. У Quality workflow він завантажується лише після
 успішного literal make check; відсутній каталог є помилкою workflow. Перед
