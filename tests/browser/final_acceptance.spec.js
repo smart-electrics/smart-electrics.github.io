@@ -664,6 +664,46 @@ test("public surface rejects disabled, inert, and undersized generic interactive
   await expect(publicSurface(page, "fixture", 375)).rejects.toThrow(/disabled or inert interactive target/u);
 });
 
+test("public surface rejects visible live-status chrome", async ({ page }) => {
+  await page.setViewportSize(viewportFor(375));
+  await page.setContent(`
+    <html lang="uk"><head><meta name="robots" content="noindex"></head><body>
+      <header role="banner"></header>
+      <main><h1>Перевірка стану</h1><p role="status">Нібито доступний оператор</p></main>
+      <footer role="contentinfo"></footer>
+    </body></html>
+  `);
+
+  await expect(publicSurface(page, "live-status", 375)).rejects.toThrow(/disabled, inert, or live-status surface/u);
+});
+
+test("public surface permits only flowing inline editorial links below 44px", async ({ page }) => {
+  await page.setViewportSize(viewportFor(375));
+  await page.setContent(`
+    <html lang="uk"><head><meta name="robots" content="noindex"></head><body>
+      <header role="banner"></header>
+      <main><h1>Перевірка посилань</h1>
+        <p>Пояснення містить <a href="/fixtures/editorial" data-inline-editorial-link style="display:inline">звичайне посилання</a> у реченні.</p>
+      </main>
+      <footer role="contentinfo"></footer>
+    </body></html>
+  `);
+
+  await expect(publicSurface(page, "flowing-inline", 375)).resolves.toBeDefined();
+
+  await page.setContent(`
+    <html lang="uk"><head><meta name="robots" content="noindex"></head><body>
+      <header role="banner"></header>
+      <main><h1>Перевірка посилань</h1>
+        <div><a href="/fixtures/action" data-inline-editorial-link style="display:inline">Дія</a></div>
+      </main>
+      <footer role="contentinfo"></footer>
+    </body></html>
+  `);
+
+  await expect(publicSurface(page, "mislabelled-action", 375)).rejects.toThrow(/44px action controls/u);
+});
+
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
   const context = await browser.newContext({ baseURL, locale: "uk-UA", viewport: viewportFor(768) });
   await context.route("**/assets/js/**", (route) => route.abort());
