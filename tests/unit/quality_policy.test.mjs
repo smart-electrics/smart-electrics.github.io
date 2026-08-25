@@ -106,6 +106,19 @@ test("the local gate retains production assets, public claims, and exactly one d
   assert.match(playwright, /testIgnore: \[responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile\]/u);
 });
 
+test("the quality policy bounds every Playwright action without extending test timeouts", () => {
+  const playwright = read("playwright.config.js");
+
+  assert.match(playwright, /^  actionTimeout: 10_000,$/mu);
+  assert.doesNotMatch(playwright, /^  timeout:/mu);
+
+  const unsafeActionTimeout = runPolicyAgainstWorkflowEdits({
+    "playwright.config.js": (source) => source.replace("actionTimeout: 10_000", "actionTimeout: 0")
+  });
+  assert.notEqual(unsafeActionTimeout.status, 0, "the policy must reject an unbounded action timeout");
+  assert.match(unsafeActionTimeout.stderr, /action timeout/iu);
+});
+
 test("the local quality validator approves the final PR-gate policy", () => {
   const result = spawnSync(process.execPath, ["scripts/validate_quality_policy.js"], {
     cwd: repositoryRoot,
