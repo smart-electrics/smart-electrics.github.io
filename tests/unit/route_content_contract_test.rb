@@ -4,6 +4,7 @@ require "minitest/autorun"
 require "open3"
 require "tmpdir"
 require "yaml"
+require_relative "../../scripts/validate_route_content"
 
 class RouteContentContractTest < Minitest::Test
   ROOT = File.expand_path("../..", __dir__)
@@ -24,6 +25,10 @@ class RouteContentContractTest < Minitest::Test
 
   def canonical_content
     YAML.safe_load_file(File.join(ROOT, "_data", "route_content.yml"), permitted_classes: [], aliases: false)
+  end
+
+  def duplicate_content
+    YAML.safe_load(YAML.dump(canonical_content), permitted_classes: [], aliases: false)
   end
 
   def with_content(content)
@@ -78,6 +83,54 @@ class RouteContentContractTest < Minitest::Test
     data = canonical_content
     data.fetch("uk").fetch("process").fetch("journey").fetch("nodes")[0]["visual"]["next"]["x"] = 100
     assert_rejected(data, "process.journey.nodes[0].visual must provide bounded exact focus and next coordinates")
+  end
+
+  def test_rejects_detached_fingerprint_drift_for_localized_semantics_and_media
+    mutations = {
+      "aria label" => lambda { |journey| journey["aria_label"] = "Інший маршрут" },
+      "field label" => lambda { |journey| journey.fetch("labels")["input"] = "Інші дані" },
+      "action label" => lambda { |journey| journey.fetch("actions")["return"] = "Інша дія" },
+      "media copy" => lambda { |journey| journey.fetch("media")["image_alt"] = "Інший опис" }
+    }
+
+    mutations.each_value do |mutate|
+      data = duplicate_content
+      mutate.call(data.fetch("uk").fetch("process").fetch("journey"))
+      assert_rejected(data, "process.journey must match the detached canonical fingerprint")
+    end
+  end
+
+  def test_matches_the_known_code_point_fingerprint_for_astral_localized_copy
+    journey = {
+      "id" => "process",
+      "aria_label" => "Маршрут 🚀",
+      "assembled" => { "title" => "Послідовність", "summary" => "Оберіть етап" },
+      "panel" => {
+        "assembled" => { "label" => "Маршрут", "title" => "Оберіть етап", "summary" => "Деталі етапу" },
+        "focus" => { "label" => "Обраний етап" },
+        "reassembled" => { "label" => "Наступний зв’язок", "title" => "Перехід" }
+      },
+      "labels" => { "input" => "Вхід 😀", "decision" => "Рішення", "next" => "Далі" },
+      "actions" => { "show_relationship" => "Показати зв’язок", "return" => "Повернутися" },
+      "media" => {
+        "image_768" => "/assets/768.webp",
+        "image_1536" => "/assets/1536.webp",
+        "image_alt" => "Візуальна концепція",
+        "image_focus" => "50% 50%"
+      },
+      "nodes" => [
+        {
+          "id" => "enquiry", "title" => "Звернення", "input" => "Вхід", "decision" => "Рішення", "next" => "Далі",
+          "visual" => { "focus" => { "x" => 24, "y" => 68, "scale" => 1.24 }, "next" => { "x" => 46, "y" => 52 } }
+        },
+        {
+          "id" => "clarification", "title" => "Уточнення", "input" => "Вхід", "decision" => "Рішення", "next" => "Далі",
+          "visual" => { "focus" => { "x" => 46, "y" => 52, "scale" => 1.29 }, "next" => { "x" => 66, "y" => 40 } }
+        }
+      ]
+    }
+
+    assert_equal "8227252b", RouteContent.route_fingerprint(journey)
   end
 
   def test_rejects_untruthful_copy_and_broken_static_links

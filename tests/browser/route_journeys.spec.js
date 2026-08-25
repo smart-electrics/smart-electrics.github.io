@@ -72,6 +72,70 @@ async function settledVisual(page, root) {
   });
 }
 
+async function expectCompleteFallback(root, nodeCount, name) {
+  const fallback = root.locator("[data-route-journey-fallback]");
+  await expect(fallback, name).toBeVisible();
+  const entries = fallback.locator(":scope > ol > li");
+  await expect(entries, name).toHaveCount(nodeCount);
+  for (let index = 0; index < nodeCount; index += 1) {
+    const entry = entries.nth(index);
+    await expect(entry.locator(":scope > h2"), name).toHaveCount(1);
+    await expect(entry.locator(":scope > dl > div"), name).toHaveCount(3);
+    await expect(entry.locator(":scope > dl > div > dt"), name).toHaveCount(3);
+    await expect(entry.locator(":scope > dl > div > dd"), name).toHaveCount(3);
+  }
+}
+
+async function sceneSnapshot(root) {
+  return root.locator("[data-route-journey-scene] img").evaluate((scene) => {
+    const style = getComputedStyle(scene);
+    return {
+      currentSrc: scene.currentSrc,
+      transform: style.transform,
+      objectPosition: style.objectPosition,
+      transformOrigin: style.transformOrigin,
+      clipPath: style.clipPath
+    };
+  });
+}
+
+async function outgoingSnapshot(outgoing) {
+  return outgoing.evaluate((scene) => {
+    const style = getComputedStyle(scene);
+    return {
+      currentSrc: scene.currentSrc,
+      source: scene.getAttribute("src"),
+      transform: style.transform,
+      objectPosition: style.objectPosition,
+      transformOrigin: style.transformOrigin,
+      clipPath: style.clipPath,
+      inline: {
+        transform: scene.style.transform,
+        objectPosition: scene.style.objectPosition,
+        transformOrigin: scene.style.transformOrigin,
+        clipPath: scene.style.clipPath
+      }
+    };
+  });
+}
+
+async function expectSnapshotCleared(outgoing) {
+  await expect(outgoing).toBeHidden();
+  expect(await outgoing.evaluate((scene) => ({
+    source: scene.getAttribute("src"),
+    transform: scene.style.transform,
+    objectPosition: scene.style.objectPosition,
+    transformOrigin: scene.style.transformOrigin,
+    clipPath: scene.style.clipPath
+  }))).toEqual({
+    source: null,
+    transform: "",
+    objectPosition: "",
+    transformOrigin: "",
+    clipPath: ""
+  });
+}
+
 test("process and engineering-principles journeys keep their exact ordered data contract without visible ordinals", async ({ page }) => {
   for (const journey of journeys) {
     await page.goto(journey.route);
@@ -188,7 +252,7 @@ test("journeys fail closed to source-order fallback when their detached fingerpr
   await expect(root.locator("[data-route-journey-stage]")).toBeHidden();
 });
 
-test("journeys fail closed for malformed JSON and an invalid node adapter surface", async ({ page }) => {
+test("journeys fail closed when a rendered localized or semantic contract changes", async ({ page }) => {
   const mutations = [
     {
       name: "malformed JSON",
@@ -213,21 +277,136 @@ test("journeys fail closed for malformed JSON and an invalid node adapter surfac
     {
       name: "connector DOM drift",
       apply: (body) => body.replace("data-route-journey-connector", "data-route-journey-connector-corrupt")
+    },
+    {
+      name: "node button title",
+      apply: (body) => body.replace('data-route-journey-node="enquiry" aria-pressed="true">Звернення</button>', 'data-route-journey-node="enquiry" aria-pressed="true">Змінене звернення</button>')
+    },
+    {
+      name: "show relationship label",
+      apply: (body) => body.replace('data-route-journey-action="show-relationship" hidden>Показати зв’язок</button>', 'data-route-journey-action="show-relationship" hidden>Змінений зв’язок</button>')
+    },
+    {
+      name: "return label",
+      apply: (body) => body.replace('data-route-journey-action="return" hidden>Повернутися до маршруту</button>', 'data-route-journey-action="return" hidden>Змінене повернення</button>')
+    },
+    {
+      name: "fallback heading copy",
+      apply: (body) => body.replace('<h2 id="process-enquiry-title">Звернення</h2>', '<h2 id="process-enquiry-title">Змінене звернення</h2>')
+    },
+    {
+      name: "fallback source order",
+      apply: (body) => body.replace(/(<li id="process-enquiry">[\s\S]*?<\/li>)(\s*)(<li id="process-clarification">[\s\S]*?<\/li>)/u, "$3$2$1")
+    },
+    {
+      name: "root aria label",
+      apply: (body) => body.replace('data-route-journey-fingerprint="3aa1e547" aria-label="Етапи роботи з електромонтажним проєктом"', 'data-route-journey-fingerprint="3aa1e547" aria-label="Змінений маршрут"')
+    },
+    {
+      name: "stage labelledby",
+      apply: (body) => body.replace('data-route-journey-stage hidden aria-labelledby="process-journey-title"', 'data-route-journey-stage hidden aria-labelledby="broken-title"')
+    },
+    {
+      name: "rail aria label",
+      apply: (body) => body.replace('class="route-journey__rail" aria-label="Етапи роботи з електромонтажним проєктом"', 'class="route-journey__rail" aria-label="Змінений маршрут"')
+    },
+    {
+      name: "panel labelledby",
+      apply: (body) => body.replace('data-route-journey-panel aria-labelledby="process-journey-panel-title"', 'data-route-journey-panel aria-labelledby="broken-panel-title"')
+    },
+    {
+      name: "live region",
+      apply: (body) => body.replace('data-route-journey-live aria-live="polite"', 'data-route-journey-live')
+    },
+    {
+      name: "responsive media source",
+      apply: (body) => body.replace('srcset="/assets/images/cinematic/residence/exterior-evening-768.webp"', 'srcset="/assets/images/cinematic/residence/exterior-evening-1536.webp"')
+    },
+    {
+      name: "media alt text",
+      apply: (body) => body.replace('alt="Візуальна концепція сучасної резиденції у вечірньому світлі"', 'alt="Змінений опис"')
+    },
+    {
+      name: "initial media position",
+      apply: (body) => body.replace('--route-journey-scene-position: 50% 50%', '--route-journey-scene-position: 31% 47%')
+    },
+    {
+      name: "connector path length",
+      apply: (body) => body.replace('pathLength="1"', 'pathLength="2"')
+    },
+    {
+      name: "connector endpoint radius",
+      apply: (body) => body.replace('r="1.45"', 'r="0"')
+    },
+    {
+      name: "connector aria hidden",
+      apply: (body) => body.replace('data-route-journey-connector data-route-journey-connector-state="assembled" aria-hidden="true"', 'data-route-journey-connector data-route-journey-connector-state="assembled"')
     }
   ];
 
   for (const mutation of mutations) {
+    let changed = false;
     await page.route("**/process/", async (route) => {
       const response = await route.fetch();
-      await route.fulfill({ response, body: mutation.apply(await response.text()) });
+      const body = await response.text();
+      const mutated = mutation.apply(body);
+      changed = mutated !== body;
+      await route.fulfill({ response, body: mutated });
     });
     await page.goto("/process/");
     const root = page.locator("[data-route-journey-root]");
+    expect(changed, `${mutation.name} must change the response fixture`).toBe(true);
     await expect(root, mutation.name).not.toHaveAttribute("data-route-journey-enhanced", "true");
-    await expect(root.locator("[data-route-journey-fallback]"), mutation.name).toBeVisible();
+    await expectCompleteFallback(root, 7, mutation.name);
     await expect(root.locator("[data-route-journey-stage]"), mutation.name).toBeHidden();
     await page.unroute("**/process/");
   }
+});
+
+test("outgoing snapshots preserve the settled causal frame and clear every temporary surface", async ({ page }) => {
+  await page.goto("/process/");
+  const root = page.locator("[data-route-journey-root]");
+  const outgoing = root.locator("[data-route-journey-outgoing]");
+  await root.getByRole("button", { name: "Проєктування і погодження", exact: true }).click();
+  await settledVisual(page, root);
+  const focused = await sceneSnapshot(root);
+  await root.getByRole("button", { name: "Показати зв’язок", exact: true }).click();
+  await expect(outgoing).toBeVisible();
+  expect(await outgoingSnapshot(outgoing)).toMatchObject({
+    currentSrc: focused.currentSrc,
+    source: focused.currentSrc,
+    transform: focused.transform,
+    objectPosition: focused.objectPosition,
+    transformOrigin: focused.transformOrigin,
+    clipPath: focused.clipPath,
+    inline: {
+      transform: focused.transform,
+      objectPosition: focused.objectPosition,
+      transformOrigin: focused.transformOrigin,
+      clipPath: focused.clipPath
+    }
+  });
+  await outgoing.dispatchEvent("animationcancel");
+  await expectSnapshotCleared(outgoing);
+
+  await settledVisual(page, root);
+  const reassembled = await sceneSnapshot(root);
+  await root.getByRole("button", { name: "Повернутися до маршруту", exact: true }).click();
+  await expect(outgoing).toBeVisible();
+  expect(await outgoingSnapshot(outgoing)).toMatchObject({
+    currentSrc: reassembled.currentSrc,
+    source: reassembled.currentSrc,
+    transform: reassembled.transform,
+    objectPosition: reassembled.objectPosition,
+    transformOrigin: reassembled.transformOrigin,
+    clipPath: reassembled.clipPath
+  });
+  await outgoing.dispatchEvent("error");
+  await expectSnapshotCleared(outgoing);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await root.getByRole("button", { name: "Звернення", exact: true }).click();
+  await expectSnapshotCleared(outgoing);
 });
 
 test("journey motion recovers from cancellation and image abort, and does not run for reduced motion", async ({ page }) => {
@@ -237,11 +416,11 @@ test("journey motion recovers from cancellation and image abort, and does not ru
   await root.getByRole("button", { name: "Звернення", exact: true }).click();
   await expect(outgoing).toBeVisible();
   await outgoing.dispatchEvent("animationcancel");
-  await expect(outgoing).toBeHidden();
+  await expectSnapshotCleared(outgoing);
   await root.getByRole("button", { name: "Показати зв’язок", exact: true }).click();
   await expect(outgoing).toBeVisible();
   await outgoing.dispatchEvent("error");
-  await expect(outgoing).toBeHidden();
+  await expectSnapshotCleared(outgoing);
 
   await root.getByRole("button", { name: "Повернутися до маршруту", exact: true }).click();
   await expect(root).toHaveAttribute("data-route-journey-transition", "true");
