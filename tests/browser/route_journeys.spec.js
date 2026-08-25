@@ -44,6 +44,33 @@ async function assertNoHorizontalOverflow(page, name) {
   expect(overflow, `${name} should not scroll horizontally`).toBe(0);
 }
 
+async function settledVisual(page, root) {
+  await page.waitForTimeout(460);
+  return root.evaluate((element) => {
+    const scene = element.querySelector("[data-route-journey-scene] img");
+    const connector = element.querySelector("svg[data-route-journey-connector]");
+    const line = connector?.querySelector("line[data-route-journey-connector-line]");
+    if (!scene || !connector || !line) return null;
+    const style = getComputedStyle(scene);
+    return {
+      scene: {
+        transform: style.transform,
+        clipPath: style.clipPath,
+        objectPosition: style.objectPosition,
+        transitionDuration: style.transitionDuration
+      },
+      connector: {
+        hidden: connector.hidden,
+        state: connector.dataset.routeJourneyConnectorState,
+        x1: line.getAttribute("x1"),
+        y1: line.getAttribute("y1"),
+        x2: line.getAttribute("x2"),
+        y2: line.getAttribute("y2")
+      }
+    };
+  });
+}
+
 test("process and engineering-principles journeys keep their exact ordered data contract without visible ordinals", async ({ page }) => {
   for (const journey of journeys) {
     await page.goto(journey.route);
@@ -78,6 +105,69 @@ test("process and engineering-principles journeys keep their exact ordered data 
   }
 });
 
+test("every journey node resolves a distinct settled scene frame and causal connector from canonical visual data", async ({ page }) => {
+  for (const journey of journeys) {
+    await page.goto(journey.route);
+    const root = page.locator(`[data-route-journey-root][data-route-journey-id="${journey.id}"]`);
+    const config = await root.locator("script[data-route-journey-config]").evaluate((source) => JSON.parse(source.textContent));
+    await expect(root.locator("svg[data-route-journey-connector]")).toHaveCount(1);
+    await expect(root.locator("svg[data-route-journey-connector] line[data-route-journey-connector-line]")).toHaveCount(1);
+    await expect(root.locator("svg[data-route-journey-connector] circle")).toHaveCount(2);
+
+    const assembled = await settledVisual(page, root);
+    expect(assembled).not.toBeNull();
+    expect(assembled?.connector).toMatchObject({ hidden: true, state: "assembled" });
+    const focusFrames = new Set();
+    const relationshipPaths = new Set();
+
+    for (const node of config.nodes) {
+      expect(node.visual).toMatchObject({
+        focus: { x: expect.any(Number), y: expect.any(Number), scale: expect.any(Number) },
+        next: { x: expect.any(Number), y: expect.any(Number) }
+      });
+      await root.getByRole("button", { name: node.title, exact: true }).click();
+      await expect(root).toHaveAttribute("data-route-journey-state", "focus");
+      const focus = await settledVisual(page, root);
+      expect(focus).not.toBeNull();
+      expect(focus?.scene.transform).not.toBe(assembled?.scene.transform);
+      expect(focus?.scene.clipPath).not.toBe(assembled?.scene.clipPath);
+      expect(focus?.scene.objectPosition).not.toBe(assembled?.scene.objectPosition);
+      expect(focus?.connector).toEqual({
+        hidden: false,
+        state: "focus",
+        x1: String(node.visual.focus.x),
+        y1: String(node.visual.focus.y),
+        x2: String(node.visual.focus.x),
+        y2: String(node.visual.focus.y)
+      });
+      focusFrames.add(`${focus?.scene.transform}|${focus?.scene.clipPath}|${focus?.scene.objectPosition}`);
+
+      await root.getByRole("button", { name: "Показати зв’язок", exact: true }).click();
+      await expect(root).toHaveAttribute("data-route-journey-state", "reassembled");
+      const reassembled = await settledVisual(page, root);
+      expect(reassembled).not.toBeNull();
+      expect(reassembled?.scene.transform).not.toBe(focus?.scene.transform);
+      expect(reassembled?.scene.clipPath).not.toBe(focus?.scene.clipPath);
+      expect(reassembled?.scene.objectPosition).not.toBe(focus?.scene.objectPosition);
+      expect(reassembled?.connector).toEqual({
+        hidden: false,
+        state: "reassembled",
+        x1: String(node.visual.focus.x),
+        y1: String(node.visual.focus.y),
+        x2: String(node.visual.next.x),
+        y2: String(node.visual.next.y)
+      });
+      relationshipPaths.add(`${reassembled?.connector.x1},${reassembled?.connector.y1}->${reassembled?.connector.x2},${reassembled?.connector.y2}`);
+
+      await root.getByRole("button", { name: journey.returnLabel, exact: true }).click();
+      await expect(root).toHaveAttribute("data-route-journey-state", "assembled");
+    }
+
+    expect(focusFrames.size).toBe(config.nodes.length);
+    expect(relationshipPaths.size).toBe(config.nodes.length);
+  }
+});
+
 test("journeys fail closed to source-order fallback when their detached fingerprint does not match", async ({ page }) => {
   await page.route("**/process/", async (route) => {
     const response = await route.fetch();
@@ -109,6 +199,14 @@ test("journeys fail closed for malformed JSON and an invalid node adapter surfac
     {
       name: "missing DOM node",
       apply: (body) => body.replace(/\s*<li>\s*<button type="button" data-route-journey-action="select-node" data-route-journey-node="site-assessment"[^<]*<\/button>\s*<\/li>/u, "")
+    },
+    {
+      name: "visual mapping drift",
+      apply: (body) => body.replace('"x":24', '"x":25')
+    },
+    {
+      name: "connector DOM drift",
+      apply: (body) => body.replace("data-route-journey-connector", "data-route-journey-connector-corrupt")
     }
   ];
 
@@ -146,8 +244,18 @@ test("journey motion recovers from cancellation and image abort, and does not ru
 
   await page.goto("/about/");
   const reducedRoot = page.locator("[data-route-journey-root]");
+  const reducedAssembled = await settledVisual(page, reducedRoot);
   await reducedRoot.getByRole("button", { name: "Контекст об’єкта", exact: true }).click();
   await expect(reducedRoot).not.toHaveAttribute("data-route-journey-transition", "true");
+  const reducedFocus = await settledVisual(page, reducedRoot);
+  expect(reducedFocus?.scene.transform).not.toBe(reducedAssembled?.scene.transform);
+  expect(reducedFocus?.scene.clipPath).not.toBe(reducedAssembled?.scene.clipPath);
+  expect(reducedFocus?.connector).toMatchObject({ hidden: false, state: "focus" });
+  expect(reducedFocus?.scene.transitionDuration).toMatch(/^0s(?:, 0s)*$/u);
+  await reducedRoot.getByRole("button", { name: "Показати зв’язок", exact: true }).click();
+  const reducedReassembled = await settledVisual(page, reducedRoot);
+  expect(reducedReassembled?.scene.transform).not.toBe(reducedFocus?.scene.transform);
+  expect(reducedReassembled?.connector).toMatchObject({ state: "reassembled" });
   const movingElements = await reducedRoot.locator("*").evaluateAll((elements) => elements.filter((element) => {
     const style = getComputedStyle(element);
     return (style.animationName !== "none" && style.animationDuration !== "0s") || style.transitionDuration

@@ -15,8 +15,14 @@ const journey = {
     reassembled: { label: "Наступний зв’язок", title: "Перехід" }
   },
   nodes: [
-    { id: "enquiry", title: "Звернення", input: "Вхід", decision: "Рішення", next: "Далі" },
-    { id: "clarification", title: "Уточнення", input: "Вхід", decision: "Рішення", next: "Далі" }
+    {
+      id: "enquiry", title: "Звернення", input: "Вхід", decision: "Рішення", next: "Далі",
+      visual: { focus: { x: 24, y: 68, scale: 1.24 }, next: { x: 46, y: 52 } }
+    },
+    {
+      id: "clarification", title: "Уточнення", input: "Вхід", decision: "Рішення", next: "Далі",
+      visual: { focus: { x: 46, y: 52, scale: 1.29 }, next: { x: 66, y: 40 } }
+    }
   ]
 };
 
@@ -35,5 +41,9 @@ test("fingerprints the route ID, node order, and copy without declaring the rout
   const changedPanel = structuredClone(journey);
   changedPanel.panel.focus.label = "Інший стан";
   assert.notEqual(routeJourneyFingerprint(changedPanel), canonical);
+
+  const changedVisual = structuredClone(journey);
+  changedVisual.nodes[0].visual.next.x = 47;
+  assert.notEqual(routeJourneyFingerprint(changedVisual), canonical);
   assert.deepEqual(Object.keys(CANONICAL_ROUTE_JOURNEY_FINGERPRINTS), ["process", "about"]);
 });

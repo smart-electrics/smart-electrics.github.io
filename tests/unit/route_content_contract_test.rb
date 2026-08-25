@@ -51,6 +51,11 @@ class RouteContentContractTest < Minitest::Test
     assert_equal ["uk"], data.keys
     assert_equal PROCESS_IDS, data.dig("uk", "process", "journey", "nodes").map { |node| node.fetch("id") }
     assert_equal ABOUT_IDS, data.dig("uk", "about", "journey", "nodes").map { |node| node.fetch("id") }
+    %w[process about].each do |route|
+      visuals = data.dig("uk", route, "journey", "nodes").map { |node| node.fetch("visual") }
+      assert visuals.all? { |visual| visual.fetch("focus").keys.sort == %w[scale x y] && visual.fetch("next").keys.sort == %w[x y] }
+      assert_equal visuals.length, visuals.map { |visual| [visual.dig("focus", "x"), visual.dig("focus", "y"), visual.dig("next", "x"), visual.dig("next", "y")] }.uniq.length
+    end
   end
 
   def test_rejects_wrong_localization_shape_or_journey_order
@@ -69,6 +74,10 @@ class RouteContentContractTest < Minitest::Test
     data = canonical_content
     data.fetch("uk").fetch("process").fetch("journey").fetch("panel")["focus"] = {}
     assert_rejected(data, "process.journey.panel must provide localized assembled, focus, and reassembled panel copy")
+
+    data = canonical_content
+    data.fetch("uk").fetch("process").fetch("journey").fetch("nodes")[0]["visual"]["next"]["x"] = 100
+    assert_rejected(data, "process.journey.nodes[0].visual must provide bounded exact focus and next coordinates")
   end
 
   def test_rejects_untruthful_copy_and_broken_static_links

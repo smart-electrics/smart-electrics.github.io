@@ -24,14 +24,16 @@ const aboutJourney = {
       title: "Контекст об’єкта",
       input: "Архітектурні дані",
       decision: "Електрична логіка",
-      next: "Координація"
+      next: "Координація",
+      visual: { focus: { x: 26, y: 67, scale: 1.23 }, next: { x: 49, y: 48 } }
     },
     {
       id: "system-logic",
       title: "Логіка системи",
       input: "Навантаги",
       decision: "Структура системи",
-      next: "Передача"
+      next: "Передача",
+      visual: { focus: { x: 59, y: 44, scale: 1.26 }, next: { x: 78, y: 58 } }
     }
   ]
 };
@@ -45,6 +47,10 @@ test("adapts immutable route states into the exact readable panel copy", () => {
     stateLabel: "Принципи",
     title: "Оберіть принцип",
     summary: "Після вибору показуємо вихідні дані, інженерне рішення та його перехід до наступної роботи.",
+    visual: {
+      frame: { x: 50, y: 50, scale: 1, inset: 0 },
+      connector: null
+    },
     node: null
   });
 
@@ -55,10 +61,16 @@ test("adapts immutable route states into the exact readable panel copy", () => {
     stateLabel: "Обраний принцип",
     title: "Логіка системи",
     summary: null,
+    visual: {
+      frame: { x: 59, y: 44, scale: 1.26, inset: 3 },
+      connector: { state: "focus", from: { x: 59, y: 44 }, to: { x: 59, y: 44 } }
+    },
     node: aboutJourney.nodes[1]
   });
   assert.equal(Object.isFrozen(focused), true);
   assert.equal(Object.isFrozen(focused.node), true);
+  assert.equal(Object.isFrozen(focused.visual), true);
+  assert.equal(Object.isFrozen(focused.visual.frame), true);
 
   assert.deepEqual(adapter.reduce(focused, { type: "show-relationship" }), {
     state: "reassembled",
@@ -66,6 +78,10 @@ test("adapts immutable route states into the exact readable panel copy", () => {
     stateLabel: "Наступний зв’язок",
     title: "Зв’язок із наступною роботою",
     summary: null,
+    visual: {
+      frame: { x: 68.5, y: 51, scale: 1.14, inset: 1.5 },
+      connector: { state: "reassembled", from: { x: 59, y: 44 }, to: { x: 78, y: 58 } }
+    },
     node: aboutJourney.nodes[1]
   });
 });

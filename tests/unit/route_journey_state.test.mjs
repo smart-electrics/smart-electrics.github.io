@@ -10,8 +10,14 @@ const processJourney = {
     summary: "Оберіть етап, щоб побачити його робочий зв’язок."
   },
   nodes: [
-    { id: "enquiry", title: "Звернення", input: "Вхід", decision: "Рішення", next: "Далі" },
-    { id: "clarification", title: "Уточнення", input: "Вхід", decision: "Рішення", next: "Далі" }
+    {
+      id: "enquiry", title: "Звернення", input: "Вхід", decision: "Рішення", next: "Далі",
+      visual: { focus: { x: 24, y: 68, scale: 1.24 }, next: { x: 46, y: 52 } }
+    },
+    {
+      id: "clarification", title: "Уточнення", input: "Вхід", decision: "Рішення", next: "Далі",
+      visual: { focus: { x: 46, y: 52, scale: 1.29 }, next: { x: 66, y: 40 } }
+    }
   ]
 };
 
@@ -59,6 +65,7 @@ test("does not change when the source route data mutates after construction", ()
   const journey = createRouteJourneyState(source);
   source.nodes[0].id = "changed";
   source.nodes[1].title = "Змінено";
+  source.nodes[0].visual.focus.x = 91;
 
   assert.deepEqual(journey.reduce(journey.initialState, { type: "select-node", nodeId: "enquiry" }), {
     state: "focus",
