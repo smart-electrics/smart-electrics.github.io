@@ -683,8 +683,11 @@ async function expectGroundedDynamicCopy(root, name) {
     const attributeCopy = attributeCandidates
       .flatMap((candidate) => attributes.map((attribute) => candidate.getAttribute(attribute)))
       .filter(Boolean);
-    const valueCopy = [element, ...element.querySelectorAll("input")]
-      .filter((candidate) => candidate instanceof HTMLInputElement && visible(candidate) && !ignoredInputTypes.includes(candidate.type))
+    const valueCopy = [element, ...element.querySelectorAll("input, textarea")]
+      .filter((candidate) => visible(candidate) && (
+        candidate instanceof HTMLTextAreaElement ||
+        (candidate instanceof HTMLInputElement && !ignoredInputTypes.includes(candidate.type))
+      ))
       .map((candidate) => candidate.value)
       .filter(Boolean);
     return [element.innerText, ...liveLabels, ...attributeCopy, ...valueCopy].join("\n");
@@ -698,6 +701,10 @@ async function expectGroundedDynamicCopy(root, name) {
     claimCategories(claimable).forEach((category) => violations.push({ category, fragment }));
   }
   expect(violations, name + " must not surface unsupported public claims through dynamic copy").toEqual([]);
+}
+
+async function expectGroundedSettledRouteCopy(page, name) {
+  return expectGroundedDynamicCopy(page.locator("body"), name);
 }
 
 async function expectDominantScene(root, sceneSelector, panelSelector, name) {
@@ -1248,7 +1255,7 @@ test("runtime claim scanning covers all four client-project claim patterns", asy
   }
 });
 
-test("runtime claim scanning includes public-copy attributes and visible input values", async ({ page }) => {
+test("runtime claim scanning includes public-copy attributes and visible form-control values", async ({ page }) => {
   for (const [category, markup] of [
     ["telemetry alt", '<img alt="Не заявляємо, а поточний статус системи доступний." src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="width:40px;height:20px">'],
     ["review aria-label", '<button aria-label="Не публікуємо, а рейтинг клієнтів підтверджує якість робіт.">Відкрити</button>'],
@@ -1266,8 +1273,23 @@ test("runtime claim scanning includes public-copy attributes and visible input v
   });
   await expect(expectGroundedDynamicCopy(page.locator("main"), "dynamic price button value")).rejects.toThrow(/unsupported public claims/u);
 
-  await page.setContent('<main><input type="hidden" value="Ціна електромонтажного проєкту — 24 000 грн."><input type="radio" value="KNX"></main>');
+  await page.setContent('<main><textarea style="width:240px;height:88px">Нейтральна примітка</textarea></main>');
+  await page.locator("textarea").evaluate((textarea) => {
+    textarea.value = "Ціна електромонтажного проєкту — 24 000 грн.";
+  });
+  await expect(expectGroundedDynamicCopy(page.locator("main"), "dynamic price textarea value")).rejects.toThrow(/unsupported public claims/u);
+
+  await page.setContent('<main><input type="hidden" value="Ціна електромонтажного проєкту — 24 000 грн."><input type="radio" value="KNX"><textarea hidden>Гарантуємо результат.</textarea></main>');
   await expectGroundedDynamicCopy(page.locator("main"), "non-copy control values");
+});
+
+test("route-level runtime claim scanning includes visible public copy outside main", async ({ page }) => {
+  await page.setContent(`
+    <header>Ціна електромонтажного проєкту — 24 000 грн.</header>
+    <main><p>Нейтральний інженерний опис.</p></main>
+    <footer>Завершення сторінки.</footer>
+  `);
+  await expect(expectGroundedSettledRouteCopy(page, "whole settled route body")).rejects.toThrow(/unsupported public claims/u);
 });
 
 test("runtime claim scanning preserves copy before a negative attribute disclosure", async ({ page }) => {
@@ -1281,7 +1303,7 @@ test("runtime claim scanning covers every settled public route", async ({ page }
   await withInteractionDiagnostics(page, async () => {
     for (const route of publicRoutes) {
       await visit(page, route);
-      await expectGroundedDynamicCopy(page.locator("main"), route + " settled runtime copy");
+      await expectGroundedSettledRouteCopy(page, route + " settled runtime copy");
       evidence.push(route);
     }
   });

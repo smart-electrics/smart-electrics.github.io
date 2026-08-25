@@ -52,8 +52,9 @@ settled стані; різний SHA-256 між двома capture є помил
 
 No-JavaScript fallback перевіряється на всіх одинадцяти acceptance widths.
 Окремий adapter-outage прогін блокує site JavaScript і повторює всі 20 dynamic
-routes на 375, 768, 1440 та 1980 px. Runtime claim scanner читає settled DOM
-кожного з 24 public routes, а не лише інтерактивні компоненти.
+routes на 375, 768, 1440 та 1980 px. Runtime claim scanner читає весь settled
+body кожного з 24 public routes, включно з видимими поточними значеннями
+input/textarea, а не лише main або інтерактивні компоненти.
 
 Каталог ігнорується Git. У Quality workflow він завантажується лише після
 успішного literal make check; відсутній каталог є помилкою workflow. Перед
