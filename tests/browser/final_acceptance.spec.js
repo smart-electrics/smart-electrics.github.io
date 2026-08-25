@@ -250,7 +250,7 @@ async function visit(page, route) {
   expect(response?.ok(), route + " must return a successful document").toBeTruthy();
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator("main")).toBeVisible();
-  await page.locator("main img:visible").evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
+  await page.locator('main img:visible:not([loading="lazy"])').evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
   return response;
 }
 
@@ -1095,6 +1095,21 @@ test("public surface permits only flowing inline editorial links below 44px", as
   `);
 
   await expect(publicSurface(page, "mislabelled-action", 375)).rejects.toThrow(/44px action controls/u);
+});
+
+test("visit readiness never waits for deliberately deferred lazy media", async ({ page }) => {
+  test.setTimeout(5_000);
+  await page.addInitScript(() => {
+    const nativeDecode = HTMLImageElement.prototype.decode;
+    HTMLImageElement.prototype.decode = function decode() {
+      if (this.loading === "lazy") return new Promise(() => {});
+      return nativeDecode.call(this);
+    };
+  });
+
+  const startedAt = Date.now();
+  await visit(page, "/solutions/");
+  expect(Date.now() - startedAt).toBeLessThan(4_000);
 });
 
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
