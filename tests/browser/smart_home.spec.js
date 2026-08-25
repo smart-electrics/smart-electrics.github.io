@@ -68,6 +68,9 @@ test("upgrades the complete nine-system, seven-preset configuration into one int
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
   const root = await simulator(page);
+  await expect(root.locator(".smart-home__simulator-heading").getByText("Демонстраційна панель сценаріїв", { exact: true })).toBeVisible();
+  await expect(page.getByText("Звернення через сайт поки не приймаються", { exact: true })).toBeVisible();
+  await expect(page.getByText("На сайті немає форми й оприлюднених контактних каналів.", { exact: true })).toBeVisible();
   await assertEnhancedPhone(page);
   await expect(root.locator("picture[data-scene-picture]")).toHaveCount(9);
   await expect(root.locator("[data-active-scene-label]")).toHaveCount(1);

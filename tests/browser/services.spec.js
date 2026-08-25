@@ -146,7 +146,7 @@ test("every service detail exposes the complete content contract", async ({ page
     }
 
     await expect(main.getByRole("link", { name: /До всіх послуг/ })).toHaveAttribute("href", "/services/");
-    await expect(main.getByRole("status")).toContainText(/готується/i);
+    await expect(main.getByText("Звернення через сайт поки не приймаються.", { exact: true })).toHaveCount(1);
     const visibleCopy = await main.innerText();
     assertNoPlaceholderCopy(visibleCopy, service.route);
     assertNoUnsupportedMarketingCopy(visibleCopy, service.route);
@@ -228,13 +228,10 @@ test("service index and every detail pass axe", async ({ page }) => {
   }
 });
 
-test("contact remains a disabled prelaunch action on the services surfaces", async ({ page }) => {
+test("service surfaces keep prelaunch copy plain and remove disabled contact actions", async ({ page }) => {
   for (const route of ["/services/", services[0].route]) {
     await page.goto(route);
-    const contactButtons = page.locator("button[disabled]").filter({ hasText: "Обговорити об’єкт" });
-    expect(await contactButtons.count(), `${route} should render the contact action`).toBeGreaterThan(0);
-    for (const button of await contactButtons.all()) {
-      await expect(button).toBeDisabled();
-    }
+    await expect(page.locator("button[disabled], [aria-disabled=\"true\"]")).toHaveCount(0);
+    await expect(page.getByText("Звернення через сайт поки не приймаються.", { exact: true })).toHaveCount(1);
   }
 });

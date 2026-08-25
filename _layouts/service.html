@@ -2,7 +2,7 @@
 layout: default
 ---
 <article class="service-detail">
-  <header class="service-detail__hero">
+  <header class="service-detail__hero" data-cinematic-route-source="service-detail-hero">
     <div class="service-detail__hero-inner shell">
       <div class="service-detail__hero-copy">
         <p class="section-kicker">{{ page.kicker }}</p>
@@ -63,7 +63,7 @@ layout: default
           {% assign related_service = site.services | where: "slug", related_slug | first %}
           {% if related_service %}
             <li>
-              <a class="service-detail__related-link" href="{{ related_service.url | relative_url }}" aria-label="{{ related_service.title }}, переглянути напрям">
+              <a class="service-detail__related-link" href="{{ related_service.url | relative_url }}" aria-label="{{ related_service.title }}, переглянути напрям" data-cinematic-route data-cinematic-route-source-ref="service-detail-hero">
                 <span>
                   <span class="service-detail__related-title">{{ related_service.title }}</span>
                   <span class="service-detail__related-role">{{ related_service.role }}</span>
@@ -77,7 +77,7 @@ layout: default
     </section>
 
     <div class="service-detail__closing">
-      <a class="text-link service-detail__back-link" href="{{ '/services/' | relative_url }}"><span aria-hidden="true">←</span> До всіх послуг</a>
+      <a class="text-link service-detail__back-link" href="{{ '/services/' | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="service-detail-hero"><span aria-hidden="true">←</span> До всіх послуг</a>
       {% include estimate-status.html %}
     </div>
   </div>

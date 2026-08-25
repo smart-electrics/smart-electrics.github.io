@@ -24,7 +24,7 @@ test("homepage exposes the six-link public navigation", async ({ page }) => {
   await page.goto("/");
 
   const navigation = await openPublicNavigation(page);
-  const publicLinks = navigation.locator(":scope > a:not(.mobile-nav__cta)");
+  const publicLinks = navigation.locator(":scope > a");
   const labels = (await publicLinks.allTextContents()).map((label) => label.trim());
 
   expect(labels).toEqual(expectedNavigation);
@@ -43,10 +43,9 @@ test("hero explains the full electrical journey and exposes live engineering con
   expect(visibleCopy).toMatch(/чорнового монтажу/i);
   expect(visibleCopy).toMatch(/розумного будинку/i);
 
-  const primaryCta = main.locator(".button--primary");
-  await expect(primaryCta).toHaveText("Обговорити об’єкт");
-  await expect(primaryCta).toBeDisabled();
-  expect(await primaryCta.getAttribute("href")).toBeNull();
+  await expect(main.locator("button[disabled], [aria-disabled=\"true\"]")).toHaveCount(0);
+  await expect(main.locator(".button--primary")).toHaveCount(0);
+  await expect(main.getByText("Звернення через сайт поки не приймаються.", { exact: true })).toBeVisible();
 
   for (const label of ["Електромонтажне проєктування", "Освітлення", "Резервне живлення", "Розумний будинок"]) {
     const control = main.getByRole("button", { name: label, exact: true });
@@ -76,6 +75,7 @@ test("hero secondary CTA reaches smart home and its visual has meaningful Ukrain
   await expect(smartHomeCta).toHaveCount(1);
   await expect(smartHomeCta).toBeVisible();
   await expect(smartHomeCta).toHaveAttribute("href", /\/smart-home\/$/);
+  await expect(smartHomeCta).toHaveAttribute("data-cinematic-route", "");
 
   const heroVisual = main.getByRole("img").first();
   await expect(heroVisual).toBeVisible();

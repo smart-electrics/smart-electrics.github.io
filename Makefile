@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-js-unit test-browser verify-skills validate validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-quality-policy html check clean
+.PHONY: help install install-ruby install-node install-browser build serve test test-unit test-js-unit test-browser verify-skills validate validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-cinematic-route-transitions validate-quality-policy html check clean
 
 help: ## Показати доступні команди
 	@awk 'BEGIN {FS = ":.*## "; printf "Smart Electrics\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-18s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -35,6 +35,7 @@ test-unit: ## Перевірити guard інтеграцій
 	bundle exec ruby -Itest tests/unit/physical_scene_contract_test.rb
 	bundle exec ruby -Itest tests/unit/service_studio_contract_test.rb
 	bundle exec ruby -Itest tests/unit/route_content_contract_test.rb
+	bundle exec ruby -Itest tests/unit/cinematic_route_transition_contract_test.rb
 	$(MAKE) test-js-unit
 
 test-js-unit: ## Перевірити pure state contracts
@@ -73,13 +74,16 @@ validate-cinematic-system: ## Перевірити канонічний кіне
 validate-physical-scene-states: ## Перевірити медіамапу фізичних станів резиденції
 	bundle exec ruby scripts/validate_physical_scene_states.rb
 
+validate-cinematic-route-transitions: ## Перевірити fail-closed контракт переходів між маршрутами
+	bundle exec ruby scripts/validate_cinematic_route_transitions.rb
+
 validate-quality-policy: ## Перевірити fail-closed налаштування тестів
 	npm run validate:quality-policy
 
 html: build ## Перевірити згенерований HTML і внутрішні посилання
 	bundle exec htmlproofer ./_site --disable-external --no-enforce-https
 
-check: verify-skills test-unit validate-quality-policy validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states html test-browser ## Повний локальний quality gate
+check: verify-skills test-unit validate-quality-policy validate-route-content validate-services validate-service-studios validate-solutions validate-cinematic-solutions validate-smart-home validate-cinematic-system validate-physical-scene-states validate-cinematic-route-transitions html test-browser ## Повний локальний quality gate
 
 clean: ## Прибрати лише згенеровані артефакти Jekyll
 	bundle exec jekyll clean

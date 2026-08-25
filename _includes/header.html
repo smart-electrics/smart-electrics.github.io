@@ -1,45 +1,32 @@
 <header class="site-header">
   <div class="site-header__inner shell">
-    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics, головна">
+    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics, головна" data-cinematic-route data-cinematic-route-source="header-brand" data-cinematic-route-source-ref="header-brand">
       {% include brand-logo.html %}
     </a>
 
-    <nav class="desktop-nav" aria-label="Основна навігація">
+    <nav class="desktop-nav" aria-label="Основна навігація" data-cinematic-route-source="desktop-navigation">
       {% for item in site.data.navigation %}
         {% assign current_item = false %}
         {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
         {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
         {% if item.url == '/solutions/' and page.collection == 'solutions' %}{% assign current_item = true %}{% endif %}
-        <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
+        <a href="{{ item.url | relative_url }}"{% if item.url != '/contact/' %} data-cinematic-route data-cinematic-route-source-ref="desktop-navigation"{% endif %}{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
       {% endfor %}
     </nav>
-
-    {% assign contact_status = site.data.site.contact_cta.status %}
-    {% if page.url == '/smart-home/' %}{% assign contact_status = 'Звернення ще недоступні.' %}{% endif %}
-    {% if site.data.site.contact_cta.enabled %}
-      <a class="header-cta" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
-    {% else %}
-      <button class="header-cta" type="button" disabled aria-label="{{ site.data.site.contact_cta.label }}. {{ contact_status }}">{{ site.data.site.contact_cta.label }}</button>
-    {% endif %}
 
     <details class="mobile-nav">
       <summary aria-label="Відкрити меню">
         <span aria-hidden="true"></span>
         <span aria-hidden="true"></span>
       </summary>
-      <nav aria-label="Мобільна навігація">
+      <nav aria-label="Мобільна навігація" data-cinematic-route-source="mobile-navigation">
         {% for item in site.data.navigation %}
           {% assign current_item = false %}
           {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
           {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
           {% if item.url == '/solutions/' and page.collection == 'solutions' %}{% assign current_item = true %}{% endif %}
-          <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
+          <a href="{{ item.url | relative_url }}"{% if item.url != '/contact/' %} data-cinematic-route data-cinematic-route-source-ref="mobile-navigation"{% endif %}{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
         {% endfor %}
-        {% if site.data.site.contact_cta.enabled %}
-          <a class="mobile-nav__cta" href="{{ site.data.site.contact_cta.url | relative_url }}">{{ site.data.site.contact_cta.label }}</a>
-        {% else %}
-          <button class="mobile-nav__cta" type="button" disabled aria-label="{{ site.data.site.contact_cta.label }}. {{ contact_status }}">{{ site.data.site.contact_cta.label }}</button>
-        {% endif %}
       </nav>
     </details>
   </div>
