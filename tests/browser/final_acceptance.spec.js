@@ -586,10 +586,21 @@ test("all twenty-four public routes retain complete, ordinary navigation with Ja
 test("runtime claim scanning keeps a truthful negative clause but rejects a positive claim after contrast", async ({ page }) => {
   await page.setContent("<main><p>Ми не публікуємо цін і не надаємо гарантій.</p></main>");
   await expectGroundedDynamicCopy(page.locator("main"), "truthful negative dynamic copy");
+  await page.setContent("<main><p>Ми не публікуємо ціни, гарантії, сертифікати та відгуки.</p></main>");
+  await expectGroundedDynamicCopy(page.locator("main"), "truthful negative list dynamic copy");
   await page.setContent("<main><p>Ми не публікуємо цін, але ціна конфігурації становить 24 000 грн.</p></main>");
   await expect(expectGroundedDynamicCopy(page.locator("main"), "mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
   await page.setContent("<main><p>Не публікуємо ціну і ціна системи становить 24 000 грн.</p></main>");
   await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause mixed dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+  for (const [category, copy] of [
+    ["price", "Не публікуємо ціну і ціна системи становить 24 000 грн."],
+    ["guarantee", "Не надаємо гарантій і гарантуємо результат."],
+    ["certificate", "Без сертифікатів і маємо сертифікат відповідності."],
+    ["review", "Не публікуємо відгуків і показуємо відгук замовника."]
+  ]) {
+    await page.setContent("<main><p>" + copy + "</p></main>");
+    await expect(expectGroundedDynamicCopy(page.locator("main"), "same-clause " + category + " dynamic copy")).rejects.toThrow(/unsupported public claims/u);
+  }
 });
 
 test("every dynamic family fails closed to a visible semantic fallback when its adapters are unavailable", async ({ browser }) => {
