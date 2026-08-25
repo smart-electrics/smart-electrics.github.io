@@ -252,6 +252,48 @@ test("journeys fail closed to source-order fallback when their detached fingerpr
   await expect(root.locator("[data-route-journey-stage]")).toBeHidden();
 });
 
+test("journeys normalize either surviving side of a partial rendered contract", async ({ page }) => {
+  const mutations = [
+    {
+      name: "hidden fallback with a corrupted stage",
+      apply: (body) => body
+        .replace('class="route-journey__fallback" data-route-journey-fallback', 'class="route-journey__fallback" data-route-journey-fallback hidden aria-hidden="true"')
+        .replace("data-route-journey-stage", "data-route-journey-stage-corrupt"),
+      assert: async (root) => {
+        const fallback = root.locator("[data-route-journey-fallback]");
+        await expect(fallback).toBeVisible();
+        await expect(fallback).not.toHaveAttribute("aria-hidden");
+        await expect(root.locator("[data-route-journey-stage]")).toHaveCount(0);
+      }
+    },
+    {
+      name: "missing fallback with a surviving stage",
+      apply: (body) => body.replace("data-route-journey-fallback", "data-route-journey-fallback-corrupt"),
+      assert: async (root) => {
+        await expect(root.locator("[data-route-journey-fallback]")).toHaveCount(0);
+        await expect(root.locator("[data-route-journey-stage]")).toBeHidden();
+      }
+    }
+  ];
+
+  for (const mutation of mutations) {
+    let changed = false;
+    await page.route("**/process/", async (route) => {
+      const response = await route.fetch();
+      const body = await response.text();
+      const mutated = mutation.apply(body);
+      changed = mutated !== body;
+      await route.fulfill({ response, body: mutated });
+    });
+    await page.goto("/process/");
+    const root = page.locator("[data-route-journey-root]");
+    expect(changed, `${mutation.name} must change the response fixture`).toBe(true);
+    await expect(root).not.toHaveAttribute("data-route-journey-enhanced", "true");
+    await mutation.assert(root);
+    await page.unroute("**/process/");
+  }
+});
+
 test("journeys fail closed when a rendered localized or semantic contract changes", async ({ page }) => {
   const mutations = [
     {
