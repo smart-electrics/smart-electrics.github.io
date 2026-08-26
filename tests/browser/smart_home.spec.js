@@ -98,14 +98,21 @@ test("physical stair and exterior scenes are subordinate to the canonical phone 
   await expect(physical).toHaveAttribute("data-smart-home-physical-enhanced", "true");
   await expect(root.locator("button[data-phone-system]")).toHaveCount(systems.length);
   const picture = physical.locator("[data-smart-home-physical-picture]");
+  const image = picture.locator("img");
+  await expect(picture.locator("source")).toHaveCount(0);
+  await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
+  await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 100vw");
+  await image.evaluate((element) => element.decode());
+  const expectedInitialVariant = page.viewportSize().width <= 768 ? "-768.webp" : "-1536.webp";
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, expectedInitialVariant)).toBe(true);
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=off");
   await physical.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=route");
-  await expect(picture.locator("img")).toHaveAttribute("src", /stairs-route-1536\.webp$/);
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `stairs-route${expectedInitialVariant}`)).toBe(true);
   await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
   await physical.getByRole("button", { name: "Нічне зниження", exact: true }).click();
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "exterior:exterior_lighting=reduced-night");
-  await expect(picture.locator("img")).toHaveAttribute("src", /exterior-reduced-night-1536\.webp$/);
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `exterior-reduced-night${expectedInitialVariant}`)).toBe(true);
 });
 
 test("malformed subordinate physical picker, control, or initial media fails closed", async ({ page }) => {
@@ -117,7 +124,7 @@ test("malformed subordinate physical picker, control, or initial media fails clo
         if (!physical) continue;
         physical.querySelector("button[data-smart-home-physical-system='stairs']").dataset.smartHomePhysicalSystem = "unknown";
         physical.querySelector("button[data-smart-home-physical-action]").dataset.physicalValueId = "unknown";
-        physical.querySelector("[data-smart-home-physical-source]").setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp");
+        physical.querySelector("[data-smart-home-physical-image]").setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp 768w, /assets/images/cinematic/residence/wrong-1536.webp 1536w");
         observer.disconnect();
         return;
       }
@@ -162,8 +169,12 @@ test("every preset atomically changes the configuration and returns from manual 
 });
 
 test("every system selector changes the real scene, active panel, and engineering explanation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const root = await simulator(page);
+  await expect(root.locator("picture[data-scene-picture] source")).toHaveCount(0);
+  await expect(root.locator('picture[data-scene-picture] img[srcset]')).toHaveCount(0);
+  const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
   for (const [id, label] of systems) {
     await root.locator(`button[data-phone-system="${id}"]`).click();
     await expect(root).toHaveAttribute("data-system", id);
@@ -173,6 +184,11 @@ test("every system selector changes the real scene, active panel, and engineerin
     await expect(root.locator("[data-phone-system-label]")).toHaveText(label);
     await expect(root.locator(`button[data-phone-system="${id}"]`)).toHaveAttribute("aria-pressed", "true");
     await expect(root.locator("[data-phone-topology-detail]")).not.toHaveText("");
+    const image = root.locator(`picture[data-scene-picture="${id}"] img`);
+    await expect(image).toHaveAttribute("data-scene-mobile", /-768\.webp$/u);
+    await expect(image).toHaveAttribute("data-scene-desktop", /-1536\.webp$/u);
+    await image.evaluate((element) => element.decode());
+    await expect.poll(() => image.evaluate((element, suffix) => new URL(element.currentSrc).pathname.endsWith(suffix), expectedVariant)).toBe(true);
   }
 });
 
@@ -228,6 +244,7 @@ test("segment and toggle controls have native keyboard actions and update their 
   await page.goto(route);
   const root = await simulator(page);
   await root.locator('[data-phone-system="climate"]').click();
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   const cooling = root.locator('[data-phone-segment][data-control-system="climate"][data-control-id="comfort"][data-control-value="cool"]');
   await cooling.focus();
   await cooling.press("Enter");
@@ -237,6 +254,7 @@ test("segment and toggle controls have native keyboard actions and update their 
   await expect(root.locator("[data-topology-result]")).toContainText("Стан комфорту: Прохолодніше");
 
   await root.locator('[data-phone-system="panel"]').click();
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   const toggle = root.locator('[data-phone-toggle][data-control-system="panel"]');
   await toggle.focus();
   await toggle.press("Space");
@@ -335,7 +353,7 @@ test("preset and system selection use one cancellable outgoing snapshot, while r
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
 });
 
-test("keeps rapid scene replacement bounded and supplies responsive media for all nine scenes", async ({ page }) => {
+test("keeps rapid scene replacement bounded and supplies inert responsive metadata for all nine scenes", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);
   for (const [systemId] of systems) await root.locator(`[data-phone-system="${systemId}"]`).click();
@@ -343,8 +361,87 @@ test("keeps rapid scene replacement bounded and supplies responsive media for al
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0, { timeout: 1800 });
   for (const [systemId] of systems) {
     const picture = root.locator(`picture[data-scene-picture="${systemId}"]`);
-    await expect(picture.locator("source")).toHaveCount(2);
-    await expect(picture.locator("img")).toHaveAttribute("alt", /\S{8,}/);
+    const image = picture.locator("img");
+    await expect(picture.locator("source")).toHaveCount(0);
+    await expect(image).not.toHaveAttribute("srcset", /./u);
+    await expect(image).toHaveAttribute("data-scene-mobile", /-768\.webp$/u);
+    await expect(image).toHaveAttribute("data-scene-desktop", /-1536\.webp$/u);
+    await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 1536px");
+    await expect(image).toHaveAttribute("alt", /\S{8,}/);
+  }
+  const activeImage = root.locator("picture[data-scene-picture]:visible img");
+  await activeImage.evaluate((image) => image.decode());
+  const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
+  await expect.poll(() => activeImage.evaluate((image, suffix) => new URL(image.currentSrc).pathname.endsWith(suffix), expectedVariant)).toBe(true);
+});
+
+test("compact navigation never starts the desktop smart-home scene candidate", async ({ browser }) => {
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000";
+  const context = await browser.newContext({ baseURL, locale: "uk-UA" });
+  const page = await context.newPage();
+  const requested = [];
+  const failures = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
+  });
+  page.on("requestfailed", (request) => {
+    if (request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
+  });
+
+  try {
+    for (const width of [375, 414, 540]) {
+      await page.setViewportSize({ width, height: 960 });
+      await page.goto("/about/");
+      await page.locator('img[src*="/control-room-"]').evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
+      requested.length = 0;
+      failures.length = 0;
+
+      await page.goto(route);
+      const image = page.locator('[data-scene-picture="lighting"] img');
+      await image.evaluate((element) => element.decode());
+
+      expect(await image.evaluate((element) => new URL(element.currentSrc).pathname), `${width}px selected scene candidate`).toMatch(/control-room-768\.webp$/u);
+      expect(requested.filter((url) => url.endsWith("control-room-1536.webp")), `${width}px must not start the desktop scene candidate`).toEqual([]);
+      expect(failures, `${width}px scene candidate requests`).toEqual([]);
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test("viewport boundary starts only the selected smart-home scene candidate", async ({ browser }) => {
+  const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000";
+  const context = await browser.newContext({ baseURL, locale: "uk-UA" });
+  const page = await context.newPage();
+  const requested = [];
+  const failures = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
+  });
+  page.on("requestfailed", (request) => {
+    if (request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
+  });
+
+  try {
+    for (const width of [767, 768, 900, 1980]) {
+      await page.setViewportSize({ width, height: 1024 });
+      await page.goto("/about/");
+      await page.locator('img[src*="/control-room-"]').evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
+      requested.length = 0;
+      failures.length = 0;
+
+      await page.goto(route);
+      const image = page.locator('[data-scene-picture="lighting"] img');
+      await image.evaluate((element) => element.decode());
+
+      const expectedSuffix = width <= 767 ? "control-room-768.webp" : "control-room-1536.webp";
+      const unexpectedSuffix = width <= 767 ? "control-room-1536.webp" : "control-room-768.webp";
+      expect(await image.evaluate((element) => new URL(element.currentSrc).pathname), `${width}px selected scene candidate`).toMatch(new RegExp(`${expectedSuffix}$`, "u"));
+      expect(requested.filter((url) => url.endsWith(unexpectedSuffix)), `${width}px must not start an unselected scene candidate`).toEqual([]);
+      expect(failures, `${width}px scene candidate requests`).toEqual([]);
+    }
+  } finally {
+    await context.close();
   }
 });
 
@@ -358,6 +455,10 @@ test("keeps a complete static explanation when JavaScript is unavailable or enha
     await expect(noJsRoot.locator("[data-smart-home-phone]")).toBeHidden();
     await expect(noJsRoot.locator("[data-static-explainer] li")).toHaveCount(systems.length);
     await expect(noJsRoot.locator("[data-preset-panel]:visible")).toHaveCount(presets.length);
+    const noJsScene = noJsRoot.locator('[data-scene-picture="lighting"] img');
+    await noJsScene.evaluate((image) => image.decode());
+    const expectedNoJsVariant = noJsPage.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
+    await expect.poll(() => noJsScene.evaluate((image, suffix) => new URL(image.currentSrc).pathname.endsWith(suffix), expectedNoJsVariant)).toBe(true);
   } finally {
     await context.close();
   }
@@ -395,6 +496,7 @@ test("keeps the experience elastic from phone to 1980px and removes all motion f
 
   const wideRoot = await simulator(page);
   await wideRoot.locator('[data-phone-system="audio"]').click();
+  await expect(wideRoot).toHaveAttribute("data-motion-phase", "idle");
   const audioControlsContained = await wideRoot.evaluate((simulatorRoot) => {
     const phone = simulatorRoot.querySelector("[data-smart-home-phone]").getBoundingClientRect();
     return [...simulatorRoot.querySelectorAll('[data-phone-control-panel="audio"] [data-phone-control]')].every((control) => {

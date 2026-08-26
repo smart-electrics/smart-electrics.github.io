@@ -2,18 +2,22 @@ import { defineConfig } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4000";
 const responsiveMatrixFile = /responsive_matrix\.spec\.js/u;
+const finalAcceptanceFile = /final_acceptance\.spec\.js/u;
+const motionChoreographyFile = /motion_choreography\.spec\.js/u;
 
 export default defineConfig({
   testDir: "./tests/browser",
   outputDir: "artifacts/playwright-results",
   fullyParallel: false,
-  forbidOnly: Boolean(process.env.CI),
+  forbidOnly: true,
   // A failed attempt is a failed quality gate; flakes must remain visible.
   retries: 0,
-  workers: process.env.CI ? 1 : undefined,
+  actionTimeout: 10_000,
+  workers: 1,
   reporter: [
     ["list"],
-    ["html", { open: "never", outputFolder: "artifacts/playwright-report" }]
+    ["html", { open: "never", outputFolder: "artifacts/playwright-report" }],
+    ["./scripts/fail_on_skipped_reporter.js"]
   ],
   use: {
     baseURL,
@@ -27,39 +31,50 @@ export default defineConfig({
   projects: [
     {
       name: "mobile-375",
-      testIgnore: responsiveMatrixFile,
+      testIgnore: [responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile],
       use: { viewport: { width: 375, height: 812 } }
     },
     {
       name: "tablet-768",
-      testIgnore: responsiveMatrixFile,
+      testIgnore: [responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile],
       use: { viewport: { width: 768, height: 1024 } }
     },
     {
       name: "desktop-1024",
-      testIgnore: responsiveMatrixFile,
+      testIgnore: [responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile],
       use: { viewport: { width: 1024, height: 768 } }
     },
     {
       name: "desktop-1440",
-      testIgnore: responsiveMatrixFile,
+      testIgnore: [responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile],
       use: { viewport: { width: 1440, height: 1000 } }
     },
     {
       name: "desktop-1980",
-      testIgnore: responsiveMatrixFile,
+      testIgnore: [responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile],
       use: { viewport: { width: 1980, height: 1200 } }
     },
     {
       name: "responsive-matrix",
       testMatch: responsiveMatrixFile,
+      testIgnore: finalAcceptanceFile,
       use: { viewport: { width: 1980, height: 1200 } }
+    },
+    {
+      name: "final-acceptance",
+      testMatch: finalAcceptanceFile,
+      use: { viewport: { width: 1980, height: 1200 } }
+    },
+    {
+      name: "motion-choreography",
+      testMatch: motionChoreographyFile,
+      use: { viewport: { width: 1440, height: 1000 } }
     }
   ],
   webServer: {
     command: "bundle exec jekyll serve --no-watch --host 127.0.0.1 --port 4000 --trace",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000
   }
 });

@@ -34,9 +34,11 @@ presence does not override the mandatory Matt workflow.
 ## Integrity verification
 
 `.agents/skill-checksums.sha256` records the SHA-256 digest of every committed
-file under `.agents/skills/`. The quality workflow runs
+file under `.agents/skills/`. The canonical local
+`node scripts/validate_quality_policy.js && make -f Makefile check` runs
 `scripts/verify_agent_skills.rb`, which checks the expected skill set, exact
-file coverage, and every recorded digest before the site build.
+file coverage, and every recorded digest before the site build. Full Quality
+does not run in GitHub Actions.
 
 ## Update procedure
 
@@ -49,7 +51,7 @@ file coverage, and every recorded digest before the site build.
 4. Update both revision values in this file and `THIRD_PARTY_NOTICES.md`.
 5. Regenerate `.agents/skill-checksums.sha256` from the reviewed files with:
    `LC_ALL=C find .agents/skills -type f -print | LC_ALL=C sort | while IFS= read -r file; do shasum -a 256 "$file"; done > .agents/skill-checksums.sha256`.
-6. Run `ruby scripts/verify_agent_skills.rb` and `make check`.
+6. Run `node scripts/validate_quality_policy.js && make -f Makefile check`.
 7. Deliver through an independently reviewed PR. Do not auto-update these
    instructions with Dependabot.
 

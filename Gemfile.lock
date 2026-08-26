@@ -197,6 +197,7 @@ DEPENDENCIES
   jekyll-seo-tag (~> 2.9.0)
   jekyll-sitemap (~> 1.4.0)
   minitest (~> 6.0.6)
+  nokogiri (~> 1.19)
   webrick (~> 1.9)
 
 CHECKSUMS

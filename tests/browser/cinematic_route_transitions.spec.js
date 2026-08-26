@@ -658,7 +658,7 @@ test("focus and reassembled handoffs preserve the visible scene crop", async ({ 
     if (state === "reassembled") {
       await page.locator('[data-cinematic-relation-switcher="lighting"] button').first().click();
     }
-    await page.waitForTimeout(850);
+    await expect(page.locator('[data-cinematic-root][data-cinematic-enhanced="true"]')).toHaveAttribute("data-cinematic-motion-phase", "idle");
 
     const link = state === "focus"
       ? page.locator('[data-cinematic-focus-destination="lighting"]')

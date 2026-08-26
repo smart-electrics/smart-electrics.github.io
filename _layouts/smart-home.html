@@ -32,9 +32,11 @@ layout: default
       <figure class="smart-home__scene" data-scenario-scene data-cinematic-route-source="smart-home-scene">
         {% for visual in spatial.visuals %}
           <picture class="smart-home__scene-background" data-scene-picture="{{ visual.id }}" data-motion-layer="background"{% unless visual.id == initial_system.visual %} hidden{% endunless %}>
-            <source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}" width="768" height="512">
-            <source srcset="{{ visual.desktop | relative_url }}" width="1536" height="1024">
-            <img src="{{ visual.desktop | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ visual.alt }}"{% if visual.id == initial_system.visual %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
+            {% if visual.id == initial_system.visual %}
+              <source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}" width="768" height="512">
+              <source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}" width="1536" height="1024">
+            {% endif %}
+            <img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-scene-mobile="{{ visual.mobile | relative_url }}" data-scene-desktop="{{ visual.desktop | relative_url }}" sizes="(max-width: 767px) 100vw, 1536px" width="768" height="512" alt="{{ visual.alt }}"{% if visual.id == initial_system.visual %} loading="eager" fetchpriority="high"{% else %} loading="lazy"{% endif %}>
           </picture>
         {% endfor %}
         <span class="smart-home__scene-wash" data-motion-layer="light" aria-hidden="true"></span>
@@ -60,11 +62,12 @@ layout: default
         </ul>
       </aside>
 
-      <section class="smart-home__phone" data-smart-home-phone hidden aria-labelledby="phone-title">
+      <section class="smart-home__phone" data-smart-home-phone hidden tabindex="0" aria-label="Налаштування простору. Прокручуйте панель, щоб переглянути всі елементи керування.">
         <header class="smart-home__phone-header">
           <p class="smart-home__phone-kicker">{{ smart_home.simulator.kicker }}</p>
           <h3 id="phone-title">Налаштування простору</h3>
         </header>
+        <p class="smart-home__phone-scroll-hint" aria-hidden="true">Прокручуйте панель, щоб переглянути всі налаштування.</p>
 
         <fieldset class="smart-home__preset-picker" data-preset-picker>
           <legend>{{ smart_home.simulator.legend }}</legend>
@@ -131,13 +134,12 @@ layout: default
     <section class="smart-home__physical" data-smart-home-physical aria-labelledby="physical-lighting-title">
       <aside data-smart-home-physical-fallback>
         <h3 id="physical-lighting-title">Фізичні сцени освітлення</h3>
-        <p>Демонстраційна конфігурація пояснює окремі стани світла на сходах і зовні; остаточні групи визначають для конкретного об’єкта. Докладніше — у напрямі <a href="{{ lighting_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="smart-home-scene">Освітлення</a>.</p>
+        <p>Демонстраційна конфігурація пояснює окремі стани світла на сходах і зовні; остаточні групи визначають для конкретного об’єкта. Докладніше — у напрямі <a href="{{ lighting_service.url | relative_url }}" data-inline-editorial-link data-cinematic-route data-cinematic-route-source-ref="smart-home-scene">Освітлення</a>.</p>
       </aside>
       <div class="smart-home__physical-stage" data-smart-home-physical-stage hidden>
         <figure class="smart-home__physical-media">
           <picture data-smart-home-physical-picture="stairs">
-            <source data-smart-home-physical-source media="(max-width: 767px)" srcset="{{ initial_stairs_scene.src_768 | relative_url }}" width="768" height="512">
-            <img data-smart-home-physical-image src="{{ initial_stairs_scene.src_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ initial_stairs_scene.alt }}" loading="lazy">
+            <img data-smart-home-physical-image src="{{ initial_stairs_scene.src_768 | relative_url }}" srcset="{{ initial_stairs_scene.src_768 | relative_url }} 768w, {{ initial_stairs_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ initial_stairs_scene.alt }}" loading="lazy">
           </picture>
           <figcaption>Візуальна концепція готової до адаптації конфігурації, не керування обладнанням.</figcaption>
         </figure>

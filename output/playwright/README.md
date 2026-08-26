@@ -50,4 +50,5 @@ below.
 
 Regenerate website screenshots from a clean build with the Jekyll server in
 `--no-watch` mode and record the source commit in the related pull request. Do
-not treat screenshots as the test oracle; `make check` remains authoritative.
+not treat screenshots as the test oracle; the authoritative local gate is
+`node scripts/validate_quality_policy.js && make -f Makefile check`.

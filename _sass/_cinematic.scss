@@ -171,8 +171,8 @@
 }
 
 .residence-spine__composition {
-  --residence-rail: clamp(10.5rem, 18vw, 14.5rem);
-  aspect-ratio: 16 / 10;
+  --residence-rail: clamp(9.25rem, 13.5vw, 11.75rem);
+  aspect-ratio: 16 / 12;
   display: grid;
   gap: clamp(0.75rem, 1.3vw, 1.25rem);
   grid-template-columns: var(--residence-rail) 1px minmax(0, 1fr);
@@ -181,9 +181,11 @@
   min-height: 23.5rem;
   min-width: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .residence-spine__rail {
+  align-self: center;
   grid-column: 1;
   min-width: 0;
 }
@@ -191,8 +193,8 @@
 .residence-spine__rail ol {
   display: grid;
   gap: 0.28rem;
-  grid-template-rows: repeat(8, minmax(2.75rem, 1fr));
-  height: 100%;
+  grid-template-rows: repeat(8, minmax(2.75rem, auto));
+  height: auto;
 }
 
 .residence-spine__rail li {
@@ -205,16 +207,17 @@
 }
 
 .residence-spine__rail button {
-  background: #1b1713;
-  border: 1px solid #40352c;
-  border-left: 2px solid #5f4534;
-  border-radius: 0.22rem;
-  color: #e9d8c6;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 220, 187, 0.18);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  color: #d8c4b0;
   cursor: pointer;
   display: block;
   font-size: clamp(0.66rem, 0.76vw, 0.8rem);
   font-weight: 650;
-  height: 100%;
+  height: auto;
   line-height: 1.16;
   min-height: 2.75rem;
   overflow-wrap: anywhere;
@@ -227,8 +230,9 @@
 
 .residence-spine__rail button:hover,
 .residence-spine__rail button[aria-pressed="true"] {
-  background: #2a1e16;
-  border-color: var(--amber);
+  background: linear-gradient(90deg, rgba(219, 131, 75, 0.16), transparent);
+  border-bottom-color: rgba(255, 220, 187, 0.46);
+  border-left-color: var(--amber-light);
   color: #fff1df;
 }
 
@@ -259,6 +263,39 @@
   transform: scaleY(1);
   transform-origin: top;
   width: 1px;
+}
+
+.residence-spine__relationship-connector {
+  height: 100%;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+  z-index: 2;
+}
+
+.residence-spine__relationship-connector path {
+  fill: none;
+  stroke: var(--amber-light);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  stroke-width: 2;
+}
+
+.residence-spine__relationship-connector circle {
+  fill: var(--amber-light);
+  stroke: #15110e;
+  stroke-width: 1.5;
+}
+
+.residence-spine[data-cinematic-motion-phase="disassemble"] .residence-spine__relationship-connector,
+.residence-spine[data-cinematic-motion-phase="hold"] .residence-spine__relationship-connector {
+  visibility: hidden;
+}
+
+.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__relationship-connector path {
+  animation: residence-spine-relationship-draw 420ms cubic-bezier(.2, .72, .18, 1) both;
 }
 
 .residence-spine[data-cinematic-transition="true"] .residence-spine__connector-lane::after {
@@ -352,6 +389,7 @@
 
 .residence-spine__panels {
   align-items: end;
+  container-type: inline-size;
   display: grid;
   pointer-events: none;
   width: min(46%, 27rem);
@@ -362,9 +400,10 @@
   background: #15110e;
   border-right: 1px solid rgba(255, 219, 182, 0.16);
   display: grid;
-  gap: clamp(0.65rem, 1.2vw, 0.95rem);
-  min-height: 57%;
-  padding: clamp(1rem, 2vw, 2rem);
+  gap: clamp(0.48rem, 0.8vw, 0.72rem);
+  height: 100%;
+  min-height: 0;
+  padding: clamp(0.75rem, 1vw, 1rem);
   pointer-events: auto;
 }
 
@@ -382,7 +421,7 @@
 .residence-spine__panel h3 {
   color: #fff0dd;
   font-family: var(--font-display);
-  font-size: clamp(1.7rem, 3.4vw, 3.4rem);
+  font-size: clamp(1.65rem, 2.7vw, 2.85rem);
   font-weight: 400;
   letter-spacing: -0.045em;
   line-height: 0.98;
@@ -453,6 +492,27 @@
   background: #382418;
   border-color: var(--amber-light);
   color: #fff3e4;
+}
+
+.residence-spine__physical-controls[data-cinematic-physical-controls="stairs"] button {
+  font-size: clamp(0.65rem, 0.67vw, 0.68rem);
+  overflow-wrap: normal;
+  padding-inline: 0.16rem;
+  word-break: normal;
+}
+
+@container (max-width: 16rem) {
+  .residence-spine__physical-controls fieldset:last-child > div {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .residence-spine__physical-controls fieldset:last-child button:nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+
+  .residence-spine__physical-controls fieldset:last-child button:nth-child(n + 4) {
+    grid-column: span 3;
+  }
 }
 
 .residence-spine__destination {
@@ -540,15 +600,27 @@
 }
 
 .residence-spine__outgoing-snapshot[data-cinematic-snapshot-active="true"] {
-  animation: residence-spine-outgoing 760ms cubic-bezier(.28, .74, .22, 1) both;
+  animation: residence-spine-outgoing 320ms cubic-bezier(.28, .74, .22, 1) both;
 }
 
-.residence-spine[data-cinematic-transition="true"] .residence-spine__scene:not([hidden]) {
+.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__scene:not([hidden]) {
   animation: residence-spine-scene-in 760ms cubic-bezier(.2, .72, .18, 1) both;
 }
 
-.residence-spine[data-cinematic-transition="true"] .residence-spine__panel:not([hidden]) {
+.residence-spine[data-cinematic-motion-phase="disassemble"] .residence-spine__panel:not([hidden]) {
+  animation: residence-spine-panel-exit 300ms cubic-bezier(.28, .74, .22, 1) both;
+}
+
+.residence-spine[data-cinematic-motion-phase="hold"] .residence-spine__panels {
+  visibility: hidden;
+}
+
+.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__panel:not([hidden]) {
   animation: residence-spine-panel-reveal 720ms 60ms cubic-bezier(.2, .72, .18, 1) both;
+}
+
+.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__panel:not([hidden]) > :is(p, h3, a, div, ul) {
+  animation: residence-spine-type-reveal 480ms 90ms cubic-bezier(.2, .72, .18, 1) both;
 }
 
 .residence-spine__return {
@@ -576,6 +648,21 @@
 @keyframes residence-spine-panel-reveal {
   from { clip-path: inset(0 100% 0 0); transform: translate3d(-0.8rem, 0, 0); }
   to { clip-path: inset(0); transform: translate3d(0, 0, 0); }
+}
+
+@keyframes residence-spine-panel-exit {
+  from { clip-path: inset(0); transform: translate3d(0, 0, 0); }
+  to { clip-path: inset(0 0 0 100%); transform: translate3d(-0.7rem, 0, 0); }
+}
+
+@keyframes residence-spine-type-reveal {
+  from { clip-path: inset(0 100% 0 0); transform: translate3d(-0.35rem, 0, 0); }
+  to { clip-path: inset(0); transform: translate3d(0, 0, 0); }
+}
+
+@keyframes residence-spine-relationship-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
 }
 
 @keyframes residence-spine-physical-outgoing {

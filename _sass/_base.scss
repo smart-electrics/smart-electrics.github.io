@@ -58,18 +58,32 @@ svg {
   max-width: 100%;
 }
 
-a {
+a[href] {
+  align-items: center;
   color: inherit;
+  display: inline-flex;
+  min-block-size: 2.75rem;
   text-decoration-thickness: 0.08em;
   text-underline-offset: 0.22em;
 }
 
+p > a[href][data-inline-editorial-link] {
+  display: inline;
+  min-block-size: 0;
+}
+
 button,
-input,
+input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
 select,
 textarea,
-summary {
+summary,
+[role="button"],
+[role="link"],
+[role="radio"],
+[role="checkbox"],
+[role="switch"] {
   font: inherit;
+  min-block-size: 2.75rem;
 }
 
 :focus-visible {

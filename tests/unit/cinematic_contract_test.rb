@@ -237,4 +237,65 @@ class CinematicContractTest < Minitest::Test
     graph.fetch("relations")[1].fetch("child")["id"] = "panel-assembly"
     assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
+
+  def test_requires_motion_compositions_to_declare_real_relationship_connectors_and_a_mobile_safe_selector
+    templates = {
+      "_includes/cinematic-stage.html" => "data-cinematic-relationship-connector",
+      "_includes/service-studio.html" => "data-service-studio-relationship-connector",
+      "_includes/cinematic-solutions.html" => "data-cinematic-solutions-relationship-connector"
+    }
+    templates.each do |path, connector|
+      source = File.read(File.join(project_root, path))
+      assert_includes source, connector, "#{path} must expose an aria-hidden SVG relationship connector"
+      assert_includes source, "pathLength=\"1\"", "#{path} connector must be drawable"
+    end
+
+    %w[cinematic-stage service-studio cinematic-solutions route-journey].each do |adapter|
+      source = File.read(File.join(project_root, "assets/js/#{adapter}.js"))
+      assert_includes source, "createCinematicMotion", "#{adapter} must run the shared bounded motion lifecycle"
+    end
+
+    styles = File.read(File.join(project_root, "_sass/_cinematic-solutions.scss"))
+    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?display:\s*grid;/, styles)
+    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?overflow:\s*visible;/, styles)
+  end
+
+  def test_residence_physical_picture_exposes_one_preload_safe_responsive_candidate_list
+    template = File.read(File.join(project_root, "_includes", "cinematic-stage.html"))
+    physical_layer = template[/<div class="residence-spine__physical-layer"[^>]*data-cinematic-physical-layer[^>]*>/]
+
+    refute_nil physical_layer
+    assert_match(/\baria-hidden="true"/, physical_layer, "the physical pixel overlay must remain decorative while the causal image carries its synchronized alt")
+    refute_includes template, '<source data-cinematic-physical-source'
+    refute_includes template, '<source media="(max-width: 767px)" srcset="{{ \'/assets/images/smart-home/\' | append: relation.scene_family | append: \'-768.webp\' | relative_url }}"'
+    assert_includes template, '<img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w"'
+    assert_includes template, 'sizes="(max-width: 767px) 100vw, 52vw"'
+  end
+
+  def test_physical_scene_adapter_updates_one_responsive_candidate_list
+    adapter = File.read(File.join(project_root, "assets", "js", "physical-scene-controls.js"))
+
+    refute_includes adapter, 'source[data-cinematic-physical-source]'
+    refute_includes adapter, 'source[data-smart-home-physical-source]'
+    refute_includes adapter, 'causalSource.srcset = scene.src768'
+    refute_includes adapter, 'source.srcset = scene.src768'
+    assert_includes adapter, 'return `${scene.src768} 768w, ${scene.src1536} 1536w`'
+  end
+
+  def test_keeps_panel_and_type_choreography_masked_without_opacity_or_filter_keyframes
+    keyframes = {
+      "_sass/_cinematic.scss" => %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal],
+      "_sass/_service-studio.scss" => %w[service-studio-panel-exit service-studio-panel-reveal service-studio-type-reveal],
+      "_sass/_cinematic-solutions.scss" => %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal],
+      "_sass/_route-journey.scss" => %w[route-journey-panel-exit route-journey-panel-reveal route-journey-type-reveal]
+    }
+    keyframes.each do |path, names|
+      source = File.read(File.join(project_root, path))
+      names.each do |name|
+        keyframe = source[/@keyframes #{Regexp.escape(name)}\s*\{[\s\S]*?\n\}/]
+        refute_nil keyframe, "#{path} must retain #{name}"
+        refute_match(/(?:opacity|filter)\s*:/, keyframe, "#{name} must use masked clip-path/transform choreography only")
+      end
+    end
+  end
 end

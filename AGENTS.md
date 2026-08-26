@@ -7,7 +7,7 @@
 - Спершу прочитай `CONTEXT.md`; перед роботою з Issue — `docs/agents/issue-tracker.md` і `docs/agents/triage-labels.md`; перед зміною архітектури — релевантні ADR у `docs/adr/`.
 - Веди роботу через GitHub Issue → гілка → PR після bootstrap. Не переписуй історію: без force-push. Ручний review або approval власника не потрібен; перед злиттям PR виконай автономний merge gate з `docs/agents/workflow.md`.
 - Незакріплені зміни інших людей не чіпай. Перевірки й команди виводь із поточних файлів проєкту, а не з цього документа.
-- Перед handoff або PR прочитай `docs/agents/workflow.md`: він визначає локальний acceptance, режим GitHub workflows і merge gate. Playwright retries завжди `0`.
+- Перед handoff або PR прочитай `docs/agents/workflow.md`: він визначає локальний acceptance, режим GitHub workflows і merge gate. Канонічна команда починається з незалежного policy preflight; не запускай лише `make check`. Playwright retries завжди `0`.
 
 ## Agent skills
 

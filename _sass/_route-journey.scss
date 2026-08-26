@@ -236,6 +236,15 @@
   opacity: 1;
 }
 
+.route-journey[data-route-journey-motion-phase="reassemble"] .route-journey__connector line {
+  animation: route-journey-connector-draw 420ms cubic-bezier(.2, .72, .18, 1) both;
+}
+
+.route-journey[data-route-journey-motion-phase="disassemble"] .route-journey__connector,
+.route-journey[data-route-journey-motion-phase="hold"] .route-journey__connector {
+  visibility: hidden;
+}
+
 .route-journey__outgoing {
   animation: route-journey-outgoing 360ms ease-out both;
   pointer-events: none;
@@ -289,6 +298,10 @@
   grid-area: panel;
   padding: 1.1rem clamp(0.25rem, 1vw, 1rem) 0;
 }
+
+.route-journey[data-route-journey-motion-phase="disassemble"] .route-journey__panel { animation: route-journey-panel-exit 300ms cubic-bezier(.28, .74, .22, 1) both; }
+.route-journey[data-route-journey-motion-phase="reassemble"] .route-journey__panel { animation: route-journey-panel-reveal 420ms cubic-bezier(.2, .72, .18, 1) both; }
+.route-journey[data-route-journey-motion-phase="reassemble"] .route-journey__panel > * { animation: route-journey-type-reveal 420ms 60ms cubic-bezier(.2, .72, .18, 1) both; }
 
 .route-journey__panel-kicker,
 .route-journey__live {
@@ -368,6 +381,11 @@
   from { opacity: 0.72; }
   to { opacity: 0; }
 }
+
+@keyframes route-journey-panel-exit { from { clip-path: inset(0); transform: translateX(0); } to { clip-path: inset(0 0 0 100%); transform: translateX(-0.7rem); } }
+@keyframes route-journey-panel-reveal { from { clip-path: inset(0 100% 0 0); transform: translateX(-0.7rem); } to { clip-path: inset(0); transform: translateX(0); } }
+@keyframes route-journey-type-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes route-journey-connector-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 
 @media (min-width: 48rem) {
   .route-journey__fallback li {

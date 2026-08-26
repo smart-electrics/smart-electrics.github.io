@@ -123,6 +123,37 @@ class SmartHomeContractTest < Minitest::Test
     end
   end
 
+  def test_smart_home_picture_exposes_one_no_js_candidate_list_and_inert_scene_metadata
+    layout = File.read(File.join(project_root, "_layouts", "smart-home.html"))
+
+    assert_includes layout, '{% if visual.id == initial_system.visual %}'
+    assert_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
+    assert_includes layout, '<source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}"'
+    assert_includes layout, '<img src="data:image/gif;base64,'
+    assert_includes layout, 'data-scene-mobile="{{ visual.mobile | relative_url }}"'
+    assert_includes layout, 'data-scene-desktop="{{ visual.desktop | relative_url }}"'
+    refute_includes layout, '<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-scene-mobile="{{ visual.mobile | relative_url }}" data-scene-desktop="{{ visual.desktop | relative_url }}" srcset='
+    refute_includes layout, '<img src="{{ visual.mobile | relative_url }}"'
+    assert_includes layout, 'sizes="(max-width: 767px) 100vw, 1536px"'
+  end
+
+  def test_homepage_preload_matches_the_eager_residence_scene
+    head = File.read(File.join(project_root, "_includes", "head.html"))
+
+    refute_includes head, "/assets/images/home/control-room"
+    assert_includes head, "/assets/images/cinematic/residence/room-evening-open-768.webp"
+    assert_includes head, "/assets/images/cinematic/residence/room-evening-open-1536.webp"
+    assert_includes head, 'imagesizes="(max-width: 767px) 100vw, 52vw"'
+  end
+
+  def test_smart_home_physical_picture_exposes_one_preload_safe_responsive_candidate_list
+    layout = File.read(File.join(project_root, "_layouts", "smart-home.html"))
+
+    refute_includes layout, '<source data-smart-home-physical-source'
+    assert_includes layout, '<img data-smart-home-physical-image src="{{ initial_stairs_scene.src_768 | relative_url }}" srcset="{{ initial_stairs_scene.src_768 | relative_url }} 768w, {{ initial_stairs_scene.src_1536 | relative_url }} 1536w"'
+    assert_includes layout, 'sizes="(max-width: 767px) 100vw, 100vw"'
+  end
+
   def test_rejects_missing_or_reordered_scenario_zone_system_or_visual_ids
     contract = valid_contract
     contract["presets"].reverse!
