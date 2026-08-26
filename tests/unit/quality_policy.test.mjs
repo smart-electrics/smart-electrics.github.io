@@ -573,26 +573,51 @@ test("the quality policy retains both runtime skipped-test gates", () => {
 });
 
 test("remaining remote workflows cannot embed the local full Quality gate", () => {
-  for (const path of [
-    ".github/workflows/codeql.yml",
-    ".github/workflows/pages.yml"
+  const reusableWorkflowSha = "0123456789abcdef0123456789abcdef01234567";
+  for (const [path, job] of [
+    [
+      ".github/workflows/codeql.yml",
+      [
+        "  hidden-audit:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: make --file=Makefile check"
+      ]
+    ],
+    [
+      ".github/workflows/pages.yml",
+      [
+        "  hidden-browser:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: node scripts/run_playwright_tests.js"
+      ]
+    ],
+    [
+      ".github/workflows/codeql.yml",
+      [
+        "  hidden-npm:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: npm run test"
+      ]
+    ],
+    [
+      ".github/workflows/pages.yml",
+      [
+        "  hidden-reusable:",
+        `    uses: acme/quality/.github/workflows/full.yml@${reusableWorkflowSha}`
+      ]
+    ]
   ]) {
     const embeddedQuality = runPolicyAgainstWorkflowEdits({
       [path]: (source) => source.replace(
         "jobs:\n",
-        [
-          "jobs:",
-          "  quality:",
-          "    name: quality",
-          "    runs-on: ubuntu-latest",
-          "    steps:",
-          "      - run: make -f Makefile check",
-          ""
-        ].join("\n")
+        ["jobs:", ...job, ""].join("\n")
       )
     });
     assert.notEqual(embeddedQuality.status, 0, `${path} must not embed full Quality`);
-    assert.match(embeddedQuality.stderr, /must not embed the local-only full Quality gate/iu);
+    assert.match(embeddedQuality.stderr, /exact audited source digests/iu);
   }
 });
 

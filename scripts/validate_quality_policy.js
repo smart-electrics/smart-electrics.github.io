@@ -16,6 +16,10 @@ const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
   "c94a42fd137a88b42da64457949edaafbf5e6a7245675f49a3d1745b67643511";
+const AUDITED_CODEQL_WORKFLOW_SHA256 =
+  "1a6b466dfcf0dbe50b29e6dfc1b70f2489c4c93efdecd7d3759f1dd8149a4883";
+const AUDITED_PAGES_WORKFLOW_SHA256 =
+  "e37124b2934be749c7afd17f59a23273e657ac5e32615a988c477b5657990da4";
 const repositoryRoot = process.env.SMART_ELECTRICS_POLICY_ROOT
   ? resolve(process.env.SMART_ELECTRICS_POLICY_ROOT)
   : fileURLToPath(new URL("../", import.meta.url));
@@ -30,6 +34,20 @@ const codeqlWorkflow = readFileSync(
   new URL("../.github/workflows/codeql.yml", import.meta.url),
   "utf8"
 );
+const codeqlWorkflowDigest = createHash("sha256")
+  .update(codeqlWorkflow)
+  .digest("hex");
+const pagesWorkflowDigest = createHash("sha256")
+  .update(pagesWorkflow)
+  .digest("hex");
+if (
+  codeqlWorkflowDigest !== AUDITED_CODEQL_WORKFLOW_SHA256 ||
+  pagesWorkflowDigest !== AUDITED_PAGES_WORKFLOW_SHA256
+) {
+  failures.push(
+    "CodeQL and Pages workflows must match their exact audited source digests."
+  );
+}
 const makefile = readFileSync(new URL("../Makefile", import.meta.url), "utf8");
 const playwrightContractSource = readFileSync(
   new URL("./playwright_contract.js", import.meta.url),
