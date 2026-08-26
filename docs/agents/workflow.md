@@ -35,7 +35,7 @@ Codex автоматично знаходить ці project-scoped ролі я�
 
 Перед handoff або PR реалізатор запускає локальний `make -f Makefile check`. Це fail-closed acceptance: перший failed або flaky тест блокує delivery, а Playwright retries лишаються `0`. Безпосередньо перед Chromium gate Make і browser wrapper повторно перевіряють quality policy, тому попередні тести не можуть підмінити Playwright config або test inventory.
 
-`Quality` у GitHub запускається для кожного `pull_request` до `main` і вручну через `workflow_dispatch`; це обов'язковий fail-closed PR-blocker, який виконує literal `make -f Makefile check`. Явний `-f` прив'язує gate до перевіреного файла. GitHub Pages запускається напряму на кожен push у `main` та збирає exact pushed SHA. CodeQL лишається автоматичним PR check, має ручний запуск і свій розклад; його стан і всі інші налаштовані PR checks Sol перевіряє на exact PR SHA.
+Повний `Quality` не запускається в GitHub Actions: workflow відсутній, а local policy відхиляє його повторне додавання або вбудовування в інший workflow. Єдиний канонічний full gate — локальний literal `make -f Makefile check` на exact PR head перед push і merge. GitHub Pages запускається напряму на кожен push у `main` та збирає exact pushed SHA. CodeQL лишається автоматичним remote PR check, має ручний запуск і свій розклад; його стан і всі інші налаштовані PR checks Sol перевіряє на exact PR SHA.
 
 ## Автономне злиття PR
 
@@ -43,6 +43,6 @@ Codex автоматично знаходить ці project-scoped ролі я�
 
 1. PR зберігає ланцюжок Issue → гілка → PR і не містить переписаної історії.
 2. Два незалежні read-only агенти виконують окремі review: один за standards, другий за spec. Вони не review-ять власну реалізацію. Sol перевіряє їхні первинні докази; кожен finding виправлено й перевірено або залишено явним blocker, який забороняє злиття.
-3. Sol перевіряє всі налаштовані PR check runs саме цього PR, включно з `quality` і CodeQL. Кожен має завершитися `SUCCESS`; будь-який `FAILURE`, `CANCELLED`, `TIMED_OUT`, `ACTION_REQUIRED`, flaky результат або retry блокує злиття.
-4. Лише після закриття review і повністю зеленої перевірки Sol позначає PR ready та створює merge commit: безпосередньо або через auto-merge, налаштований на merge commit. Auto-merge не активують до проходження цього gate.
+3. Sol перевіряє первинний результат локального `make -f Makefile check` на exact PR head і всі налаштовані remote PR checks, зокрема чотири CodeQL jobs. Локальний gate має завершитися без fail/skip/todo або retries, а кожен remote check — зі статусом `SUCCESS`; будь-який `FAILURE`, `CANCELLED`, `TIMED_OUT`, `ACTION_REQUIRED` чи flaky результат блокує злиття.
+4. Лише після закриття review, зеленого локального acceptance і всіх required remote checks Sol позначає PR ready та створює merge commit: безпосередньо або через auto-merge, налаштований на merge commit. Auto-merge не активують до проходження цього gate.
 5. Після злиття Sol підтверджує, що `main` містить merge commit, а GitHub Pages успішно розгорнуті для цієї ревізії.

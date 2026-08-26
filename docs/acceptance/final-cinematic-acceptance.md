@@ -1,6 +1,6 @@
 # Фінальне приймання кінематографічного сайту
 
-Цей документ описує локальний і CI gate для Issue #32. Він не підтверджує
+Цей документ описує локальний full gate для Issue #32. Він не підтверджує
 реальні об'єкти, контакти, інтеграції або послуги. Перевірка стосується
 згенерованого статичного сайту, його доступності та чесності публічної копії.
 
@@ -70,25 +70,18 @@ routes на 375, 768, 1440 та 1980 px. Runtime claim scanner читає вес
 body кожного з 24 public routes, включно з видимими поточними значеннями
 input/textarea, а не лише main або інтерактивні компоненти.
 
-Каталог ігнорується Git. У Quality workflow він завантажується лише після
-успішного literal `make -f Makefile check`; відсутній каталог є помилкою workflow. Перед
-handoff виконавець відкриває representative screenshots і перевіряє, що
+Каталог ігнорується Git і лишається локальним acceptance evidence. Перед
+handoff виконавець запускає literal `make -f Makefile check`, відкриває
+representative screenshots і перевіряє, що
 motion не перетворив сцену на набір карток, не створив overlay artifact та не
 сховав активну дію за межами viewport.
 
-Hosted Quality має bounded budget 60 хвилин, `workers: 1` і `retries: 0`.
-Попередній 45-хвилинний budget був недостатнім: Actions run `32884161387`
-пройшов 639 із 648 тестів без test failure і був примусово скасований самим
-workflow timeout. Timeout, скасування або незавантажений evidence artifact
-залишають gate червоним; execution budget не дозволяє повторні спроби.
-
-Наступний Actions run `32891310108` чесно зупинився на 643 успішних тестах:
-три compact smart-home assets були перервані speculative parser на 1440 px, а
-шестиширинний choreography test вичерпав стандартні 30 секунд під час
-останньої штатної фази `disassemble`. Media lifecycle виправлено в runtime.
-Для цього одного виміряного choreography test встановлено 45 секунд; policy
-забороняє глобальний test timeout і будь-які неаудитовані scoped exceptions.
-`actionTimeout: 10_000`, `workers: 1` та `retries: 0` лишаються незмінними.
+GitHub PR Quality workflow навмисно відсутній: повний acceptance виконується
+лише локально. Policy дозволяє в `.github/workflows/` тільки CodeQL і Pages та
+відхиляє спробу вбудувати local full gate у будь-який із них. Chromium завжди
+працює з `workers: 1` і `retries: 0`; для одного виміряного choreography test
+дозволено 45 секунд, тоді як глобальний test timeout і неаудитовані scoped
+exceptions заборонені.
 
 ## Локальний порядок
 
@@ -118,8 +111,7 @@ Playwright config має audited source digest, кожен project дозвол�
 `viewport`, а runtime reporter вимагає рівно 648 discovered tests. Кожен Make
 target має одне визначення; pattern/special rules, альтернативні default
 makefiles, `.npmrc` і зовнішні includes заборонені.
-Quality workflow має точну безумовну послідовність кроків і не допускає
-`continue-on-error`, додаткових mutation-кроків, глобального `env:` або умовного
-запуску `make -f Makefile check`. Make відхиляє успадковані execution controls і
-динамічні top-level functions до виконання будь-якого target; Node та Playwright
-gates запускаються прямими audited entrypoints без npm shell.
+Remote Quality workflow заборонений. Make відхиляє успадковані execution
+controls і динамічні top-level functions до виконання будь-якого target; Node
+та Playwright gates запускаються прямими audited entrypoints без npm shell, а
+policy повторно перевіряється безпосередньо перед Chromium.

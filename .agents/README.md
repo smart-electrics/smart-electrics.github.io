@@ -34,9 +34,10 @@ presence does not override the mandatory Matt workflow.
 ## Integrity verification
 
 `.agents/skill-checksums.sha256` records the SHA-256 digest of every committed
-file under `.agents/skills/`. The quality workflow runs
+file under `.agents/skills/`. The canonical local `make -f Makefile check` runs
 `scripts/verify_agent_skills.rb`, which checks the expected skill set, exact
-file coverage, and every recorded digest before the site build.
+file coverage, and every recorded digest before the site build. Full Quality
+does not run in GitHub Actions.
 
 ## Update procedure
 

@@ -22,10 +22,6 @@ const repositoryRoot = process.env.SMART_ELECTRICS_POLICY_ROOT
 const packageJson = JSON.parse(
   readFileSync(new URL("../package.json", import.meta.url), "utf8")
 );
-const qualityWorkflow = readFileSync(
-  new URL("../.github/workflows/quality.yml", import.meta.url),
-  "utf8"
-);
 const pagesWorkflow = readFileSync(
   new URL("../.github/workflows/pages.yml", import.meta.url),
   "utf8"
@@ -95,7 +91,6 @@ const rubyTestLauncher = readFileSync(
   new URL("./run_ruby_test.sh", import.meta.url),
   "utf8"
 );
-const nodeVersion = readFileSync(new URL("../.nvmrc", import.meta.url), "utf8").trim();
 
 function collectTestSourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -385,16 +380,6 @@ function assertWorkflowHasAction(workflow, workflowName, action, revision) {
   }
 }
 
-function workflowStepBlock(workflow, stepName) {
-  const escapedName = stepName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  return workflow.match(
-    new RegExp(
-      `^ {6}- name: ${escapedName}\\n[\\s\\S]*?(?=^ {6}- name:|$(?![\\s\\S]))`,
-      "mu"
-    )
-  )?.[0].trimEnd() ?? "";
-}
-
 const PULL_REQUEST_HEAD_REF = /^\s*ref:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*&&\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}\s*$/mu;
 
 function assertPullRequestCheckoutRef(workflow, workflowName) {
@@ -409,102 +394,34 @@ function assertPullRequestCheckoutRef(workflow, workflowName) {
   }
 }
 
-const qualityTriggers = workflowTriggers(qualityWorkflow);
 const pagesTriggers = workflowTriggers(pagesWorkflow);
 const codeqlTriggers = workflowTriggers(codeqlWorkflow);
-
-if (qualityTriggers.join(",") !== "pull_request,workflow_dispatch") {
-  failures.push("Quality must trigger only for pull requests to main and workflow_dispatch.");
+const workflowEntries = readdirSync(
+  new URL("../.github/workflows/", import.meta.url),
+  { withFileTypes: true }
+)
+  .map((entry) => entry.name)
+  .sort();
+if (workflowEntries.join(",") !== "codeql.yml,pages.yml") {
+  failures.push(
+    "GitHub workflows must contain only CodeQL and Pages; full Quality runs locally only."
+  );
 }
 
-if (!/^on:\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:/mu.test(qualityWorkflow)) {
-  failures.push("Quality pull_request trigger must target main exactly.");
+for (const [workflowName, workflow] of [
+  ["CodeQL", codeqlWorkflow],
+  ["Pages", pagesWorkflow]
+]) {
+  if (
+    /^\s{2,}quality:\s*$/mu.test(workflow) ||
+    /^\s+name:\s*quality\s*$/imu.test(workflow) ||
+    /make\s+(?:-f\s+Makefile\s+)?check/u.test(workflow)
+  ) {
+    failures.push(
+      `${workflowName} must not embed the local-only full Quality gate.`
+    );
+  }
 }
-
-if (!/^\s+run:\s+make -f Makefile check\s*$/mu.test(qualityWorkflow)) {
-  failures.push("Quality must execute the audited Makefile check gate.");
-}
-
-if (!/^  quality:\n    name: quality$/mu.test(qualityWorkflow)) {
-  failures.push("Quality must retain the required quality job/context name.");
-}
-
-if (!/^    timeout-minutes: 60$/mu.test(qualityWorkflow)) {
-  failures.push("Quality must allow the bounded 60-minute final acceptance gate.");
-}
-
-if (!/^          node-version-file: \.nvmrc$/mu.test(qualityWorkflow) || !/^24\./u.test(nodeVersion)) {
-  failures.push("Quality must resolve Node 24 from .nvmrc.");
-}
-
-if (!/if: success\(\)[\s\S]*path: artifacts\/final-evidence\/[\s\S]*if-no-files-found: error/u.test(qualityWorkflow)) {
-  failures.push("Quality must retain the successful final-evidence artifact and fail when it is missing.");
-}
-
-const qualityStepNames = [...qualityWorkflow.matchAll(/^ {6}- name: (.+)$/gmu)].map(
-  ([, name]) => name
-);
-const qualityStepEntries = [...qualityWorkflow.matchAll(/^ {6}- /gmu)];
-const expectedQualityStepNames = [
-  "Check out source",
-  "Set up Ruby",
-  "Set up Node",
-  "Install browser test dependencies",
-  "Run quality gate",
-  "Upload final acceptance evidence",
-  "Upload browser diagnostics on failure"
-];
-if (qualityStepNames.join(",") !== expectedQualityStepNames.join(",")) {
-  failures.push("Quality must retain the exact ordered step topology.");
-}
-if (qualityStepEntries.length !== expectedQualityStepNames.length) {
-  failures.push("Quality must not add unnamed or unreviewed execution steps.");
-}
-
-if (
-  !/^  quality:\n    name: quality\n    runs-on: ubuntu-latest\n    timeout-minutes: 60\n\n    steps:/mu.test(qualityWorkflow)
-) {
-  failures.push("Quality job header must remain unconditional and fail-closed.");
-}
-
-if (/continue-on-error:/u.test(qualityWorkflow)) {
-  failures.push("Quality must never continue on error at job or step scope.");
-}
-if (/^\s*env:/mu.test(qualityWorkflow)) {
-  failures.push("Quality workflow must not inject environment overrides at any scope.");
-}
-if (/^\s*defaults:/mu.test(qualityWorkflow)) {
-  failures.push("Quality workflow must not override default shell or working-directory behavior.");
-}
-
-const qualityConditions = [...qualityWorkflow.matchAll(/^\s+if:\s*(.+)$/gmu)].map(
-  ([, condition]) => condition
-);
-if (qualityConditions.join(",") !== "success(),failure()") {
-  failures.push("Quality may condition only its success and failure artifact uploads.");
-}
-
-const expectedInstallStep = [
-  "      - name: Install browser test dependencies",
-  "        run: |",
-  "          npm ci --ignore-scripts",
-  "          npx playwright install --with-deps chromium"
-].join("\n");
-if (workflowStepBlock(qualityWorkflow, "Install browser test dependencies") !== expectedInstallStep) {
-  failures.push("Quality dependency installation must stay lifecycle-free and install Chromium exactly.");
-}
-
-const expectedGateStep = [
-  "      - name: Run quality gate",
-  "        run: make -f Makefile check"
-].join("\n");
-if (workflowStepBlock(qualityWorkflow, "Run quality gate") !== expectedGateStep) {
-  failures.push("Quality must execute one unconditional exact audited Makefile check step.");
-}
-
-assertPinnedActions(qualityWorkflow, "Quality");
-assertWorkflowHasAction(qualityWorkflow, "Quality", "actions/checkout", "3d3c42e5aac5ba805825da76410c181273ba90b1");
-assertPullRequestCheckoutRef(qualityWorkflow, "Quality");
 
 if (codeqlTriggers.join(",") !== "push,pull_request,workflow_dispatch,schedule") {
   failures.push("CodeQL must retain push, pull_request, workflow_dispatch, and schedule triggers.");
@@ -534,7 +451,7 @@ if (pagesTriggers.length !== 1 || pagesTriggers[0] !== "push") {
 }
 
 if (/^\s+workflow_run:/mu.test(pagesWorkflow)) {
-  failures.push("Pages must not depend on workflow_run from Quality.");
+  failures.push("Pages must not depend on another workflow.");
 }
 
 if (!/ref:\s*\$\{\{ github\.sha \}\}/u.test(pagesWorkflow)) {
@@ -1197,5 +1114,5 @@ if (failures.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  console.log("Quality policy is fail-closed and blocks pull requests.");
+  console.log("Local quality policy is fail-closed; GitHub PR Quality is disabled.");
 }

@@ -36,6 +36,9 @@ Jekyll відкриється на `http://127.0.0.1:4000`. Повна пере�
 make -f Makefile check
 ```
 
+Full Quality виконується тільки локально; GitHub PR запускає лише required
+CodeQL checks.
+
 Окремі команди можна переглянути через `make -f Makefile help`.
 
 ## Структура

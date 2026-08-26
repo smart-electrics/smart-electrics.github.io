@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from "node:fs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -15,7 +24,7 @@ const codeqlPin = "db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28";
 const pullRequestHeadRef = /ref:\s*\$\{\{\s*github\.event_name\s*==\s*'pull_request'\s*&&\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}/u;
 const configDigestFailure = /audited source digest/iu;
 
-function runPolicyAgainstWorkflowEdits(edits) {
+function runPolicyAgainstWorkflowEdits(edits, mutateFixture = null) {
   const fixtureRoot = mkdtempSync(join(tmpdir(), "smart-electrics-quality-policy-"));
 
   try {
@@ -29,6 +38,7 @@ function runPolicyAgainstWorkflowEdits(edits) {
       const source = existsSync(filePath) ? readFileSync(filePath, "utf8") : "";
       writeFileSync(filePath, edit(source));
     }
+    mutateFixture?.(fixtureRoot);
 
     return spawnSync(process.execPath, ["scripts/validate_quality_policy.js"], {
       cwd: fixtureRoot,
@@ -92,45 +102,53 @@ function runBrowserGateAfterInitialPolicyEdits(edits) {
   }
 }
 
-test("Quality is a pinned pull-request gate with dispatch and retained success evidence", () => {
-  const workflow = read(".github/workflows/quality.yml");
+test("full Quality runs only through the canonical local Make gate", () => {
+  const workflowEntries = readdirSync(join(repositoryRoot, ".github", "workflows")).sort();
+  const makefile = read("Makefile");
 
-  assert.match(workflow, /^on:\n  pull_request:\n    branches: \[main\]\n  workflow_dispatch:/mu);
-  assert.doesNotMatch(workflow, /^  push:/mu);
-  assert.match(workflow, /^  quality:\n    name: quality$/mu);
-  assert.match(workflow, /^    timeout-minutes: 60$/mu);
-  assert.match(workflow, new RegExp(`uses: actions/checkout@${checkoutPin}`));
-  assert.match(workflow, pullRequestHeadRef, "Quality must check out the exact PR head SHA while retaining github.sha for dispatch.");
-  assert.match(workflow, /uses: ruby\/setup-ruby@[0-9a-f]{40}/u);
-  assert.match(workflow, /uses: actions\/setup-node@[0-9a-f]{40}/u);
-  assert.match(workflow, /^          node-version-file: \.nvmrc$/mu);
+  assert.deepEqual(workflowEntries, ["codeql.yml", "pages.yml"]);
   assert.match(read(".nvmrc").trim(), /^24\./u);
-  assert.match(workflow, /^        run: make -f Makefile check$/mu);
   assert.match(
-    workflow,
-    /if: success\(\)[\s\S]*uses: actions\/upload-artifact@[0-9a-f]{40}[\s\S]*path: artifacts\/final-evidence\/[\s\S]*if-no-files-found: error/u
+    makefile,
+    /^check:.*\btest-browser\b.*## Повний локальний quality gate$/mu
+  );
+  assert.match(
+    makefile,
+    /^test-browser:.*\n\tnode scripts\/validate_quality_policy\.js\n\tnode scripts\/run_playwright_tests\.js$/mu
   );
 });
 
-test("the quality policy requires the bounded 60-minute hosted-runner budget", () => {
-  const sufficientBudget = runPolicyAgainstWorkflowEdits({
-    ".github/workflows/quality.yml": (source) =>
-      source.replace(/timeout-minutes: \d+/u, "timeout-minutes: 60")
-  });
-  assert.equal(sufficientBudget.status, 0, sufficientBudget.stderr);
-
-  for (const minutes of [59, 61]) {
-    const unsafeBudget = runPolicyAgainstWorkflowEdits({
-      ".github/workflows/quality.yml": (source) =>
-        source.replace(/timeout-minutes: \d+/u, `timeout-minutes: ${minutes}`)
+test("the quality policy rejects any remote Quality workflow alias", () => {
+  for (const path of [
+    ".github/workflows/quality.yml",
+    ".github/workflows/pr-quality.yml",
+    ".github/workflows/quality.yaml"
+  ]) {
+    const remoteQuality = runPolicyAgainstWorkflowEdits({
+      [path]: () => [
+        "name: Quality",
+        "on:",
+        "  pull_request:",
+        "jobs:",
+        "  quality:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: make -f Makefile check",
+        ""
+      ].join("\n")
     });
-    assert.notEqual(
-      unsafeBudget.status,
-      0,
-      `Quality must reject a ${minutes}-minute execution budget`
-    );
-    assert.match(unsafeBudget.stderr, /60-minute final acceptance gate/iu);
+    assert.notEqual(remoteQuality.status, 0, `${path} must not restore remote full Quality`);
+    assert.match(remoteQuality.stderr, /only CodeQL and Pages.*Quality runs locally only/iu);
   }
+
+  const symlinkedQuality = runPolicyAgainstWorkflowEdits({}, (fixtureRoot) => {
+    symlinkSync(
+      "codeql.yml",
+      join(fixtureRoot, ".github", "workflows", "quality.yml")
+    );
+  });
+  assert.notEqual(symlinkedQuality.status, 0, "a symlink must not restore remote Quality");
+  assert.match(symlinkedQuality.stderr, /only CodeQL and Pages.*Quality runs locally only/iu);
 });
 
 test("CodeQL remains an automatic and manual gate with every action pinned", () => {
@@ -148,22 +166,18 @@ test("CodeQL remains an automatic and manual gate with every action pinned", () 
 });
 
 test("the quality policy rejects a missing or unsafe pull-request checkout ref", () => {
-  for (const [path, label] of [
-    [".github/workflows/quality.yml", "Quality"],
-    [".github/workflows/codeql.yml", "CodeQL"]
-  ]) {
-    const missingRef = runPolicyAgainstWorkflowEdits({
-      [path]: (source) => source.replace(/^\s+ref:.*\n/mu, "")
-    });
-    assert.notEqual(missingRef.status, 0, `${label} must fail when checkout ref is removed`);
-    assert.match(missingRef.stderr, new RegExp(`${label}.*pull-request.*head SHA`, "iu"));
+  const path = ".github/workflows/codeql.yml";
+  const missingRef = runPolicyAgainstWorkflowEdits({
+    [path]: (source) => source.replace(/^\s+ref:.*\n/mu, "")
+  });
+  assert.notEqual(missingRef.status, 0, "CodeQL must fail when checkout ref is removed");
+  assert.match(missingRef.stderr, /CodeQL.*pull-request.*head SHA/iu);
 
-    const unsafeRef = runPolicyAgainstWorkflowEdits({
-      [path]: (source) => source.replace(pullRequestHeadRef, "ref: ${{ github.sha }}")
-    });
-    assert.notEqual(unsafeRef.status, 0, `${label} must fail when PR checkout falls back to github.sha`);
-    assert.match(unsafeRef.stderr, new RegExp(`${label}.*pull-request.*head SHA`, "iu"));
-  }
+  const unsafeRef = runPolicyAgainstWorkflowEdits({
+    [path]: (source) => source.replace(pullRequestHeadRef, "ref: ${{ github.sha }}")
+  });
+  assert.notEqual(unsafeRef.status, 0, "CodeQL must fail when PR checkout falls back to github.sha");
+  assert.match(unsafeRef.stderr, /CodeQL.*pull-request.*head SHA/iu);
 });
 
 test("the local gate retains production assets, public claims, and exactly one dedicated project for each final journey", () => {
@@ -558,62 +572,27 @@ test("the quality policy retains both runtime skipped-test gates", () => {
   assert.match(noOpPolicyScript.stderr, /exact lifecycle-free quality command map/iu);
 });
 
-test("the quality workflow cannot mask, condition, or precede the exact gate", () => {
-  for (const [label, edit, expectedMessage] of [
-    [
-      "continue-on-error",
-      (source) => source.replace(
-        "        run: make -f Makefile check",
-        "        continue-on-error: true\n        run: make -f Makefile check"
-      ),
-      /never continue on error/iu
-    ],
-    [
-      "conditional gate",
-      (source) => source.replace(
-        "        run: make -f Makefile check",
-        "        if: false\n        run: make -f Makefile check"
-      ),
-      /may condition only|unconditional exact audited Makefile check/iu
-    ],
-    [
-      "npm lifecycle install",
-      (source) => source.replace("npm ci --ignore-scripts", "npm ci"),
-      /lifecycle-free/iu
-    ],
-    [
-      "unnamed mutation step",
-      (source) =>
-        source.replace(
-          "      - name: Run quality gate",
-          "      - run: true\n\n      - name: Run quality gate"
-        ),
-      /unnamed or unreviewed/iu
-    ],
-    [
-      "global environment override",
-      (source) =>
-        source.replace(
-          "permissions:\n  contents: read",
-          "env:\n  PLAYWRIGHT_BASE_URL: https://attacker.example\n\npermissions:\n  contents: read"
-        ),
-      /must not inject environment overrides/iu
-    ],
-    [
-      "global shell defaults",
-      (source) =>
-        source.replace(
-          "permissions:\n  contents: read",
-          "defaults:\n  run:\n    shell: 'bash -c \"{0} || true\"'\n\npermissions:\n  contents: read"
-        ),
-      /must not override default shell/iu
-    ]
+test("remaining remote workflows cannot embed the local full Quality gate", () => {
+  for (const path of [
+    ".github/workflows/codeql.yml",
+    ".github/workflows/pages.yml"
   ]) {
-    const bypass = runPolicyAgainstWorkflowEdits({
-      ".github/workflows/quality.yml": edit
+    const embeddedQuality = runPolicyAgainstWorkflowEdits({
+      [path]: (source) => source.replace(
+        "jobs:\n",
+        [
+          "jobs:",
+          "  quality:",
+          "    name: quality",
+          "    runs-on: ubuntu-latest",
+          "    steps:",
+          "      - run: make -f Makefile check",
+          ""
+        ].join("\n")
+      )
     });
-    assert.notEqual(bypass.status, 0, `the policy must reject ${label}`);
-    assert.match(bypass.stderr, expectedMessage);
+    assert.notEqual(embeddedQuality.status, 0, `${path} must not embed full Quality`);
+    assert.match(embeddedQuality.stderr, /must not embed the local-only full Quality gate/iu);
   }
 });
 
@@ -794,7 +773,7 @@ test("the quality policy rejects skipped-test annotations and aliases", () => {
   assert.equal(inertExamples.status, 0, inertExamples.stderr);
 });
 
-test("the quality policy keeps local and CI browser execution deterministic", () => {
+test("the quality policy keeps local browser execution deterministic", () => {
   const playwright = read("playwright.config.js");
 
   assert.match(playwright, /^  workers: 1,$/mu);
@@ -902,12 +881,15 @@ test("the quality policy keeps local and CI browser execution deterministic", ()
   }
 });
 
-test("the local quality validator approves the final PR-gate policy", () => {
+test("the local quality validator approves the local-only full gate policy", () => {
   const result = spawnSync(process.execPath, ["scripts/validate_quality_policy.js"], {
     cwd: repositoryRoot,
     encoding: "utf8"
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Quality policy is fail-closed and blocks pull requests/u);
+  assert.match(
+    result.stdout,
+    /Local quality policy is fail-closed; GitHub PR Quality is disabled/iu
+  );
 });
