@@ -837,8 +837,20 @@ async function mediaSignature(image) {
   });
 }
 
-async function renderedPixelSignature(surface) {
-  const pixels = await surface.screenshot({ animations: "disabled" });
+async function renderedPixelSignature(page, surface) {
+  await surface.scrollIntoViewIfNeeded();
+  const bounds = await surface.boundingBox();
+  const viewport = page.viewportSize();
+  if (!bounds || !viewport) throw new Error("Visible scene pixels require a bounded viewport surface");
+  const x = Math.max(0, bounds.x);
+  const y = Math.max(0, bounds.y);
+  const right = Math.min(viewport.width, bounds.x + bounds.width);
+  const bottom = Math.min(viewport.height, bounds.y + bounds.height);
+  if (right <= x || bottom <= y) throw new Error("Visible scene pixels require a non-empty viewport intersection");
+  // Element screenshots can temporarily expand Chromium's render surface for a
+  // tall scene. A viewport-bounded page clip keeps responsive request telemetry
+  // attached to the actual acceptance width while still hashing visible pixels.
+  const pixels = await page.screenshot({ animations: "disabled", clip: { x, y, width: right - x, height: bottom - y } });
   return createHash("sha256").update(pixels).digest("hex");
 }
 
@@ -1656,7 +1668,7 @@ test("the nine residence scene families and physical controls produce real visib
   await expectAxeClean(page, "smart-home system " + initialSystemId);
   axeStates.push("system:" + initialSystemId);
   let previousSystemMedia = await mediaSignature(visibleSmartHomeImage());
-  let previousSystemPixels = await renderedPixelSignature(smartHomeScene);
+  let previousSystemPixels = await renderedPixelSignature(page, smartHomeScene);
   let previousSystemTopology = await smartHomeTopologySignature(simulator);
   for (let index = 1; index < await systems.count(); index += 1) {
     const system = systems.nth(index);
@@ -1667,7 +1679,7 @@ test("the nine residence scene families and physical controls produce real visib
     const currentSystemMedia = await mediaSignature(visibleSmartHomeImage());
     expect(currentSystemMedia.src, "each smart-home system must switch to a distinct rendered media source").not.toBe(previousSystemMedia.src);
     expect(currentSystemMedia.signature, "each smart-home system must change source pixels, not only data attributes").not.toBe(previousSystemMedia.signature);
-    const currentSystemPixels = await renderedPixelSignature(smartHomeScene);
+    const currentSystemPixels = await renderedPixelSignature(page, smartHomeScene);
     expect(currentSystemPixels, "each smart-home system must visibly recompose the main scene").not.toBe(previousSystemPixels);
     const currentSystemTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(previousSystemTopology, currentSystemTopology, "smart-home system " + id);
@@ -1685,14 +1697,14 @@ test("the nine residence scene families and physical controls produce real visib
   const selectedPresets = [initialPresetId];
   await expectAxeClean(page, "smart-home preset " + initialPresetId);
   axeStates.push("preset:" + initialPresetId);
-  let previousPresetPixels = await renderedPixelSignature(smartHomeScene);
+  let previousPresetPixels = await renderedPixelSignature(page, smartHomeScene);
   let previousPresetTopology = await smartHomeTopologySignature(simulator);
   for (let index = 1; index < await presets.count(); index += 1) {
     const preset = presets.nth(index);
     const id = await preset.getAttribute("value");
     await preset.click();
     await expect(simulator).toHaveAttribute("data-preset", id);
-    const currentPresetPixels = await renderedPixelSignature(smartHomeScene);
+    const currentPresetPixels = await renderedPixelSignature(page, smartHomeScene);
     expect(currentPresetPixels, "each smart-home preset must visibly change scene pixels, even when it retains the selected system source").not.toBe(previousPresetPixels);
     const currentPresetTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(previousPresetTopology, currentPresetTopology, "smart-home preset " + id);
@@ -1773,7 +1785,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     const smartScene = simulator.locator(".smart-home__scene");
     const smartImage = () => simulator.locator("picture[data-scene-picture]:visible img");
     const beforeSystemMedia = await mediaSignature(smartImage());
-    const beforeSystemPixels = await renderedPixelSignature(smartScene);
+    const beforeSystemPixels = await renderedPixelSignature(page, smartScene);
     const beforeSystemTopology = await smartHomeTopologySignature(simulator);
     const systemControl = simulator.locator("button[data-phone-system]").nth(1);
     const systemId = await systemControl.getAttribute("data-phone-system");
@@ -1782,17 +1794,17 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     await waitForIdle(simulator, "data-motion-phase");
     const afterSystemMedia = await mediaSignature(smartImage());
     expect(afterSystemMedia).not.toEqual(beforeSystemMedia);
-    expect(await renderedPixelSignature(smartScene)).not.toBe(beforeSystemPixels);
+    expect(await renderedPixelSignature(page, smartScene)).not.toBe(beforeSystemPixels);
     const afterSystemTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(beforeSystemTopology, afterSystemTopology, "touch smart-home system");
     await expectSmartHomeScenePriority(page, simulator, 375, "touch system");
-    const beforePresetPixels = await renderedPixelSignature(smartScene);
+    const beforePresetPixels = await renderedPixelSignature(page, smartScene);
     const presetControl = simulator.locator("input[data-preset-radio]").nth(2);
     const presetId = await presetControl.getAttribute("value");
     await presetControl.tap();
     await expect(simulator).toHaveAttribute("data-preset", presetId);
     await waitForIdle(simulator, "data-motion-phase");
-    expect(await renderedPixelSignature(smartScene)).not.toBe(beforePresetPixels);
+    expect(await renderedPixelSignature(page, smartScene)).not.toBe(beforePresetPixels);
     const afterPresetTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(afterSystemTopology, afterPresetTopology, "touch smart-home preset");
     await expectSmartHomeScenePriority(page, simulator, 375, "touch preset");

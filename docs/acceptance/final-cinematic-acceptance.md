@@ -58,6 +58,12 @@ interaction scroll не визначає жоден evidence-кадр. Коже�
 звіряється з точним viewport (зокрема 1980×1200) і повторюється у тому самому
 settled стані; різний SHA-256 між двома capture є помилкою.
 
+Pixel signatures динамічних smart-home станів знімаються як видимий
+viewport-bounded page clip. Element screenshot для високої сцени тут не
+використовується: Chromium може тимчасово розширити render surface під час
+такого capture і створити штучний responsive media request, якого немає у
+settled viewport. Request assertions лишаються строгими для фактичної ширини.
+
 No-JavaScript fallback перевіряється на всіх одинадцяти acceptance widths.
 Окремий adapter-outage прогін блокує site JavaScript і повторює всі 20 dynamic
 routes на 375, 768, 1440 та 1980 px. Runtime claim scanner читає весь settled
