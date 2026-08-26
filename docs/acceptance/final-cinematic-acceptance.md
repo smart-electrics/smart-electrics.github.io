@@ -99,4 +99,6 @@ workflow timeout. Timeout, скасування або незавантажен�
 
 Playwright retries завжди дорівнюють 0. make check є остаточним gate.
 Будь-який failed test, missing evidence, skipped test, stale asset metadata
-або ручний visual finding зупиняє delivery.
+або ручний visual finding зупиняє delivery. Quality policy відхиляє
+`skip`, `fixme` та `only` також у computed й optional-property формах, щоб
+зміна синтаксису не могла приховати невиконаний browser test.

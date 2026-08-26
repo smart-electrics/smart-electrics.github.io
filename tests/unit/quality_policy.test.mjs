@@ -182,6 +182,32 @@ test("the quality policy bounds every action and permits only the measured chore
   }
 });
 
+test("the quality policy rejects computed and optional skipped-test annotations", () => {
+  const playwrightCall = (...parts) => parts.join("");
+
+  for (const [label, injection] of [
+    ["direct test skip", playwrightCall("test", ".skip", '("hidden", () => {});')],
+    ["direct describe fixme", playwrightCall("test.describe", ".fixme", '("hidden", () => {});')],
+    ["direct standalone describe only", playwrightCall("describe", ".only", '("focused", () => {});')],
+    ["computed test skip", playwrightCall("test", '["skip"]', '("hidden", () => {});')],
+    ["computed test fixme", playwrightCall("test", "['fixme']", '("hidden", () => {});')],
+    ["computed test only", playwrightCall("test", "[`only`]", '("focused", () => {});')],
+    ["computed describe skip", playwrightCall("test.describe", '["skip"]', '("hidden", () => {});')],
+    ["computed test.describe fixme", playwrightCall("test", '["describe"]', '["fixme"]', '("hidden", () => {});')],
+    ["computed standalone describe only", playwrightCall("describe", '["only"]', '("focused", () => {});')],
+    ["optional test skip", playwrightCall("test", "?.skip", '("hidden", () => {});')],
+    ["optional annotation call", playwrightCall("test.fixme", "?.", '("hidden", () => {});')],
+    ["optional computed describe annotation", playwrightCall("test", "?.describe", '?.["skip"]', "?.", '("hidden", () => {});')]
+  ]) {
+    const bypass = runPolicyAgainstWorkflowEdits({
+      "tests/browser/smart_home.spec.js": (source) =>
+        source.replace('test("upgrades', `${injection}\n\ntest("upgrades`)
+    });
+    assert.notEqual(bypass.status, 0, `the policy must reject ${label}`);
+    assert.match(bypass.stderr, /avoid the real quality state/iu);
+  }
+});
+
 test("the quality policy keeps local and CI browser execution deterministic", () => {
   const playwright = read("playwright.config.js");
 

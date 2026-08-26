@@ -323,7 +323,13 @@ for (const scriptName of ["test", "test:browser"]) {
 
 for (const filePath of collectTestSourceFiles(join(repositoryRoot, "tests"))) {
   const source = readFileSync(filePath, "utf8");
-  const forbiddenAnnotation = /\b(?:test|describe|testInfo)\s*(?:\.\s*describe\s*)?\.\s*(?:skip|fixme|only)\s*\(/gu;
+  const forbiddenAnnotation = new RegExp(
+    String.raw`\b(?:test|describe|testInfo)\s*` +
+      String.raw`(?:(?:\??\.\s*describe|(?:\?\.\s*)?\[\s*["'\x60]describe["'\x60]\s*\])\s*)?` +
+      String.raw`(?:\??\.\s*(?:skip|fixme|only)|(?:\?\.\s*)?\[\s*["'\x60](?:skip|fixme|only)["'\x60]\s*\])\s*` +
+      String.raw`(?:\?\.\s*)?\(`,
+    "gu"
+  );
 
   for (const match of source.matchAll(forbiddenAnnotation)) {
     const line = source.slice(0, match.index).split("\n").length;
