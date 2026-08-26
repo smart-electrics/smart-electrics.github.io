@@ -101,6 +101,7 @@ test("both public cinematic surfaces expose the validated physical controls only
     await expect(root).toHaveAttribute("data-cinematic-physical-enhanced", "true");
     const picture = stage.locator("[data-cinematic-physical-picture]");
     const image = picture.locator("img");
+    await expect(stage.locator("[data-cinematic-physical-layer]")).not.toHaveAttribute("aria-hidden");
     await expect(picture).toHaveCount(1);
     await expect(picture.locator("source")).toHaveCount(0);
     await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
