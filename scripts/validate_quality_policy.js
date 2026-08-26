@@ -16,6 +16,23 @@ const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
   "e68738c55026c0b3d8612e7802a2ed75813afe52c93ca4fb550b8abb8f6435b4";
+const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
+  ["run_node_tests.js", "ac43f36c4d1156d4670e7b2e168d46f62ecf10592a596a4ea4817df9075907dc"],
+  ["run_ruby_test.rb", "0412640ea6064dfd4cd968ab9dd8a6cde28ff4def46796dcccc74122dddb76e8"],
+  ["verify_agent_skills.rb", "37095cc3690e974f688b79d427ceadc4f69554acac5d666514c37affaad440fc"],
+  ["validate_integrations.rb", "4d61fda2e1a474a0f3aaef69c1f033f7d018e87374a286fc25fc6881eaf4d531"],
+  ["validate_production_assets.rb", "71f4bab684aad3b2375e9897012af27c57fed9c84c623c06ebb655699879a736"],
+  ["validate_public_claims.rb", "cf010d16e52cd59c834e7026c49075a5322c2a7bfc71486dab22b44aeae151f7"],
+  ["validate_route_content.rb", "1c72487fbf0c8c4f62003940098ce20c318662ebff48bfa515fe11d2adbb20ef"],
+  ["validate_services.rb", "584e1519f206b21dd38c5d5c37f597f86e6102e0407bea5783ea93fed419eafe"],
+  ["validate_service_studios.rb", "1437ac44abb6089885e19abda843793d32e2c07d9615d31aa596770674270ab7"],
+  ["validate_solutions.rb", "73477f110ed266c9d93a2d9e783c0977195ba8a64ace5b43e04f7476ef7c7004"],
+  ["validate_cinematic_solutions.rb", "08e5c597a27cd704eef4934bbd03e717d746a7dd7ebacb338ca82d375cffc072"],
+  ["validate_smart_home.rb", "5fb4bc32d5352aa7ef21cc393e3a462d4eaac414d4decfa5998a4a75daf7d877"],
+  ["validate_cinematic_system.rb", "1dd770d453203f88b818d1b2ff7dec19e9b972fa31addf763753177c0072d8b7"],
+  ["validate_physical_scene_states.rb", "e6b524a7ebe41226d964faffb9d75dc00d1805a4d4172d79fa80246ff6df2226"],
+  ["validate_cinematic_route_transitions.rb", "e8a0baa78be0bccf4f35c3724c897a932446df4ed8a701ec0ae9ddd686a0997d"]
+]);
 const AUDITED_CODEQL_WORKFLOW_SHA256 =
   "1a6b466dfcf0dbe50b29e6dfc1b70f2489c4c93efdecd7d3759f1dd8149a4883";
 const AUDITED_PAGES_WORKFLOW_SHA256 =
@@ -89,6 +106,13 @@ if (playwrightReporterDigest !== AUDITED_PLAYWRIGHT_REPORTER_SHA256) {
   failures.push(
     "Playwright reporter must match its exact audited source digest."
   );
+}
+for (const [fileName, expectedDigest] of AUDITED_LOCAL_ENTRYPOINT_SHA256) {
+  const source = readFileSync(new URL(`./${fileName}`, import.meta.url), "utf8");
+  const digest = createHash("sha256").update(source).digest("hex");
+  if (digest !== expectedDigest) {
+    failures.push(`Local quality entrypoint scripts/${fileName} must match its exact audited source digest.`);
+  }
 }
 const playwrightConfigUrl = new URL("../playwright.config.js", import.meta.url);
 const playwrightConfigSource = readFileSync(playwrightConfigUrl, "utf8");

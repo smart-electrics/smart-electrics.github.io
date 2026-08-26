@@ -407,6 +407,30 @@ test("the quality policy retains both runtime skipped-test gates", () => {
     assert.match(commentTokenNoOp.stderr, /exact audited source digest/iu);
   }
 
+  for (const path of [
+    "scripts/run_node_tests.js",
+    "scripts/run_ruby_test.rb",
+    "scripts/verify_agent_skills.rb",
+    "scripts/validate_integrations.rb",
+    "scripts/validate_production_assets.rb",
+    "scripts/validate_public_claims.rb",
+    "scripts/validate_route_content.rb",
+    "scripts/validate_services.rb",
+    "scripts/validate_service_studios.rb",
+    "scripts/validate_solutions.rb",
+    "scripts/validate_cinematic_solutions.rb",
+    "scripts/validate_smart_home.rb",
+    "scripts/validate_cinematic_system.rb",
+    "scripts/validate_physical_scene_states.rb",
+    "scripts/validate_cinematic_route_transitions.rb"
+  ]) {
+    const bypassedEntrypoint = runPolicyAgainstWorkflowEdits({
+      [path]: () => path.endsWith(".js") ? "process.exit(0);\n" : "exit 0\n"
+    });
+    assert.notEqual(bypassedEntrypoint.status, 0, `${path} must not become a successful no-op`);
+    assert.match(bypassedEntrypoint.stderr, /must match its exact audited source digest/iu);
+  }
+
   const missingNodeWrapper = runPolicyAgainstWorkflowEdits({
     "package.json": (source) =>
       source.replace("node scripts/run_node_tests.js", "node --test")
