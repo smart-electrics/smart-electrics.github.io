@@ -71,7 +71,7 @@ body кожного з 24 public routes, включно з видимими по
 input/textarea, а не лише main або інтерактивні компоненти.
 
 Каталог ігнорується Git. У Quality workflow він завантажується лише після
-успішного literal make check; відсутній каталог є помилкою workflow. Перед
+успішного literal `make -f Makefile check`; відсутній каталог є помилкою workflow. Перед
 handoff виконавець відкриває representative screenshots і перевіряє, що
 motion не перетворив сцену на набір карток, не створив overlay artifact та не
 сховав активну дію за межами viewport.
@@ -92,13 +92,34 @@ workflow timeout. Timeout, скасування або незавантажен�
 
 ## Локальний порядок
 
-    make validate-production-assets
-    make validate-public-claims
-    npx playwright test tests/browser/final_acceptance.spec.js
-    make check
+    make -f Makefile validate-production-assets
+    make -f Makefile validate-public-claims
+    node node_modules/@playwright/test/cli.js test tests/browser/final_acceptance.spec.js
+    make -f Makefile check
 
-Playwright retries завжди дорівнюють 0. make check є остаточним gate.
+Playwright retries завжди дорівнюють 0. `make -f Makefile check` є остаточним gate.
 Будь-який failed test, missing evidence, skipped test, stale asset metadata
 або ручний visual finding зупиняє delivery. Quality policy відхиляє
-`skip`, `fixme` та `only` також у computed й optional-property формах, щоб
-зміна синтаксису не могла приховати невиконаний browser test.
+`skip`, `fixme`, `only`, `todo` та expected-failure annotations через
+binding-aware AST аналіз, включно з computed, optional-property, escaped та
+aliased формами. Playwright reporter і Node TAP wrapper додатково роблять
+runtime червоним при будь-якому фактичному `skipped`, `todo` або expected-failure
+результаті. Package scripts і Make recipes зафіксовані без `grep`, `project`,
+`shard` чи інших selection arguments; Node wrapper відхиляє всі CLI options,
+успадковані `NODE_OPTIONS`/`NODE_TEST_CONTEXT`, неповний TAP summary і нуль
+виконаних тестів; повний Node suite додатково має повернути всі 65 зафіксованих
+unit-тестів.
+Кожен Ruby unit-файл проходить через окремий Minitest wrapper: ненульовий exit,
+відсутній або дубльований summary, нуль запусків чи будь-який `skip` лишають gate
+червоним. Для кожного файлу зафіксовано очікувані runs/assertions, а launcher
+відхиляє preload-контроли до старту Ruby. npm install виконується з
+`--ignore-scripts`, а package lifecycle hooks заборонені.
+Playwright config має audited source digest, кожен project дозволяє лише свій
+`viewport`, а runtime reporter вимагає рівно 648 discovered tests. Кожен Make
+target має одне визначення; pattern/special rules, альтернативні default
+makefiles, `.npmrc` і зовнішні includes заборонені.
+Quality workflow має точну безумовну послідовність кроків і не допускає
+`continue-on-error`, додаткових mutation-кроків, глобального `env:` або умовного
+запуску `make -f Makefile check`. Make відхиляє успадковані execution controls і
+динамічні top-level functions до виконання будь-якого target; Node та Playwright
+gates запускаються прямими audited entrypoints без npm shell.

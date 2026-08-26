@@ -16,7 +16,8 @@ export default defineConfig({
   workers: 1,
   reporter: [
     ["list"],
-    ["html", { open: "never", outputFolder: "artifacts/playwright-report" }]
+    ["html", { open: "never", outputFolder: "artifacts/playwright-report" }],
+    ["./scripts/fail_on_skipped_reporter.js"]
   ],
   use: {
     baseURL,
@@ -73,7 +74,7 @@ export default defineConfig({
   webServer: {
     command: "bundle exec jekyll serve --no-watch --host 127.0.0.1 --port 4000 --trace",
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000
   }
 });

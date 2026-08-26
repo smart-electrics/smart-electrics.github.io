@@ -33,9 +33,9 @@ Codex автоматично знаходить ці project-scoped ролі я�
 
 ## Acceptance і GitHub workflows
 
-Перед handoff або PR реалізатор запускає локальний `make check`. Це fail-closed acceptance: перший failed або flaky тест блокує delivery, а Playwright retries лишаються `0`.
+Перед handoff або PR реалізатор запускає локальний `make -f Makefile check`. Це fail-closed acceptance: перший failed або flaky тест блокує delivery, а Playwright retries лишаються `0`. Безпосередньо перед Chromium gate Make і browser wrapper повторно перевіряють quality policy, тому попередні тести не можуть підмінити Playwright config або test inventory.
 
-`Quality` у GitHub запускається для кожного `pull_request` до `main` і вручну через `workflow_dispatch`; це обов'язковий fail-closed PR-blocker, який виконує literal `make check`. GitHub Pages запускається напряму на кожен push у `main` та збирає exact pushed SHA. CodeQL лишається автоматичним PR check, має ручний запуск і свій розклад; його стан і всі інші налаштовані PR checks Sol перевіряє на exact PR SHA.
+`Quality` у GitHub запускається для кожного `pull_request` до `main` і вручну через `workflow_dispatch`; це обов'язковий fail-closed PR-blocker, який виконує literal `make -f Makefile check`. Явний `-f` прив'язує gate до перевіреного файла. GitHub Pages запускається напряму на кожен push у `main` та збирає exact pushed SHA. CodeQL лишається автоматичним PR check, має ручний запуск і свій розклад; його стан і всі інші налаштовані PR checks Sol перевіряє на exact PR SHA.
 
 ## Автономне злиття PR
 

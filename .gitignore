@@ -9,6 +9,7 @@
 _site/
 artifacts/
 node_modules/
+test-results/
 vendor/bundle/
 
 .env

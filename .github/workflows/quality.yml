@@ -38,11 +38,11 @@ jobs:
 
       - name: Install browser test dependencies
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npx playwright install --with-deps chromium
 
       - name: Run quality gate
-        run: make check
+        run: make -f Makefile check
 
       - name: Upload final acceptance evidence
         if: success()

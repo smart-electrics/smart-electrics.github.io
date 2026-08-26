@@ -33,10 +33,10 @@ make serve
 Jekyll відкриється на `http://127.0.0.1:4000`. Повна перевірка перед PR:
 
 ```bash
-make check
+make -f Makefile check
 ```
 
-Окремі команди можна переглянути через `make help`.
+Окремі команди можна переглянути через `make -f Makefile help`.
 
 ## Структура
 
