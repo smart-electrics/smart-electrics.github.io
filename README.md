@@ -33,11 +33,12 @@ make serve
 Jekyll відкриється на `http://127.0.0.1:4000`. Повна перевірка перед PR:
 
 ```bash
-make -f Makefile check
+node scripts/validate_quality_policy.js && make -f Makefile check
 ```
 
 Full Quality виконується тільки локально; GitHub PR запускає лише required
-CodeQL checks.
+CodeQL checks. Окремий policy preflight перед Make не дозволяє зміненому
+`check` target пропустити локальний gate.
 
 Окремі команди можна переглянути через `make -f Makefile help`.
 

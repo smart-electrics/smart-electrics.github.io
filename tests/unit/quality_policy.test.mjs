@@ -116,6 +116,12 @@ test("full Quality runs only through the canonical local Make gate", () => {
     makefile,
     /^test-browser:.*\n\tnode scripts\/validate_quality_policy\.js\n\tnode scripts\/run_playwright_tests\.js$/mu
   );
+
+  const strippedCheckTarget = runPolicyAgainstWorkflowEdits({
+    "Makefile": (source) => source.replace(/^check:.*$/mu, "check: ## stripped local gate")
+  });
+  assert.notEqual(strippedCheckTarget.status, 0, "the external policy preflight must reject a stripped check target");
+  assert.match(strippedCheckTarget.stderr, /Make target check must retain its exact ordered prerequisite graph/iu);
 });
 
 test("the quality policy rejects any remote Quality workflow alias", () => {

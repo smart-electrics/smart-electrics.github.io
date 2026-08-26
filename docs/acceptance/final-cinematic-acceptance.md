@@ -71,7 +71,7 @@ body кожного з 24 public routes, включно з видимими по
 input/textarea, а не лише main або інтерактивні компоненти.
 
 Каталог ігнорується Git і лишається локальним acceptance evidence. Перед
-handoff виконавець запускає literal `make -f Makefile check`, відкриває
+handoff виконавець запускає literal `node scripts/validate_quality_policy.js && make -f Makefile check`, відкриває
 representative screenshots і перевіряє, що
 motion не перетворив сцену на набір карток, не створив overlay artifact та не
 сховав активну дію за межами viewport.
@@ -88,9 +88,9 @@ exceptions заборонені.
     make -f Makefile validate-production-assets
     make -f Makefile validate-public-claims
     node node_modules/@playwright/test/cli.js test tests/browser/final_acceptance.spec.js
-    make -f Makefile check
+    node scripts/validate_quality_policy.js && make -f Makefile check
 
-Playwright retries завжди дорівнюють 0. `make -f Makefile check` є остаточним gate.
+Playwright retries завжди дорівнюють 0. `node scripts/validate_quality_policy.js && make -f Makefile check` є остаточним gate; policy preflight працює поза змінюваним Make dependency graph.
 Будь-який failed test, missing evidence, skipped test, stale asset metadata
 або ручний visual finding зупиняє delivery. Quality policy відхиляє
 `skip`, `fixme`, `only`, `todo` та expected-failure annotations через
