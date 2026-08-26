@@ -316,6 +316,19 @@ test("physical controls fail closed when their accessible causal image is missin
   await expect(stage.locator("[data-cinematic-direction-control]:visible")).toHaveCount(8);
 });
 
+test("physical controls fail closed when the causal image disappears after enhancement", async ({ page }) => {
+  await page.goto("/");
+  const { root, stage } = await stageFor(page);
+  await expect(root).toHaveAttribute("data-cinematic-physical-enhanced", "true");
+  await stage.locator("[data-cinematic-scene-key='assembled'] img").evaluate((image) => image.remove());
+  await stage.getByRole("button", { name: "Ролети blackout", exact: true }).click();
+  await expect(root).not.toHaveAttribute("data-cinematic-physical-enhanced", "true");
+  await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
+  await expect(stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
+  await chooseDirection(stage, "Освітлення");
+  await expect(root).toHaveAttribute("data-cinematic-state", "focus");
+});
+
 test("physical controls respect reduced motion with an instant image swap", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");

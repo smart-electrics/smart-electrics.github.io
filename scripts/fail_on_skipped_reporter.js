@@ -1,4 +1,4 @@
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 653;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 658;
 
 export default class FailOnSkippedReporter {
   constructor(options = {}) {

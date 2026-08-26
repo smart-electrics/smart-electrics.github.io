@@ -146,7 +146,7 @@ function enhancePhysicalControls(root) {
       layer.dataset.cinematicPhysicalTransition = "true";
     }
     states.set(activeSystem.id, nextState);
-    if (!synchronize()) clearTransition();
+    if (!synchronize()) disablePhysicalEnhancement();
     announce();
   };
 
