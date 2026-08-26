@@ -29,6 +29,10 @@ async function chooseDirection(stage, label) {
   await expect(control).toHaveAttribute("aria-pressed", "true");
 }
 
+async function waitForCinematicIdle(root) {
+  await expect(root).toHaveAttribute("data-cinematic-motion-phase", "idle");
+}
+
 async function expectOneVisibleScene(stage) {
   await expect(stage.locator("[data-cinematic-scene]:visible")).toHaveCount(1);
   await expect(stage.locator("[data-cinematic-panel]:visible")).toHaveCount(1);
@@ -183,6 +187,8 @@ test("assembled residence controls swap the physical room pixels without moving 
 });
 
 test("stair and exterior relations use the same physical layer to swap their own exact pixels", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
   for (const route of surfaceRoutes) {
     await page.goto(route);
     const { root, stage } = await stageFor(page);
@@ -191,7 +197,9 @@ test("stair and exterior relations use the same physical layer to swap their own
     const geometry = await Promise.all([layer.boundingBox(), media.boundingBox()]);
 
     await chooseDirection(stage, "Освітлення");
+    await waitForCinematicIdle(root);
     await stage.getByRole("button", { name: "Показати зв’язок: Освітлення сходів", exact: true }).click();
+    await waitForCinematicIdle(root);
     const stairControls = stage.locator("[data-cinematic-physical-controls='stairs']");
     await expect(root).toHaveAttribute("data-cinematic-relation", "lighting--stair-lighting");
     await expect(stairControls).toBeVisible();
@@ -205,8 +213,11 @@ test("stair and exterior relations use the same physical layer to swap their own
     expect(stairsRoute.hash).not.toBe(stairsBefore.hash);
 
     await stage.getByRole("button", { name: "Повернутися до всієї системи", exact: true }).click();
+    await waitForCinematicIdle(root);
     await chooseDirection(stage, "Освітлення");
+    await waitForCinematicIdle(root);
     await stage.getByRole("button", { name: "Показати зв’язок: Зовнішнє освітлення", exact: true }).click();
+    await waitForCinematicIdle(root);
     const exteriorControls = stage.locator("[data-cinematic-physical-controls='exterior']");
     await expect(root).toHaveAttribute("data-cinematic-relation", "lighting--outdoor-lighting");
     await expect(exteriorControls).toBeVisible();
@@ -539,6 +550,8 @@ test("mobile and desktop spine keep one-pixel connector lanes away from controls
 });
 
 test("the spine has no horizontal overflow through every required width and passes axe in meaningful states", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
   for (const width of [375, 414, 540, 768, 900, 1024, 1280, 1440, 1720, 1980]) {
     await page.setViewportSize({ width, height: width < 768 ? 812 : 1000 });
     await page.goto("/services/");
@@ -549,6 +562,7 @@ test("the spine has no horizontal overflow through every required width and pass
     if (width === 375) expect(await root.evaluate((element) => element.scrollHeight)).toBeLessThanOrEqual(1100);
     if (width === 1980) expect(compositionWidth, "the 1980px stage should not retain the rejected tablet-width cap").toBeGreaterThanOrEqual(1400);
     await chooseDirection(stage, "Освітлення");
+    await waitForCinematicIdle(root);
     await stage.getByRole("button", { name: "Показати зв’язок: Освітлення сходів", exact: true }).click();
     await expectOneVisibleScene(stage);
   }
