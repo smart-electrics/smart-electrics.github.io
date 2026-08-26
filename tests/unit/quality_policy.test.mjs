@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,7 @@ function runPolicyAgainstWorkflowEdits(edits) {
     for (const path of [".github", "Makefile", ".nvmrc", "package.json", "playwright.config.js", "tests", "scripts"]) {
       cpSync(join(repositoryRoot, path), join(fixtureRoot, path), { recursive: true });
     }
-    cpSync(join(repositoryRoot, "node_modules"), join(fixtureRoot, "node_modules"), { recursive: true });
+    symlinkSync(join(repositoryRoot, "node_modules"), join(fixtureRoot, "node_modules"), "dir");
 
     for (const [path, edit] of Object.entries(edits)) {
       const filePath = join(fixtureRoot, path);
@@ -127,17 +127,59 @@ test("the local gate retains production assets, public claims, and exactly one d
   assert.match(playwright, /testIgnore: \[responsiveMatrixFile, finalAcceptanceFile, motionChoreographyFile\]/u);
 });
 
-test("the quality policy bounds every Playwright action without extending test timeouts", () => {
+test("the quality policy bounds every action and permits only the measured choreography timeout", () => {
   const playwright = read("playwright.config.js");
+  const choreography = read("tests/browser/motion_choreography.spec.js");
 
   assert.match(playwright, /^  actionTimeout: 10_000,$/mu);
   assert.doesNotMatch(playwright, /^  timeout:/mu);
+  assert.equal(choreography.match(/test\.setTimeout\(45_000\);/gu)?.length, 1);
 
   const unsafeActionTimeout = runPolicyAgainstWorkflowEdits({
     "playwright.config.js": (source) => source.replace("actionTimeout: 10_000", "actionTimeout: 0")
   });
   assert.notEqual(unsafeActionTimeout.status, 0, "the policy must reject an unbounded action timeout");
   assert.match(unsafeActionTimeout.stderr, /action timeout/iu);
+
+  const unsafeGlobalTimeout = runPolicyAgainstWorkflowEdits({
+    "playwright.config.js": (source) => source.replace("actionTimeout: 10_000,", "actionTimeout: 10_000,\n  timeout: 60_000,")
+  });
+  assert.notEqual(unsafeGlobalTimeout.status, 0, "the policy must reject a global test timeout");
+  assert.match(unsafeGlobalTimeout.stderr, /global test timeout/iu);
+
+  const unmeasuredChoreographyTimeout = runPolicyAgainstWorkflowEdits({
+    "tests/browser/motion_choreography.spec.js": (source) => source.replace("test.setTimeout(45_000);", "test.setTimeout(44_000);")
+  });
+  assert.notEqual(unmeasuredChoreographyTimeout.status, 0, "the policy must reject an unmeasured choreography timeout");
+  assert.match(unmeasuredChoreographyTimeout.stderr, /45_000ms choreography test timeout/iu);
+
+  const unrelatedScopedTimeout = runPolicyAgainstWorkflowEdits({
+    "tests/browser/smart_home.spec.js": (source) => source.replace('test("upgrades', 'test.setTimeout(45_000);\n\ntest("upgrades')
+  });
+  assert.notEqual(unrelatedScopedTimeout.status, 0, "the policy must reject scoped timeout exceptions outside the measured choreography test");
+  assert.match(unrelatedScopedTimeout.stderr, /only measured test-scoped timeout/iu);
+
+  const projectTimeout = runPolicyAgainstWorkflowEdits({
+    "playwright.config.js": (source) => source.replace('name: "motion-choreography",', 'name: "motion-choreography",\n      timeout: 60_000,')
+  });
+  assert.notEqual(projectTimeout.status, 0, "the policy must reject project-level test timeouts");
+  assert.match(projectTimeout.stderr, /project.*test timeout/iu);
+
+  for (const [label, injection] of [
+    ["test.slow", "test.slow();"],
+    ["testInfo.setTimeout", "testInfo.setTimeout(90_000);"],
+    ["computed test timeout", 'test["setTimeout"](90_000);'],
+    ["bound test timeout", "const extendTestBudget = test.setTimeout.bind(test); extendTestBudget(90_000);"],
+    ["describe timeout", "test.describe.configure({ timeout: 90_000 });"],
+    ["quoted describe timeout", 'test.describe.configure({ "timeout": 90_000 });'],
+    ["computed describe retries", 'test.describe.configure({ ["retries"]: 1 });']
+  ]) {
+    const bypass = runPolicyAgainstWorkflowEdits({
+      "tests/browser/smart_home.spec.js": (source) => source.replace('test("upgrades', `${injection}\n\ntest("upgrades`)
+    });
+    assert.notEqual(bypass.status, 0, `the policy must reject ${label}`);
+    assert.match(bypass.stderr, /unaudited Playwright timeout API/iu);
+  }
 });
 
 test("the quality policy keeps local and CI browser execution deterministic", () => {

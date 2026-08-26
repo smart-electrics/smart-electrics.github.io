@@ -220,7 +220,13 @@ if (playwrightConfig.retries !== 0) {
 
 if (playwrightConfig.actionTimeout !== 10_000) {
   failures.push(
-    `Playwright action timeout must be 10_000ms so a missing control fails promptly without extending the test timeout (received ${playwrightConfig.actionTimeout}).`
+    `Playwright action timeout must be 10_000ms so a missing control fails promptly without extending the global test timeout (received ${playwrightConfig.actionTimeout}).`
+  );
+}
+
+if (playwrightConfig.timeout !== undefined) {
+  failures.push(
+    `Playwright must not define a global test timeout (received ${playwrightConfig.timeout}).`
   );
 }
 
@@ -232,6 +238,12 @@ if (playwrightConfig.workers !== 1) {
 
 for (const project of playwrightConfig.projects ?? []) {
   const effectiveRetries = project.retries ?? playwrightConfig.retries;
+
+  if (project.timeout !== undefined) {
+    failures.push(
+      `Playwright project ${project.name ?? "<unnamed>"} must not define a project-level test timeout (received ${project.timeout}).`
+    );
+  }
 
   if (effectiveRetries !== 0) {
     failures.push(
@@ -247,6 +259,55 @@ if (finalAcceptanceProjects.length !== 1 || !finalAcceptanceProjects[0].testMatc
   failures.push(
     "Playwright must run final_acceptance.spec.js exactly once in the final-acceptance project."
   );
+}
+
+const allowedScopedTimeouts = new Map([
+  ["tests/browser/final_acceptance.spec.js:600_000", 1],
+  ["tests/browser/final_acceptance.spec.js:5_000", 1],
+  ["tests/browser/motion_choreography.spec.js:45_000", 1]
+]);
+const actualScopedTimeouts = new Map();
+let auditedDescribeConfigureCount = 0;
+for (const filePath of collectTestSourceFiles(join(repositoryRoot, "tests", "browser"))) {
+  const source = readFileSync(filePath, "utf8");
+  const timeoutApiSurface = source
+    .replace(/\btest\.setTimeout\(\s*[^)]*?\s*\)/gu, "")
+    .replace(/\bwindow\.setTimeout\b/gu, "")
+    .replace(/\bsetTimeout\(\s*resolveDelay\s*,\s*60\s*\)/gu, "");
+  const auditedDescribeConfigure = /\btest\.describe\.configure\(\{ mode: "serial" \}\);/gu;
+  auditedDescribeConfigureCount += [...source.matchAll(auditedDescribeConfigure)].length;
+  const configureApiSurface = source.replace(auditedDescribeConfigure, "");
+  const slowApi = /(?:\.\s*slow|\[\s*["']slow["']\s*\])/u;
+  const alternateSetTimeoutApi = /\bsetTimeout\b/u;
+  const unauditedConfigureApi = /\bconfigure\b/u;
+
+  if (slowApi.test(source) || alternateSetTimeoutApi.test(timeoutApiSurface) || unauditedConfigureApi.test(configureApiSurface)) {
+    failures.push(`${relative(repositoryRoot, filePath)} uses an unaudited Playwright timeout API.`);
+  }
+
+  for (const match of source.matchAll(/\btest\.setTimeout\(\s*([^)]*?)\s*\)/gu)) {
+    const key = `${relative(repositoryRoot, filePath)}:${match[1]}`;
+    actualScopedTimeouts.set(key, (actualScopedTimeouts.get(key) ?? 0) + 1);
+  }
+}
+
+if (auditedDescribeConfigureCount !== 1) {
+  failures.push(`Playwright must retain exactly one audited serial describe configuration (received ${auditedDescribeConfigureCount}).`);
+}
+
+if (actualScopedTimeouts.get("tests/browser/motion_choreography.spec.js:45_000") !== 1) {
+  failures.push("Playwright must retain the measured 45_000ms choreography test timeout.");
+}
+
+for (const [key, count] of actualScopedTimeouts) {
+  if (allowedScopedTimeouts.get(key) !== count) {
+    failures.push(`Playwright may use only measured test-scoped timeout exceptions (received ${key} x${count}).`);
+  }
+}
+for (const [key, count] of allowedScopedTimeouts) {
+  if (actualScopedTimeouts.get(key) !== count) {
+    failures.push(`Playwright must retain the audited test-scoped timeout ${key} x${count}.`);
+  }
 }
 
 for (const scriptName of ["test", "test:browser"]) {

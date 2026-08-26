@@ -123,14 +123,17 @@ class SmartHomeContractTest < Minitest::Test
     end
   end
 
-  def test_smart_home_picture_exposes_mutually_exclusive_responsive_candidates
+  def test_smart_home_picture_exposes_one_no_js_candidate_list_and_inert_scene_metadata
     layout = File.read(File.join(project_root, "_layouts", "smart-home.html"))
 
+    assert_includes layout, '{% if visual.id == initial_system.visual %}'
     assert_includes layout, '<source media="(max-width: 767px)" srcset="{{ visual.mobile | relative_url }}"'
     assert_includes layout, '<source media="(min-width: 768px)" srcset="{{ visual.desktop | relative_url }}"'
     assert_includes layout, '<img src="data:image/gif;base64,'
+    assert_includes layout, 'data-scene-mobile="{{ visual.mobile | relative_url }}"'
+    assert_includes layout, 'data-scene-desktop="{{ visual.desktop | relative_url }}"'
+    refute_includes layout, '<img src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" data-scene-mobile="{{ visual.mobile | relative_url }}" data-scene-desktop="{{ visual.desktop | relative_url }}" srcset='
     refute_includes layout, '<img src="{{ visual.mobile | relative_url }}"'
-    refute_includes layout, '<img src="{{ visual.mobile | relative_url }}" srcset='
     assert_includes layout, 'sizes="(max-width: 767px) 100vw, 1536px"'
   end
 

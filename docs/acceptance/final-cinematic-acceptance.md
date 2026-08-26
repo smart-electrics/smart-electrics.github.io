@@ -35,11 +35,13 @@ Room, stairs і exterior controls доводять зміну реального
 currentSrc і pixel signature. У smart-home simulator перевіряються всі дев'ять
 systems і сім presets, а не лише ARIA-стан.
 
-Початкова smart-home сцена має взаємовиключні mobile/desktop `source` для
-кожної ширини. `img` використовує лише inline немережевий fallback: це не дає
-Chromium speculative parser почати протилежний candidate і потім позначити
-його `net::ERR_ABORTED` на межі 768 px. Acceptance окремо перевіряє selected
-`currentSrc`, відсутність unselected request і відсутність request failures.
+Лише початкова smart-home сцена має серверні взаємовиключні mobile/desktop
+`source`, потрібні для no-JavaScript режиму. Вісім прихованих сцен зберігають
+URL як інертні data-атрибути. Після enhancement активна сцена отримує один
+прямий URL відповідно до межі 768 px, а початковий candidate list прибирається.
+Так Chromium не може спекулятивно запустити медіа прихованої сцени й потім
+позначити його `net::ERR_ABORTED`. Acceptance перевіряє `currentSrc` кожної з
+дев'яти сцен, відсутність unselected request і відсутність request failures.
 
 ## Evidence
 
@@ -72,8 +74,15 @@ Hosted Quality має bounded budget 60 хвилин, `workers: 1` і `retries: 
 Попередній 45-хвилинний budget був недостатнім: Actions run `32884161387`
 пройшов 639 із 648 тестів без test failure і був примусово скасований самим
 workflow timeout. Timeout, скасування або незавантажений evidence artifact
-залишають gate червоним; execution budget не змінює жодного test timeout і не
-дозволяє повторні спроби.
+залишають gate червоним; execution budget не дозволяє повторні спроби.
+
+Наступний Actions run `32891310108` чесно зупинився на 643 успішних тестах:
+три compact smart-home assets були перервані speculative parser на 1440 px, а
+шестиширинний choreography test вичерпав стандартні 30 секунд під час
+останньої штатної фази `disassemble`. Media lifecycle виправлено в runtime.
+Для цього одного виміряного choreography test встановлено 45 секунд; policy
+забороняє глобальний test timeout і будь-які неаудитовані scoped exceptions.
+`actionTimeout: 10_000`, `workers: 1` та `retries: 0` лишаються незмінними.
 
 ## Локальний порядок
 

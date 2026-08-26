@@ -1637,6 +1637,12 @@ test("the nine residence scene families and physical controls produce real visib
   expect(exteriorReduced.signature).not.toBe(exterior.signature);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
+  const smartHomeSceneRequests = [];
+  const recordSmartHomeSceneRequest = (request) => {
+    const path = new URL(request.url()).pathname;
+    if (/\/assets\/images\/(?:home\/control-room|smart-home\/[^/]+)-(?:768|1536)\.webp$/u.test(path)) smartHomeSceneRequests.push(path);
+  };
+  page.on("request", recordSmartHomeSceneRequest);
   await visit(page, "/smart-home/");
   const simulator = page.locator("[data-smart-home-simulator]");
   const smartHomeScene = simulator.locator(".smart-home__scene");
@@ -1699,6 +1705,9 @@ test("the nine residence scene families and physical controls produce real visib
   expect(new Set(selectedPresets).size).toBe(7);
   expect(axeStates.filter((state) => state.startsWith("system:"))).toHaveLength(9);
   expect(axeStates.filter((state) => state.startsWith("preset:"))).toHaveLength(7);
+  page.off("request", recordSmartHomeSceneRequest);
+  expect(smartHomeSceneRequests.filter((path) => path.endsWith("-768.webp")), "1440px must never start a compact smart-home scene candidate").toEqual([]);
+  expect(new Set(smartHomeSceneRequests.filter((path) => path.endsWith("-1536.webp"))).size, "all nine desktop smart-home scene families must load").toBe(9);
   await expectGroundedDynamicCopy(simulator, "smart-home controls and presets");
   writeEvidence("smart-home-axe-states.json", axeStates);
   });

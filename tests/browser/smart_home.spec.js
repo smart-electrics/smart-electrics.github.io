@@ -169,8 +169,12 @@ test("every preset atomically changes the configuration and returns from manual 
 });
 
 test("every system selector changes the real scene, active panel, and engineering explanation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const root = await simulator(page);
+  await expect(root.locator("picture[data-scene-picture] source")).toHaveCount(0);
+  await expect(root.locator('picture[data-scene-picture] img[srcset]')).toHaveCount(0);
+  const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
   for (const [id, label] of systems) {
     await root.locator(`button[data-phone-system="${id}"]`).click();
     await expect(root).toHaveAttribute("data-system", id);
@@ -180,6 +184,11 @@ test("every system selector changes the real scene, active panel, and engineerin
     await expect(root.locator("[data-phone-system-label]")).toHaveText(label);
     await expect(root.locator(`button[data-phone-system="${id}"]`)).toHaveAttribute("aria-pressed", "true");
     await expect(root.locator("[data-phone-topology-detail]")).not.toHaveText("");
+    const image = root.locator(`picture[data-scene-picture="${id}"] img`);
+    await expect(image).toHaveAttribute("data-scene-mobile", /-768\.webp$/u);
+    await expect(image).toHaveAttribute("data-scene-desktop", /-1536\.webp$/u);
+    await image.evaluate((element) => element.decode());
+    await expect.poll(() => image.evaluate((element, suffix) => new URL(element.currentSrc).pathname.endsWith(suffix), expectedVariant)).toBe(true);
   }
 });
 
@@ -344,7 +353,7 @@ test("preset and system selection use one cancellable outgoing snapshot, while r
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
 });
 
-test("keeps rapid scene replacement bounded and supplies responsive media for all nine scenes", async ({ page }) => {
+test("keeps rapid scene replacement bounded and supplies inert responsive metadata for all nine scenes", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);
   for (const [systemId] of systems) await root.locator(`[data-phone-system="${systemId}"]`).click();
@@ -353,11 +362,10 @@ test("keeps rapid scene replacement bounded and supplies responsive media for al
   for (const [systemId] of systems) {
     const picture = root.locator(`picture[data-scene-picture="${systemId}"]`);
     const image = picture.locator("img");
-    await expect(picture.locator('source[media="(max-width: 767px)"]')).toHaveAttribute("srcset", /-768\.webp$/u);
-    await expect(picture.locator('source[media="(min-width: 768px)"]')).toHaveAttribute("srcset", /-1536\.webp$/u);
-    await expect(picture.locator("source")).toHaveCount(2);
+    await expect(picture.locator("source")).toHaveCount(0);
     await expect(image).not.toHaveAttribute("srcset", /./u);
-    await expect(image).toHaveAttribute("src", /^data:image\/gif;base64,/u);
+    await expect(image).toHaveAttribute("data-scene-mobile", /-768\.webp$/u);
+    await expect(image).toHaveAttribute("data-scene-desktop", /-1536\.webp$/u);
     await expect(image).toHaveAttribute("sizes", "(max-width: 767px) 100vw, 1536px");
     await expect(image).toHaveAttribute("alt", /\S{8,}/);
   }

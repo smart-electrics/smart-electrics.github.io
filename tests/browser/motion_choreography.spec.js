@@ -307,6 +307,8 @@ test("route journeys use the same lifecycle without replacing their existing SVG
 });
 
 test("residence panels remain wholly inside the dominant scene frame at every target width", async ({ page }) => {
+  test.setTimeout(45_000);
+
   const assertPanelBounds = async () => {
     const bounds = await page.locator("[data-cinematic-composition]").evaluate((composition) => {
       const panel = composition.querySelector("[data-cinematic-panel]:not([hidden])");

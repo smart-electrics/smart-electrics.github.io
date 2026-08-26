@@ -109,6 +109,14 @@ function validateMarkup(root) {
   const picture = [...root.querySelectorAll("picture[data-scene-picture]")];
   const visualIds = picture.map((candidate) => candidate.dataset.scenePicture);
   const visiblePicture = picture.filter((candidate) => !candidate.hidden);
+  const pictureImages = picture.map((candidate) => only(candidate, "img"));
+  const initialVisualId = systemButtons[0]?.dataset.systemVisual;
+  const initialPicture = picture[visualIds.indexOf(initialVisualId)];
+  const initialImage = pictureImages[visualIds.indexOf(initialVisualId)];
+  const initialSources = initialPicture ? [...initialPicture.querySelectorAll("source")] : [];
+  const validInitialSources = initialImage && initialSources.length === 2 &&
+    initialSources[0].getAttribute("media") === "(max-width: 767px)" && initialSources[0].getAttribute("srcset") === initialImage.dataset.sceneMobile &&
+    initialSources[1].getAttribute("media") === "(min-width: 768px)" && initialSources[1].getAttribute("srcset") === initialImage.dataset.sceneDesktop;
   const controlPanels = [...root.querySelectorAll("[data-phone-control-panel]")];
   const controlPanelIds = controlPanels.map((panel) => panel.dataset.phoneControlPanel);
   const panelById = new Map(panels.map((panel) => [panel.dataset.presetPanel, panel]));
@@ -127,6 +135,8 @@ function validateMarkup(root) {
     allRadios.length !== radios.length || checked.length !== 1 || !uniqueIds(presetIds) || !sameIds(radios.map((radio) => radio.value), presetIds) ||
     !uniqueIds(systemIds) || !sameIds(staticLabels.map((label) => label.dataset.systemLabel), systemIds) ||
     !sameIds(controlPanelIds, systemIds) || !uniqueIds(visualIds) || !sameIds(visualIds, systemButtons.map((button) => button.dataset.systemVisual)) ||
+    !validInitialSources || picture.filter((candidate) => candidate !== initialPicture).some((candidate) => candidate.querySelector("source")) ||
+    pictureImages.some((image) => !image || !isNonEmpty(image.dataset.sceneMobile) || !isNonEmpty(image.dataset.sceneDesktop) || image.hasAttribute("srcset")) ||
     visiblePicture.length !== 1 || visiblePicture[0]?.dataset.scenePicture !== systemButtons[0]?.dataset.systemVisual ||
     systemButtons.some((button) => !isNonEmpty(text(button)) || !isNonEmpty(button.dataset.systemSummary) || !isNonEmpty(button.dataset.topologyLabel) || !isNonEmpty(button.dataset.topologyDetail) || hasInvalidDiagnostics(button))
   ) return null;
@@ -153,7 +163,7 @@ function validateMarkup(root) {
   const initialPresetId = checked[0].value;
   const initialSystemId = systemIds[0];
   if (!panelById.has(initialPresetId) || !presets[initialPresetId]) return null;
-  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, controlPanels, controlPanelById, controlsBySystem, presets, initialPresetId, initialSystemId };
+  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, pictureByVisualId: new Map(picture.map((candidate) => [candidate.dataset.scenePicture, candidate])), imageByVisualId: new Map(picture.map((candidate, index) => [candidate.dataset.scenePicture, pictureImages[index]])), controlPanels, controlPanelById, controlsBySystem, presets, initialPresetId, initialSystemId };
 }
 
 function enhanceSimulator(root) {
@@ -174,6 +184,7 @@ function enhanceSimulator(root) {
   }
   let state = machine.initialState;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const compactScene = window.matchMedia("(max-width: 767px)");
   let motionPhase = "idle";
   const activePanel = () => markup.panelById.get(state.presetId);
   const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
@@ -212,6 +223,18 @@ function enhanceSimulator(root) {
 
   const synchronizePanelInertness = (inert) => {
     markup.panels.forEach((panel) => { panel.inert = inert; });
+  };
+
+  const activateScenePicture = (visualId) => {
+    const picture = markup.pictureByVisualId.get(visualId);
+    const image = markup.imageByVisualId.get(visualId);
+    if (!picture || !image) return;
+    const source = compactScene.matches ? image.dataset.sceneMobile : image.dataset.sceneDesktop;
+    const resolvedSource = new URL(source, document.baseURI).href;
+    if (image.src !== resolvedSource) image.src = source;
+    image.removeAttribute("srcset");
+    picture.querySelectorAll("source").forEach((candidate) => candidate.remove());
+    markup.pictures.forEach((candidate) => { candidate.hidden = candidate !== picture; });
   };
 
   const controlValueLabel = (systemId, controlId, value) => {
@@ -262,7 +285,7 @@ function enhanceSimulator(root) {
     markup.radios.forEach((radio) => { radio.checked = radio.value === state.presetId; });
     markup.panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
     markup.systemButtons.forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
-    markup.pictures.forEach((candidate) => { candidate.hidden = candidate.dataset.scenePicture !== button.dataset.systemVisual; });
+    activateScenePicture(button.dataset.systemVisual);
     markup.sceneTitle.textContent = text(panel.querySelector("h3"));
     markup.sceneEyebrow.textContent = text(panel.querySelector(".section-kicker"));
     markup.sceneLabel.textContent = panel.dataset.sceneLabel;
@@ -372,6 +395,7 @@ function enhanceSimulator(root) {
     motion.cancel();
     synchronizePanelInertness(false);
   });
+  compactScene.addEventListener("change", () => activateScenePicture(markup.systemButtonById.get(state.systemId).dataset.systemVisual));
 }
 
 const root = document.querySelector("[data-smart-home-simulator]");
