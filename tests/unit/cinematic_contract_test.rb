@@ -265,7 +265,7 @@ class CinematicContractTest < Minitest::Test
     physical_layer = template[/<div class="residence-spine__physical-layer"[^>]*data-cinematic-physical-layer[^>]*>/]
 
     refute_nil physical_layer
-    refute_match(/\baria-hidden=/, physical_layer, "hidden already removes the layer from the accessibility tree; aria-hidden must not survive enhancement")
+    assert_match(/\baria-hidden="true"/, physical_layer, "the physical pixel overlay must remain decorative while the causal image carries its synchronized alt")
     refute_includes template, '<source data-cinematic-physical-source'
     refute_includes template, '<source media="(max-width: 767px)" srcset="{{ \'/assets/images/smart-home/\' | append: relation.scene_family | append: \'-768.webp\' | relative_url }}"'
     assert_includes template, '<img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w"'

@@ -54,6 +54,22 @@ async function physicalSignature(stage) {
   });
 }
 
+async function expectPhysicalSceneMirror(stage) {
+  const layer = stage.locator("[data-cinematic-physical-layer]");
+  const physicalImage = layer.locator("img[data-cinematic-physical-image]");
+  const causalImage = stage.locator("[data-cinematic-scene]:visible img");
+  await expect(layer).toHaveAttribute("aria-hidden", "true");
+  await expect(causalImage).toHaveCount(1);
+  const [src, srcset, alt] = await Promise.all([
+    physicalImage.getAttribute("src"),
+    physicalImage.getAttribute("srcset"),
+    physicalImage.getAttribute("alt")
+  ]);
+  await expect(causalImage).toHaveAttribute("src", src);
+  await expect(causalImage).toHaveAttribute("srcset", srcset);
+  await expect(causalImage).toHaveAttribute("alt", alt);
+}
+
 async function focusSceneSignature(stage) {
   return stage.locator("[data-cinematic-focus-scene]:visible img").evaluate(async (image) => {
     await image.decode();
@@ -101,7 +117,7 @@ test("both public cinematic surfaces expose the validated physical controls only
     await expect(root).toHaveAttribute("data-cinematic-physical-enhanced", "true");
     const picture = stage.locator("[data-cinematic-physical-picture]");
     const image = picture.locator("img");
-    await expect(stage.locator("[data-cinematic-physical-layer]")).not.toHaveAttribute("aria-hidden");
+    await expectPhysicalSceneMirror(stage);
     await expect(picture).toHaveCount(1);
     await expect(picture.locator("source")).toHaveCount(0);
     await expect(image).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1536\.webp 1536w/u);
@@ -137,6 +153,7 @@ test("assembled residence controls swap the physical room pixels without moving 
     expect(box?.height).toBeGreaterThanOrEqual(44);
   }
   const before = await physicalSignature(stage);
+  await expectPhysicalSceneMirror(stage);
   const geometry = await Promise.all([layer.boundingBox(), media.boundingBox()]);
 
   const blackout = stage.getByRole("button", { name: "Ролети blackout", exact: true });
@@ -153,6 +170,7 @@ test("assembled residence controls swap the physical room pixels without moving 
     return { opacity: style.opacity, filter: style.filter };
   }).every((style) => style.opacity === "1" && style.filter === "none"))).toBeTruthy();
   const afterWindow = await physicalSignature(stage);
+  await expectPhysicalSceneMirror(stage);
   expect(afterWindow.src).toMatch(/room-evening-blackout-(768|1536)\.webp$/);
   expect(afterWindow.hash).not.toBe(before.hash);
 
@@ -160,6 +178,7 @@ test("assembled residence controls swap the physical room pixels without moving 
   await expect(stage.getByRole("button", { name: "Маршрут", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(blackout).toHaveAttribute("aria-pressed", "true");
   const afterLighting = await physicalSignature(stage);
+  await expectPhysicalSceneMirror(stage);
   expect(afterLighting.src).toMatch(/room-route-blackout-(768|1536)\.webp$/);
   expect(afterLighting.hash).not.toBe(afterWindow.hash);
   const afterGeometry = await Promise.all([layer.boundingBox(), media.boundingBox()]);
@@ -210,6 +229,7 @@ test("stair and exterior relations use the same physical layer to swap their own
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "stairs:stair_lighting=route");
     await expect(stage.locator("[data-cinematic-live]")).toHaveText("Підсвітка сходів: Маршрут сходами.");
     const stairsRoute = await physicalSignature(stage);
+    await expectPhysicalSceneMirror(stage);
     expect(stairsRoute.src).toMatch(/stairs-route-(768|1536)\.webp$/);
     expect(stairsRoute.hash).not.toBe(stairsBefore.hash);
 
@@ -228,6 +248,7 @@ test("stair and exterior relations use the same physical layer to swap their own
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "exterior:exterior_lighting=reduced-night");
     await expect(stage.locator("[data-cinematic-live]")).toHaveText("Зовнішнє освітлення: Нічне зниження.");
     const exteriorReduced = await physicalSignature(stage);
+    await expectPhysicalSceneMirror(stage);
     expect(exteriorReduced.src).toMatch(/exterior-reduced-night-(768|1536)\.webp$/);
     expect(exteriorReduced.hash).not.toBe(exteriorBefore.hash);
     const afterGeometry = await Promise.all([layer.boundingBox(), media.boundingBox()]);
@@ -269,6 +290,30 @@ test("a unique but wrong physical control ID fails closed before controls become
   await expect(root).not.toHaveAttribute("data-cinematic-physical-enhanced", "true");
   await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
   await expect(stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
+});
+
+test("physical controls fail closed when their accessible causal image is missing", async ({ page }) => {
+  await page.addInitScript(() => {
+    const observer = new MutationObserver((records) => {
+      for (const record of records) for (const node of record.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        const scene = node.matches("[data-cinematic-scene-key='assembled']") ? node : node.querySelector("[data-cinematic-scene-key='assembled']");
+        const image = scene?.querySelector("img");
+        if (image) {
+          image.remove();
+          observer.disconnect();
+          return;
+        }
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+  await page.goto("/");
+  const { root, stage } = await stageFor(page);
+  await expect(root).not.toHaveAttribute("data-cinematic-physical-enhanced", "true");
+  await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
+  await expect(stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
+  await expect(stage.locator("[data-cinematic-direction-control]:visible")).toHaveCount(8);
 });
 
 test("physical controls respect reduced motion with an instant image swap", async ({ page }) => {

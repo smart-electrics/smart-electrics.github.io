@@ -11,11 +11,11 @@ import {
 const failures = [];
 const AUDITED_PLAYWRIGHT_CONFIG_SHA256 =
   "de1f2bf0cc7c97df5093b47d05bd9b2438260345211c71109d5f96fb4e116203";
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 648;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 653;
 const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
-  "c94a42fd137a88b42da64457949edaafbf5e6a7245675f49a3d1745b67643511";
+  "de348889f455322c008e67b3c339998302d56125b1517abd157eec1024e599a9";
 const AUDITED_CODEQL_WORKFLOW_SHA256 =
   "1a6b466dfcf0dbe50b29e6dfc1b70f2489c4c93efdecd7d3759f1dd8149a4883";
 const AUDITED_PAGES_WORKFLOW_SHA256 =
@@ -72,7 +72,7 @@ if (
   EXPECTED_PLAYWRIGHT_CONFIG_SHA256 !== AUDITED_PLAYWRIGHT_CONFIG_SHA256 ||
   EXPECTED_PLAYWRIGHT_TEST_COUNT !== AUDITED_PLAYWRIGHT_TEST_COUNT
 ) {
-  failures.push("Playwright digest and 648-test contract must match the independent policy literal.");
+  failures.push("Playwright digest and 653-test contract must match the independent policy literal.");
 }
 const playwrightRunnerDigest = createHash("sha256")
   .update(playwrightRunnerSource)

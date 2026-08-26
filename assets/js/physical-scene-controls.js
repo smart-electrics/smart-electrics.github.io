@@ -61,6 +61,7 @@ function enhancePhysicalControls(root) {
   const states = new Map(physical.systems.map((system) => [system.id, system.initialState]));
   let activeSystem = null;
   let physicalAvailable = false;
+  let enhancementValid = true;
 
   const responsiveSource = (scene) => window.matchMedia("(max-width: 767px)").matches ? scene.src768 : scene.src1536;
   const clearTransition = () => {
@@ -69,15 +70,19 @@ function enhancePhysicalControls(root) {
     snapshot.style.removeProperty("--cinematic-physical-snapshot-image");
     layer.removeAttribute("data-cinematic-physical-transition");
   };
-  const causalSceneFor = (sceneKey) => [...stage.querySelectorAll("[data-cinematic-scene-key]")].find((scene) => scene.dataset.cinematicSceneKey === sceneKey) || null;
+  const causalSceneFor = (sceneKey) => {
+    const matches = [...stage.querySelectorAll("[data-cinematic-scene-key]")].filter((scene) => scene.dataset.cinematicSceneKey === sceneKey);
+    return matches.length === 1 ? matches[0] : null;
+  };
   const synchronizeCausalScene = (system, scene) => {
     const causalScene = causalSceneFor(system.sceneKey);
     const causalImage = one(causalScene || root, "img");
-    if (!causalScene || !causalImage) return;
+    if (!causalScene || !causalImage) return false;
     causalScene.dataset.cinematicSceneImage = cssImage(responsiveSource(scene));
     causalImage.srcset = responsiveCandidates(scene);
     causalImage.src = scene.src768;
     causalImage.alt = scene.alt;
+    return true;
   };
   const synchronize = () => {
     if (!activeSystem) return false;
@@ -93,20 +98,28 @@ function enhancePhysicalControls(root) {
         button.setAttribute("aria-pressed", String(button.dataset.physicalValueId === state[control.id]));
       }
     }
-    synchronizeCausalScene(activeSystem, scene);
-    return true;
+    return synchronizeCausalScene(activeSystem, scene);
+  };
+  const disablePhysicalEnhancement = () => {
+    enhancementValid = false;
+    physicalAvailable = false;
+    activeSystem = null;
+    layer.hidden = true;
+    controlContainers.forEach((container) => { container.hidden = true; });
+    clearTransition();
+    root.removeAttribute("data-cinematic-physical-enhanced");
   };
   const setAvailability = (cinematicState, relationId) => {
     const sceneKey = cinematicState === "assembled" ? "assembled" : cinematicState === "reassembled" ? `relation:${text(relationId)}` : "";
     activeSystem = physical.systemForSceneKey(sceneKey);
-    physicalAvailable = root.dataset.cinematicEnhanced === "true" && Boolean(activeSystem);
+    physicalAvailable = enhancementValid && root.dataset.cinematicEnhanced === "true" && Boolean(activeSystem);
     layer.hidden = !physicalAvailable;
     controlContainers.forEach((container) => { container.hidden = !physicalAvailable || container !== containerBySystem.get(activeSystem?.id); });
     if (!physicalAvailable) {
       clearTransition();
       return;
     }
-    if (!synchronize()) clearTransition();
+    if (!synchronize()) disablePhysicalEnhancement();
   };
   const announce = () => {
     if (!activeSystem) return;
