@@ -298,4 +298,37 @@ class CinematicContractTest < Minitest::Test
       end
     end
   end
+
+  def test_requires_a_reusable_data_driven_decorative_inline_svg_physical_scene_overlay
+    overlay_path = File.join(project_root, "_includes", "physical-scene-svg-overlay.html")
+    assert File.file?(overlay_path), "the reusable physical-scene SVG overlay include must exist"
+    return unless File.file?(overlay_path)
+
+    overlay = File.read(overlay_path)
+    cinematic_stage = File.read(File.join(project_root, "_includes", "cinematic-stage.html"))
+    smart_home = File.read(File.join(project_root, "_layouts", "smart-home.html"))
+
+    assert_equal 1, overlay.scan(/<svg\b/).size, "the overlay include must expose one inline SVG root"
+    svg_root = overlay[/<svg\b[^>]*>/]
+    refute_nil svg_root
+    assert_match(/\baria-hidden="true"/, svg_root)
+    assert_match(/\bfocusable="false"/, svg_root)
+    %w[data-physical-scene-svg-overlay data-physical-scene-svg-system data-physical-scene-svg-layer data-physical-scene-svg-shape].each do |hook|
+      assert_includes overlay, hook, "the reusable SVG needs a stable #{hook} hook"
+    end
+    assert_includes overlay, "site.data.physical_scene_states.svg"
+    assert_includes overlay, "{% for layer in"
+    assert_includes overlay, "data-physical-scene-svg-profile"
+    assert_includes overlay, "| jsonify"
+    %w[linearGradient pattern filter clipPath].each do |definition|
+      assert_match(/<#{definition}\b[^>]*\bid="[^\"]*(?:include\.instance_id|overlay_instance)[^\"]*"/, overlay, "#{definition} IDs must be scoped to the overlay instance")
+    end
+    refute_match(/\b(?:if|case)\s+include\.system/, overlay, "the overlay must render generic data instead of hard-coded system branches")
+
+    assert_includes cinematic_stage, "{% include physical-scene-svg-overlay.html", "the cinematic residence stage must mount the reusable overlay"
+    assert_includes smart_home, "{% include physical-scene-svg-overlay.html", "the smart-home layout must mount the reusable overlay"
+    assert_operator smart_home.scan("{% include physical-scene-svg-overlay.html").size, :>=, 2, "the phone-controlled scene and the shared stairs/exterior stage each need an overlay"
+    assert_includes smart_home, "data-scenario-scene"
+    assert_includes smart_home, "data-smart-home-physical-stage"
+  end
 end

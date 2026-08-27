@@ -11,14 +11,14 @@ import {
 const failures = [];
 const AUDITED_PLAYWRIGHT_CONFIG_SHA256 =
   "de1f2bf0cc7c97df5093b47d05bd9b2438260345211c71109d5f96fb4e116203";
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 658;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 663;
 const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
-  "e68738c55026c0b3d8612e7802a2ed75813afe52c93ca4fb550b8abb8f6435b4";
+  "fd1b7f40069d4d6f3199e4faf3756afe091cd3acce451550e1da9d85913c9d80";
 const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
-  ["run_node_tests.js", "ac43f36c4d1156d4670e7b2e168d46f62ecf10592a596a4ea4817df9075907dc"],
-  ["run_ruby_test.rb", "0412640ea6064dfd4cd968ab9dd8a6cde28ff4def46796dcccc74122dddb76e8"],
+  ["run_node_tests.js", "52ea1f3ace01f16ea93a95f405bd7a7d38ad737e9a623b51c3dbff9edf4f2523"],
+  ["run_ruby_test.rb", "515dfed6a28cbfb0d8e8e619b8cc59566d8e6eb028d26d0724a2cbb505c8d035"],
   ["verify_agent_skills.rb", "37095cc3690e974f688b79d427ceadc4f69554acac5d666514c37affaad440fc"],
   ["validate_integrations.rb", "4d61fda2e1a474a0f3aaef69c1f033f7d018e87374a286fc25fc6881eaf4d531"],
   ["validate_production_assets.rb", "71f4bab684aad3b2375e9897012af27c57fed9c84c623c06ebb655699879a736"],
@@ -30,7 +30,7 @@ const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
   ["validate_cinematic_solutions.rb", "08e5c597a27cd704eef4934bbd03e717d746a7dd7ebacb338ca82d375cffc072"],
   ["validate_smart_home.rb", "5fb4bc32d5352aa7ef21cc393e3a462d4eaac414d4decfa5998a4a75daf7d877"],
   ["validate_cinematic_system.rb", "1dd770d453203f88b818d1b2ff7dec19e9b972fa31addf763753177c0072d8b7"],
-  ["validate_physical_scene_states.rb", "e6b524a7ebe41226d964faffb9d75dc00d1805a4d4172d79fa80246ff6df2226"],
+  ["validate_physical_scene_states.rb", "1a1e642bb7c734869125c9a7ae682a3447c6542fb1076ba48754b903071a112d"],
   ["validate_cinematic_route_transitions.rb", "e8a0baa78be0bccf4f35c3724c897a932446df4ed8a701ec0ae9ddd686a0997d"]
 ]);
 const AUDITED_CODEQL_WORKFLOW_SHA256 =
@@ -89,7 +89,7 @@ if (
   EXPECTED_PLAYWRIGHT_CONFIG_SHA256 !== AUDITED_PLAYWRIGHT_CONFIG_SHA256 ||
   EXPECTED_PLAYWRIGHT_TEST_COUNT !== AUDITED_PLAYWRIGHT_TEST_COUNT
 ) {
-  failures.push("Playwright digest and 658-test contract must match the independent policy literal.");
+  failures.push("Playwright digest and 663-test contract must match the independent policy literal.");
 }
 const playwrightRunnerDigest = createHash("sha256")
   .update(playwrightRunnerSource)

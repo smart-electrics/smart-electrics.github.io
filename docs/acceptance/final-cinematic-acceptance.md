@@ -25,6 +25,7 @@
 | Кінематографія | assembled, focus і reassembled для кожної stateful composition | Більше однієї видимої сцени або панелі, кадр занадто малий відносно композиції, немає зрозумілого зв'язку між control і scene |
 | Геометрія | 20 composition routes × 6 widths × 3 settled states | Scene, panel або rail виходить за stage/composition, неконтрольовано перетинається, приховує overflow або лишає порожній хвіст |
 | Motion | disassemble, hold, reassemble, idle з виміряними мінімальними фазами | Немає чистого hold, остання швидка дія не перемагає, конектор не пов'язаний із вибраним станом, text opacity/filter animation або motion не зупиняється для reduced motion |
+| Контекстна SVG-фізика | Активна секція, WebP, текст сцени, одна SVG-system group, спільний cover/focal crop і Chromium pixel delta для кожного публічного control | Контексти розходяться, SVG дрейфує від растра, геометрія не прив'язана до видимого об'єкта, неактивна system group лишається видимою або будь-який control не змінює кадр |
 | Доступність | Axe на початковому й кожному активному стані | Axe violation, невидимий focus, duplicated interactive content або snapshot без aria-hidden |
 | Копія | source, built visible copy і runtime dynamic copy | Непідтверджена телеметрія, status, portal, account, remote control, vendor compatibility, ціна, гарантія, сертифікат, review або клієнтський проєкт як факт |
 | Медіа | _data/production_assets.yml і pure Ruby parser | Missing, stale, orphan або semantic pair/provenance drift; WebP без перевірених bytes, hash і decoded dimensions |
@@ -100,7 +101,7 @@ runtime червоним при будь-якому фактичному `skippe
 результаті. Package scripts і Make recipes зафіксовані без `grep`, `project`,
 `shard` чи інших selection arguments; Node wrapper відхиляє всі CLI options,
 успадковані `NODE_OPTIONS`/`NODE_TEST_CONTEXT`, неповний TAP summary і нуль
-виконаних тестів; повний Node suite додатково має повернути всі 65 зафіксованих
+виконаних тестів; повний Node suite додатково має повернути всі 71 зафіксовані
 unit-тестів.
 Кожен Ruby unit-файл проходить через окремий Minitest wrapper: ненульовий exit,
 відсутній або дубльований summary, нуль запусків чи будь-який `skip` лишають gate
@@ -108,7 +109,7 @@ unit-тестів.
 відхиляє preload-контроли до старту Ruby. npm install виконується з
 `--ignore-scripts`, а package lifecycle hooks заборонені.
 Playwright config має audited source digest, кожен project дозволяє лише свій
-`viewport`, а runtime reporter вимагає рівно 658 discovered tests. Кожен Make
+`viewport`, а runtime reporter вимагає рівно 663 discovered tests. Кожен Make
 target має одне визначення; pattern/special rules, альтернативні default
 makefiles, `.npmrc` і зовнішні includes заборонені.
 Remote Quality workflow заборонений. Make відхиляє успадковані execution

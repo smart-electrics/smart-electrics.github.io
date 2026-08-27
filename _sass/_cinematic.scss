@@ -380,10 +380,14 @@
 }
 
 .residence-spine__physical-snapshot[data-cinematic-physical-snapshot-active="true"] {
-  animation: residence-spine-physical-outgoing 760ms cubic-bezier(.28, .74, .22, 1) both;
+  animation: residence-spine-physical-outgoing 320ms cubic-bezier(.28, .74, .22, 1) both;
 }
 
-.residence-spine__physical-layer[data-cinematic-physical-transition="true"] .residence-spine__physical-picture:not([hidden]) {
+.residence-spine[data-cinematic-physical-motion-phase="hold"] .residence-spine__physical-picture:not([hidden]) {
+  visibility: hidden;
+}
+
+.residence-spine[data-cinematic-physical-motion-phase="reassemble"] .residence-spine__physical-picture:not([hidden]) {
   animation: residence-spine-physical-incoming 760ms cubic-bezier(.2, .72, .18, 1) both;
 }
 

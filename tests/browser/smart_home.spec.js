@@ -1,4 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
+import { createHash } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 const route = "/smart-home/";
@@ -34,7 +35,7 @@ async function assertViewport(page, width) {
   const bounds = await page.evaluate(() => ({
     overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
     escaped: [...document.querySelectorAll("main *")].filter((element) => {
-      if (element.closest("[data-outgoing-snapshot]") || getComputedStyle(element).display === "none" || getComputedStyle(element).visibility === "hidden") return false;
+      if (element.closest("[data-outgoing-snapshot], [data-physical-scene-svg-overlay]") || getComputedStyle(element).display === "none" || getComputedStyle(element).visibility === "hidden") return false;
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0 && (rect.left < -1 || rect.right > innerWidth + 1);
     }).length,
@@ -63,6 +64,150 @@ async function readPresetPreview(root) {
     };
   });
 }
+
+async function renderedPixelSignature(page, surface) {
+  await surface.scrollIntoViewIfNeeded();
+  const bounds = await surface.boundingBox();
+  const viewport = page.viewportSize();
+  if (!bounds || !viewport) throw new Error("SVG pixel evidence needs a bounded visible surface");
+  const x = Math.max(0, bounds.x);
+  const y = Math.max(0, bounds.y);
+  const right = Math.min(viewport.width, bounds.x + bounds.width);
+  const bottom = Math.min(viewport.height, bounds.y + bounds.height);
+  if (right <= x || bottom <= y) throw new Error("SVG pixel evidence needs viewport intersection");
+  const pixels = await page.screenshot({ animations: "disabled", clip: { x, y, width: right - x, height: bottom - y } });
+  return createHash("sha256").update(pixels).digest("hex");
+}
+
+async function chooseAlternateSegment(root, systemId, controlId) {
+  const alternate = root.locator(
+    `[data-phone-segment][data-control-system="${systemId}"][data-control-id="${controlId}"]:not([aria-pressed="true"])`
+  ).first();
+  await expect(alternate, `${systemId}:${controlId} needs an alternate contextual value`).toHaveCount(1);
+  await alternate.click();
+}
+
+async function expectSubordinatePhysicalContext(physical, systemId, effect) {
+  const overlay = physical.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-physical']");
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-enhanced", "true");
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", systemId);
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-signature", new RegExp(`^${systemId}:`, "u"));
+  await expect(overlay.locator(`[data-physical-scene-svg-system="${systemId}"]:not([hidden])`)).toHaveCount(1);
+  await expect(overlay.locator(`[data-physical-scene-svg-system="${systemId}"] [data-physical-scene-svg-effect="${effect}"]:not([hidden])`).first()).toHaveCount(1);
+  expect(await overlay.locator("[data-physical-scene-svg-system]").evaluateAll((groups, activeId) => groups
+    .filter((group) => group.getAttribute("data-physical-scene-svg-system") !== activeId)
+    .every((group) => group.hasAttribute("hidden")), systemId), `${systemId} must be the only subordinate visual context`).toBe(true);
+}
+
+async function activeSvgParameterSignature(overlay, systemId) {
+  return overlay.locator(`[data-physical-scene-svg-system="${systemId}"]:not([hidden])`).evaluate((group) => [...group.querySelectorAll("[data-physical-scene-svg-layer]:not([hidden])")]
+    .map((layer) => `${layer.dataset.physicalSceneSvgLayer}:${layer.dataset.physicalSceneSvgParameters}`)
+    .join("|"));
+}
+
+test("the nine public systems project their selected context into one visible SVG physical layer", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(route);
+  const root = await simulator(page);
+  const scene = root.locator("[data-scenario-scene]");
+  const overlay = scene.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
+  const systems = [
+    {
+      id: "lighting", effect: "glow",
+      change: () => root.locator('[data-phone-range][data-control-system="lighting"][data-control-id="brightness"]').evaluate((input) => {
+        input.value = input.value === input.max ? input.min : input.max;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      })
+    },
+    { id: "climate", effect: "thermal", change: () => chooseAlternateSegment(root, "climate", "comfort") },
+    { id: "access", effect: "route", change: () => root.locator('[data-phone-toggle][data-control-system="access"][data-control-id="arrival_route"]').click() },
+    { id: "security", effect: "coverage", change: () => chooseAlternateSegment(root, "security", "coverage") },
+    { id: "panel", effect: "topology", change: () => chooseAlternateSegment(root, "panel", "layer") },
+    { id: "low-voltage", effect: "topology", change: () => chooseAlternateSegment(root, "low-voltage", "route") },
+    { id: "backup-power", effect: "topology", change: () => chooseAlternateSegment(root, "backup-power", "restore_intent") },
+    { id: "audio", effect: "audio", change: () => root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]').click() },
+    {
+      id: "shading", effect: "tulle",
+      change: () => root.locator('[data-phone-range][data-control-system="shading"][data-control-id="position"]').evaluate((input) => {
+        input.value = input.value === input.min ? input.max : input.min;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      })
+    }
+  ];
+
+  for (const system of systems) {
+    const systemButton = root.locator(`[data-phone-system="${system.id}"]`);
+    await systemButton.click();
+    await expect(root).toHaveAttribute("data-system", system.id);
+    const selectedSystemContext = await systemButton.evaluate((button) => ({
+      label: button.textContent.trim(),
+      eyebrow: button.dataset.topologyLabel,
+      summary: button.closest("[data-smart-home-simulator]")
+        .querySelector(`[data-preset-panel]:not([hidden]) [data-system-detail="${button.dataset.phoneSystem}"]`)
+        .dataset.summary
+    }));
+    await expect(scene.locator("[data-scene-title]")).toHaveText(selectedSystemContext.label);
+    await expect(scene.locator("[data-scene-eyebrow]")).toHaveText(selectedSystemContext.eyebrow);
+    await expect(scene.locator("[data-active-scene-label]")).toHaveText(selectedSystemContext.summary);
+    await expect(scene.locator("[data-topology-result]")).toContainText(selectedSystemContext.label);
+    await expect(overlay).toBeVisible();
+    await expect(overlay).toHaveAttribute("data-physical-scene-svg-enhanced", "true");
+    await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", system.id);
+    const rootSignature = await root.getAttribute("data-physical-scene-svg-signature");
+    expect(rootSignature, `${system.id} must expose one public SVG signature on the selected simulator state`).toMatch(new RegExp(`^${system.id}:`, "u"));
+    await expect(overlay).toHaveAttribute("data-physical-scene-svg-signature", rootSignature);
+    const registration = await scene.evaluate((surface) => {
+      const image = surface.querySelector("picture[data-scene-picture]:not([hidden]) img");
+      const svg = surface.querySelector("[data-physical-scene-svg-overlay]");
+      const imageStyle = getComputedStyle(image);
+      const svgStyle = getComputedStyle(svg);
+      return {
+        objectFit: imageStyle.objectFit,
+        transform: imageStyle.transform,
+        imagePositionX: Number.parseFloat(imageStyle.objectPosition),
+        overlayPositionX: Number.parseFloat(svgStyle.getPropertyValue("--physical-crop-x")) * 100
+      };
+    });
+    expect(registration.objectFit, `${system.id} WebP must use the same cover model as its SVG crop`).toBe("cover");
+    expect(registration.transform, `${system.id} WebP must not drift away from the SVG registration`).toBe("none");
+    expect(registration.imagePositionX, `${system.id} WebP and SVG must share their horizontal focal point`).toBeCloseTo(registration.overlayPositionX, 4);
+
+    const activeSystem = overlay.locator(`[data-physical-scene-svg-system="${system.id}"]:not([hidden])`);
+    await expect(activeSystem).toHaveCount(1);
+    const nonSelectedSystemsAreHidden = await overlay.locator("[data-physical-scene-svg-system]").evaluateAll((groups, activeId) => groups
+      .filter((group) => group.getAttribute("data-physical-scene-svg-system") !== activeId)
+      .every((group) => group.hasAttribute("hidden")), system.id);
+    expect(nonSelectedSystemsAreHidden, system.id + " must hide every non-selected SVG system").toBe(true);
+    const relevantLayer = activeSystem.locator(`[data-physical-scene-svg-effect="${system.effect}"]`).first();
+    await expect(relevantLayer, `${system.id} needs its context-specific SVG effect`).toHaveCount(1);
+    const geometry = await relevantLayer.locator("[data-physical-scene-svg-shape]").first().evaluate((shape) => {
+      const box = shape.getBBox();
+      const svg = shape.ownerSVGElement;
+      const viewBox = svg?.viewBox.baseVal;
+      return {
+        finite: [box.x, box.y, box.width, box.height].every(Number.isFinite),
+        hasExtent: box.width > 0 || box.height > 0,
+        withinSource: box.x >= 0 && box.y >= 0 && box.x + box.width <= 1536 && box.y + box.height <= 1024,
+        intersectsCrop: Boolean(viewBox) && box.x + box.width > viewBox.x && box.y + box.height > viewBox.y && box.x < viewBox.x + viewBox.width && box.y < viewBox.y + viewBox.height
+      };
+    });
+    expect(geometry, `${system.id} physical shape geometry`).toEqual({ finite: true, hasExtent: true, withinSource: true, intersectsCrop: true });
+
+    const before = {
+      rootSignature,
+      overlaySignature: await overlay.getAttribute("data-physical-scene-svg-signature"),
+      parameters: await relevantLayer.getAttribute("data-physical-scene-svg-parameters"),
+      pixels: await renderedPixelSignature(page, scene)
+    };
+    expect(before.parameters, `${system.id} layer must expose its rendered public parameters`).toBeTruthy();
+    await system.change();
+    await expect.poll(() => root.getAttribute("data-physical-scene-svg-signature")).not.toBe(before.rootSignature);
+    await expect.poll(() => overlay.getAttribute("data-physical-scene-svg-signature")).not.toBe(before.overlaySignature);
+    await expect.poll(() => relevantLayer.getAttribute("data-physical-scene-svg-parameters")).not.toBe(before.parameters);
+    expect(await renderedPixelSignature(page, scene), `${system.id} native control must change rendered scene pixels`).not.toBe(before.pixels);
+  }
+});
 
 test("upgrades the complete nine-system, seven-preset configuration into one interactive phone", async ({ page }) => {
   const response = await page.goto(route);
@@ -106,30 +251,38 @@ test("physical stair and exterior scenes are subordinate to the canonical phone 
   const expectedInitialVariant = page.viewportSize().width <= 768 ? "-768.webp" : "-1536.webp";
   await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, expectedInitialVariant)).toBe(true);
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=off");
+  await expectSubordinatePhysicalContext(physical, "stairs", "route");
   await physical.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=route");
+  await expectSubordinatePhysicalContext(physical, "stairs", "route");
   await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `stairs-route${expectedInitialVariant}`)).toBe(true);
   await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
   await physical.getByRole("button", { name: "Нічне зниження", exact: true }).click();
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "exterior:exterior_lighting=reduced-night");
+  await expectSubordinatePhysicalContext(physical, "exterior", "route");
   await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `exterior-reduced-night${expectedInitialVariant}`)).toBe(true);
 });
 
 test("malformed subordinate physical picker, control, or initial media fails closed", async ({ page }) => {
   await page.addInitScript(() => {
-    const observer = new MutationObserver((records) => {
-      for (const record of records) for (const node of record.addedNodes) {
-        if (!(node instanceof Element)) continue;
-        const physical = node.matches("[data-smart-home-physical]") ? node : node.querySelector("[data-smart-home-physical]");
-        if (!physical) continue;
-        physical.querySelector("button[data-smart-home-physical-system='stairs']").dataset.smartHomePhysicalSystem = "unknown";
-        physical.querySelector("button[data-smart-home-physical-action]").dataset.physicalValueId = "unknown";
-        physical.querySelector("[data-smart-home-physical-image]").setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp 768w, /assets/images/cinematic/residence/wrong-1536.webp 1536w");
-        observer.disconnect();
-        return;
-      }
+    const corruptPhysicalScene = () => {
+      const physical = document.querySelector("[data-smart-home-physical]");
+      const picker = physical?.querySelector("button[data-smart-home-physical-system='stairs']");
+      const control = physical?.querySelector("button[data-smart-home-physical-action]");
+      const image = physical?.querySelector("[data-smart-home-physical-image]");
+      if (!physical || !picker || !control || !image) return false;
+
+      picker.dataset.smartHomePhysicalSystem = "unknown";
+      control.dataset.physicalValueId = "unknown";
+      image.setAttribute("srcset", "/assets/images/cinematic/residence/wrong-768.webp 768w, /assets/images/cinematic/residence/wrong-1536.webp 1536w");
+      return true;
+    };
+    const observer = new MutationObserver(() => {
+      if (!corruptPhysicalScene()) return;
+      observer.disconnect();
     });
     observer.observe(document, { childList: true, subtree: true });
+    if (corruptPhysicalScene()) observer.disconnect();
   });
   await page.goto(route);
   const root = await simulator(page);
@@ -212,32 +365,64 @@ test("panel and low-voltage controls expose observation, isolation, and the next
   }
 });
 
-test("manual controls update the visible preview without starting a scene transition, and a preset restores all values", async ({ page }) => {
+test("manual controls use the shared cancellable lifecycle and presets still restore all values", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);
   const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
-  const phaseBeforeManual = await root.getAttribute("data-motion-phase");
+  const overlay = root.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
   await slider.evaluate((input) => {
     input.value = "78";
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(1);
+  await expect(root).toHaveAttribute("data-motion-phase", "disassemble");
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   await expect(root).toHaveAttribute("data-manual", "true");
   await expect(root.locator("[data-scene-preview]")).toHaveAttribute("data-value", "78");
   await expect(root.locator("[data-phone-signature]")).toContainText("Ручне коригування на основі");
   await expect(root.locator("[data-topology-result]")).toContainText("Рівень світла: 78%");
   await expect(root.locator('[data-control-output="lighting:brightness"]')).toHaveText("Яскравість: 78%");
-  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
-  await expect(root).toHaveAttribute("data-motion-phase", phaseBeforeManual || "initial");
+  await expect(root).toHaveAttribute("data-physical-scene-svg-signature", /lighting:brightness=78(?:\||$)/u);
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-signature", /lighting:brightness=78(?:\||$)/u);
+
+  await slider.evaluate((input) => {
+    input.value = "20";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.value = "90";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(1);
+  await expect(root).toHaveAttribute("data-motion-phase", "disassemble");
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
+  await expect(slider).toHaveValue("90");
+  await expect(root.locator('[data-control-output="lighting:brightness"]')).toHaveText("Яскравість: 90%");
+  await expect(root).toHaveAttribute("data-physical-scene-svg-signature", /lighting:brightness=90(?:\||$)/u);
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-signature", /lighting:brightness=90(?:\||$)/u);
 
   await root.getByRole("radio", { name: "Ранок" }).click();
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   await expect(root).toHaveAttribute("data-manual", "false");
-  await expect(slider).not.toHaveValue("78");
+  await expect(slider).not.toHaveValue("90");
 
   await root.getByRole("radio", { name: "Вечір" }).check();
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
   await expect(root).toHaveAttribute("data-preset", "evening");
   await expect(root).toHaveAttribute("data-manual", "false");
-  await expect(slider).not.toHaveValue("78");
+  await expect(slider).not.toHaveValue("90");
   await expect(root.locator("[data-phone-live]")).toContainText("Вечір");
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(route);
+  const reducedRoot = await simulator(page);
+  const reducedSlider = reducedRoot.locator('[data-phone-range][data-control-system="lighting"]');
+  await reducedSlider.evaluate((input) => {
+    input.value = "55";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await expect(reducedRoot).toHaveAttribute("data-motion-phase", "idle");
+  await expect(reducedRoot.locator("[data-outgoing-snapshot]")).toHaveCount(0);
+  await expect(reducedRoot.locator('[data-control-output="lighting:brightness"]')).toHaveText("Яскравість: 55%");
+  await expect(reducedRoot).toHaveAttribute("data-physical-scene-svg-signature", /lighting:brightness=55(?:\||$)/u);
 });
 
 test("segment and toggle controls have native keyboard actions and update their own visible outputs", async ({ page }) => {
@@ -261,7 +446,7 @@ test("segment and toggle controls have native keyboard actions and update their 
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(root.locator('[data-control-output="panel:priority_groups"]')).toContainText("Пріоритетні групи враховано");
   await expect(root.locator("[data-scene-preview]")).toHaveAttribute("data-control", "priority_groups");
-  await expect(root.locator("[data-topology-result]")).toContainText("Наступна інженерна перевірка: Врахувати пріоритетні групи, Пріоритетні групи враховано");
+  await expect(root.locator("[data-topology-result]")).toContainText("Наступна інженерна перевірка. Врахувати пріоритетні групи: Пріоритетні групи враховано.");
 });
 
 test("audio follows source to zone to group and mute or restore changes visible scene pixels", async ({ page }) => {
@@ -269,13 +454,19 @@ test("audio follows source to zone to group and mute or restore changes visible 
   const root = await simulator(page);
   await root.locator('[data-phone-system="audio"]').click();
   const mute = root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]');
-  const preview = root.locator("[data-scene-preview]");
-  const before = await preview.evaluate((element) => getComputedStyle(element, "::after").opacity);
+  const scene = root.locator("[data-scenario-scene]");
+  const overlay = scene.locator("[data-physical-scene-svg-overlay]");
+  const audioLayer = overlay.locator('[data-physical-scene-svg-system="audio"] [data-physical-scene-svg-effect="audio"]');
+  const before = {
+    parameters: await audioLayer.getAttribute("data-physical-scene-svg-parameters"),
+    pixels: await renderedPixelSignature(page, scene)
+  };
 
   await mute.click();
   await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук приглушено");
   await expect(root.locator("[data-topology-result]")).toContainText("Звук приглушено");
-  await expect.poll(() => preview.evaluate((element) => getComputedStyle(element, "::after").opacity)).not.toBe(before);
+  await expect.poll(() => audioLayer.getAttribute("data-physical-scene-svg-parameters")).not.toBe(before.parameters);
+  expect(await renderedPixelSignature(page, scene)).not.toBe(before.pixels);
 
   await mute.click();
   await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук відновлено");
@@ -285,13 +476,19 @@ test("every one of the twenty manual controls changes its active scene preview s
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const root = await simulator(page);
+  const scene = root.locator("[data-scenario-scene]");
+  const overlay = root.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
   let mutated = 0;
   for (const [systemId] of systems) {
     await root.locator(`[data-phone-system="${systemId}"]`).click();
+    await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", systemId);
     const controls = root.locator("[data-phone-control-panel]:visible [data-phone-control]");
     for (let index = 0; index < await controls.count(); index += 1) {
       const control = controls.nth(index);
       const signature = await root.getAttribute("data-preview-signature");
+      const svgSignature = await overlay.getAttribute("data-physical-scene-svg-signature");
+      const svgParameters = await activeSvgParameterSignature(overlay, systemId);
+      const renderedPixels = await renderedPixelSignature(page, scene);
       const type = await control.getAttribute("data-control-type");
       if (type === "range") {
         await control.locator("input").evaluate((input) => {
@@ -306,6 +503,9 @@ test("every one of the twenty manual controls changes its active scene preview s
         await control.locator("[data-phone-toggle]").click();
       }
       await expect(root).not.toHaveAttribute("data-preview-signature", signature || "");
+      await expect(overlay).not.toHaveAttribute("data-physical-scene-svg-signature", svgSignature || "");
+      await expect.poll(() => activeSvgParameterSignature(overlay, systemId)).not.toBe(svgParameters);
+      expect(await renderedPixelSignature(page, scene), `${systemId} control ${index + 1} must change rendered Chromium pixels`).not.toBe(renderedPixels);
       await expect(root.locator("[data-topology-result]")).not.toHaveText("");
       await expect(root.locator("[data-phone-signature]")).toContainText("Ручне коригування на основі");
       await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
@@ -357,8 +557,20 @@ test("keeps rapid scene replacement bounded and supplies inert responsive metada
   await page.goto(route);
   const root = await simulator(page);
   for (const [systemId] of systems) await root.locator(`[data-phone-system="${systemId}"]`).click();
+  await root.locator('[data-phone-range][data-control-system="shading"][data-control-id="position"]').evaluate((input) => {
+    input.value = "37";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(1);
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0, { timeout: 1800 });
+  await expect(root).toHaveAttribute("data-motion-phase", "idle");
+  await expect(root).toHaveAttribute("data-system", "shading");
+  await expect(root).toHaveAttribute("data-physical-scene-svg-signature", /shading:position=37(?:\||$)/u);
+  await expect(root.locator("[data-scene-title]")).toHaveText("Сонцезахист");
+  const overlay = root.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", "shading");
+  await expect(overlay.locator('[data-physical-scene-svg-system="shading"]:not([hidden])')).toHaveCount(1);
+  await expect(overlay.locator("[data-physical-scene-svg-system]:not([hidden])")).toHaveCount(1);
   for (const [systemId] of systems) {
     const picture = root.locator(`picture[data-scene-picture="${systemId}"]`);
     const image = picture.locator("img");
@@ -473,6 +685,22 @@ test("keeps a complete static explanation when JavaScript is unavailable or enha
   await expect(malformed.locator("[data-smart-home-phone]")).toBeHidden();
   await expect(malformed.locator("[data-static-explainer]")).toBeVisible();
   await expect(malformed.locator("[data-preset-panel]:visible")).toHaveCount(presets.length);
+
+  await page.unroute("**/smart-home/");
+  await page.route("**/smart-home/", async (request) => {
+    const response = await request.fetch();
+    const body = (await response.text()).replaceAll('"view_box":{"width":1536,"height":1024}', '"view_box":{"width":0,"height":1024}');
+    await request.fulfill({ response, body });
+  });
+  await page.goto(route);
+  const svgFallback = await simulator(page);
+  await expect(svgFallback).toHaveAttribute("data-enhanced", "true");
+  await expect(svgFallback.locator("[data-smart-home-phone]")).toBeVisible();
+  await expect(svgFallback.locator("picture[data-scene-picture]:visible")).toHaveCount(1);
+  await expect(svgFallback.locator('[data-physical-scene-svg-overlay][data-physical-scene-svg-enhanced="true"]')).toHaveCount(0);
+  await svgFallback.locator('[data-phone-system="climate"]').click();
+  await expect(svgFallback).toHaveAttribute("data-system", "climate");
+  await expect(svgFallback.locator('[data-scene-picture="climate"]')).toBeVisible();
 });
 
 test("all enhanced interactive states are keyboard accessible and pass axe", async ({ page }) => {

@@ -1,4 +1,5 @@
 import { createCinematicMotion } from "./cinematic-motion.js";
+import { createPhysicalSceneSvgOverlay } from "./physical-scene-svg-overlay.js";
 import { createSmartHomeMachine } from "./smart-home-simulator-state.js";
 
 const isNonEmpty = (value) => typeof value === "string" && value.trim().length > 0;
@@ -186,8 +187,37 @@ function enhanceSimulator(root) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const compactScene = window.matchMedia("(max-width: 767px)");
   let motionPhase = "idle";
+  let physicalSceneSvgOverlay = null;
+  try {
+    physicalSceneSvgOverlay = createPhysicalSceneSvgOverlay(markup.scene);
+    physicalSceneSvgOverlay?.setPhase("idle");
+  } catch (_) {
+    physicalSceneSvgOverlay = null;
+  }
   const activePanel = () => markup.panelById.get(state.presetId);
   const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
+
+  const synchronizePhysicalSceneSvg = () => {
+    let frame = null;
+    try {
+      frame = physicalSceneSvgOverlay?.render({
+        systemId: state.systemId,
+        valuesBySystem: state.valuesBySystem
+      });
+    } catch (_) {
+      frame = null;
+    }
+    if (frame?.signature) root.dataset.physicalSceneSvgSignature = frame.signature;
+    else delete root.dataset.physicalSceneSvgSignature;
+  };
+
+  const setPhysicalSceneSvgPhase = (phase) => {
+    try {
+      physicalSceneSvgOverlay?.setPhase(phase);
+    } catch (_) {
+      // The raster scene remains the baseline if the optional SVG adapter fails.
+    }
+  };
 
   const removeSnapshots = () => root.querySelectorAll("[data-outgoing-snapshot]").forEach((snapshot) => snapshot.dispatchEvent(new Event("smart-home:snapshot-remove")));
   const clearTransition = () => {
@@ -271,6 +301,8 @@ function enhanceSimulator(root) {
     const button = markup.systemButtonById.get(state.systemId);
     const detail = detailFor(state.systemId);
     const controls = markup.controlsBySystem[state.systemId];
+    const selectedSceneContext = detail.dataset.summary || button.dataset.systemSummary;
+    const selectedSystemLabel = text(button);
     const changedControl = controls.find((control) => control.id === changedControlId) || controls[0];
     const changedValue = state.valuesBySystem[state.systemId][changedControl.id];
     if (initial) motionPhase = "idle";
@@ -286,9 +318,9 @@ function enhanceSimulator(root) {
     markup.panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
     markup.systemButtons.forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
     activateScenePicture(button.dataset.systemVisual);
-    markup.sceneTitle.textContent = text(panel.querySelector("h3"));
-    markup.sceneEyebrow.textContent = text(panel.querySelector(".section-kicker"));
-    markup.sceneLabel.textContent = panel.dataset.sceneLabel;
+    markup.sceneTitle.textContent = selectedSystemLabel;
+    markup.sceneEyebrow.textContent = button.dataset.topologyLabel;
+    markup.sceneLabel.textContent = selectedSceneContext;
     markup.activeLabel.textContent = text(button);
     markup.activeSummary.textContent = detail.dataset.summary || button.dataset.systemSummary;
     markup.topologyLabel.textContent = button.dataset.topologyLabel;
@@ -307,12 +339,13 @@ function enhanceSimulator(root) {
       markup.scenePreview.style.setProperty(`--smart-home-preview-control-${index + 1}`, String(normalizedControlValue(control, state.valuesBySystem[state.systemId][control.id])));
       root.style.setProperty(`--smart-home-preview-control-${index + 1}`, String(normalizedControlValue(control, state.valuesBySystem[state.systemId][control.id])));
     });
+    synchronizePhysicalSceneSvg();
     const diagnostics = isNonEmpty(button.dataset.diagnosticObservation);
     markup.topologySource.textContent = diagnostics ? button.dataset.diagnosticObservation : text(panel.querySelector("[data-preset-event]"));
     markup.topologyLogic.textContent = diagnostics ? button.dataset.diagnosticIsolation : button.dataset.topologyLabel;
     markup.topologyResult.textContent = diagnostics
-      ? `${panel.dataset.sceneLabel}: ${button.dataset.diagnosticNextStep}: ${controlLabel(state.systemId, changedControl.id)}, ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`
-      : `${panel.dataset.sceneLabel}: ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}`;
+      ? `${selectedSystemLabel}: ${button.dataset.diagnosticNextStep}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
+      : `${selectedSystemLabel}: ${selectedSceneContext} ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`;
     updateControls();
     const status = state.manual
       ? `Ручне коригування на основі «${panel.querySelector("h3").textContent.trim()}»: ${text(button)}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
@@ -334,6 +367,7 @@ function enhanceSimulator(root) {
     onPhase: (phase) => {
       motionPhase = phase;
       root.dataset.motionPhase = phase;
+      setPhysicalSceneSvgPhase(phase);
       synchronizePanelInertness(phase === "disassemble" || phase === "hold");
       if (phase === "hold" || phase === "idle") {
         clearTransition();
@@ -342,12 +376,15 @@ function enhanceSimulator(root) {
     }
   });
 
-  const beginCinematicTransition = (next) => {
+  const beginCinematicTransition = (next, changedControlId = null) => {
     createOutgoingSnapshot();
     state = next;
-    pendingCinematicSync = { announce: true, cinematic: true };
+    pendingCinematicSync = { announce: true, cinematic: true, changedControlId };
     motion.start({ reducedMotion: reducedMotion.matches });
-    if (reducedMotion.matches) applyPendingCinematicSync();
+    if (reducedMotion.matches) {
+      setPhysicalSceneSvgPhase("idle");
+      applyPendingCinematicSync();
+    }
   };
 
   const selectPreset = (presetId) => {
@@ -363,8 +400,7 @@ function enhanceSimulator(root) {
   const setControl = (systemId, controlId, value) => {
     const next = machine.transition(state, { type: "set-control", systemId, controlId, value });
     if (next === state) return;
-    state = next;
-    synchronize({ announce: true, changedControlId: controlId });
+    beginCinematicTransition(next, controlId);
   };
 
   root.addEventListener("change", (event) => {
@@ -393,6 +429,7 @@ function enhanceSimulator(root) {
     if (!event.matches) return;
     clearTransition();
     motion.cancel();
+    setPhysicalSceneSvgPhase("idle");
     synchronizePanelInertness(false);
   });
   compactScene.addEventListener("change", () => activateScenePicture(markup.systemButtonById.get(state.systemId).dataset.systemVisual));

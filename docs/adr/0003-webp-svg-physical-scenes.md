@@ -1,0 +1,12 @@
+# WebP scenes with inline SVG physical layers
+
+Physical interactions use the existing photorealistic WebP family as their base and a data-driven inline SVG layer for masks, light, moving window treatments and engineering topology. This replaces the earlier WebGL alternative because SVG preserves deterministic GitHub Pages delivery, semantic fallbacks and reduced-motion behavior while still providing real geometry and cinematic depth across all nine systems; canvas, WebGL and external runtime dependencies remain outside this interaction architecture.
+
+Every visible product context owns one exact SVG system: `room`, `stairs`, `exterior`, `lighting`, `climate`, `access`, `security`, `panel`, `low-voltage`, `backup-power`, `audio`, or `shading`. The adapter must expose only the selected system group, hide every non-selected group, and synchronize its signature, scene copy, raster source and rendered parameters from the same state transition. A selected system may contain several causal layers when different controls operate different physical elements; the single-context invariant applies to the system group, not to an arbitrary one-layer limit. Rapid input converges on the latest selected system and value; reduced motion changes the same contextual state immediately without creating an outgoing snapshot.
+
+Every public control must change at least one finite, visibly distinct SVG parameter or layer visibility condition. Overlay geometry is registered to identifiable architecture or equipment in the active WebP instead of floating HUD shapes. The raster and SVG use the same `object-fit: cover` model and the same per-system focal point; the raster has no independent steady-state transform that could move it away from the SVG viewBox. An overlay that cannot validate its system, geometry, bindings, crop or DOM registry fails closed while the contextual WebP and semantic controls remain usable.
+
+## Considered options
+
+- Pure SVG scenes, which would reduce the photorealistic character.
+- WebGL or SVG plus WebGL, which would add runtime, accessibility and deterministic-testing cost without improving the core explanatory interactions.
