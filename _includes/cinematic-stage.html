@@ -147,6 +147,7 @@
             <picture class="residence-spine__physical-picture" data-cinematic-physical-picture="room">
               <img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy">
             </picture>
+            {% include physical-scene-svg-overlay.html instance_id=stage_id system_id=room_physical.id %}
             <span class="residence-spine__physical-snapshot" data-cinematic-physical-snapshot aria-hidden="true" hidden></span>
           </div>
         </div>

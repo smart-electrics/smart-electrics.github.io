@@ -41,6 +41,7 @@ layout: default
         {% endfor %}
         <span class="smart-home__scene-wash" data-motion-layer="light" aria-hidden="true"></span>
         <span class="smart-home__scene-preview" data-scene-preview data-system="{{ initial_system.id }}" data-value="" aria-hidden="true"></span>
+        {% include physical-scene-svg-overlay.html instance_id="smart-home-main" system_id=initial_system.id %}
         <div class="smart-home__scene-copy" data-motion-layer="type" aria-hidden="true">
           <span data-scene-eyebrow>{{ initial_preset.eyebrow }}</span>
           <strong data-scene-title>{{ initial_preset.title }}</strong>
@@ -137,10 +138,11 @@ layout: default
         <p>Демонстраційна конфігурація пояснює окремі стани світла на сходах і зовні; остаточні групи визначають для конкретного об’єкта. Докладніше — у напрямі <a href="{{ lighting_service.url | relative_url }}" data-inline-editorial-link data-cinematic-route data-cinematic-route-source-ref="smart-home-scene">Освітлення</a>.</p>
       </aside>
       <div class="smart-home__physical-stage" data-smart-home-physical-stage hidden>
-        <figure class="smart-home__physical-media">
+        <figure class="smart-home__physical-media" data-smart-home-physical-media>
           <picture data-smart-home-physical-picture="stairs">
             <img data-smart-home-physical-image src="{{ initial_stairs_scene.src_768 | relative_url }}" srcset="{{ initial_stairs_scene.src_768 | relative_url }} 768w, {{ initial_stairs_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 100vw" alt="{{ initial_stairs_scene.alt }}" loading="lazy">
           </picture>
+          {% include physical-scene-svg-overlay.html instance_id="smart-home-physical" system_id="stairs" %}
           <figcaption>Візуальна концепція готової до адаптації конфігурації, не керування обладнанням.</figcaption>
         </figure>
         <div class="smart-home__physical-controls">

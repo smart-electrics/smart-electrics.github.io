@@ -70,6 +70,21 @@ async function expectPhysicalSceneMirror(stage) {
   await expect(causalImage).toHaveAttribute("alt", alt);
 }
 
+async function expectContextualPhysicalSvg(host, systemId, effect) {
+  const overlay = host.locator("[data-physical-scene-svg-overlay]");
+  await expect(overlay).toHaveCount(1);
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-enhanced", "true");
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", systemId);
+  await expect(overlay).toHaveAttribute("data-physical-scene-svg-signature", new RegExp(`^${systemId}:`, "u"));
+  await expect(overlay.locator(`[data-physical-scene-svg-system="${systemId}"]:not([hidden])`)).toHaveCount(1);
+  await expect(overlay.locator(`[data-physical-scene-svg-system="${systemId}"] [data-physical-scene-svg-effect="${effect}"]:not([hidden])`).first()).toHaveCount(1);
+  const hiddenContexts = await overlay.locator("[data-physical-scene-svg-system]").evaluateAll((groups, activeId) => groups
+    .filter((group) => group.getAttribute("data-physical-scene-svg-system") !== activeId)
+    .every((group) => group.hasAttribute("hidden")), systemId);
+  expect(hiddenContexts, `${systemId} must be the only visualized physical context`).toBe(true);
+}
+
 async function focusSceneSignature(stage) {
   return stage.locator("[data-cinematic-focus-scene]:visible img").evaluate(async (image) => {
     await image.decode();
@@ -144,6 +159,7 @@ test("assembled residence controls swap the physical room pixels without moving 
   await expect(layer).toBeVisible();
   await expect(controls).toBeVisible();
   await expect(root).toHaveAttribute("data-cinematic-physical-enhanced", "true");
+  await expectContextualPhysicalSvg(layer, "room", "glow");
   await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveCount(1);
   await expect(stage.getByRole("group", { name: "Освітлення" }).getByRole("button")).toHaveCount(4);
   await expect(stage.getByRole("group", { name: "Сонцезахист" }).getByRole("button")).toHaveCount(5);
@@ -159,12 +175,14 @@ test("assembled residence controls swap the physical room pixels without moving 
   const blackout = stage.getByRole("button", { name: "Ролети blackout", exact: true });
   await blackout.focus();
   await page.keyboard.press("Enter");
+  await expect(snapshot).toBeVisible();
+  await expect(root).toHaveAttribute("data-cinematic-physical-motion-phase", "disassemble");
+  await expect(snapshot).toHaveCSS("animation-duration", "0.32s");
   await expect(blackout).toHaveAttribute("aria-pressed", "true");
   await expect(stage.getByRole("button", { name: "Вечір", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(snapshot).toBeVisible();
-  await expect(snapshot).toHaveCSS("animation-duration", "0.76s");
   await expect(stage.locator("[aria-live]")).toHaveCount(1);
   await expect(stage.locator("[data-cinematic-live]")).toHaveText("Освітлення: Вечір; сонцезахист: Ролети blackout.");
+  await expectContextualPhysicalSvg(layer, "room", "roller");
   expect(await controls.evaluate((element) => [...element.querySelectorAll("*, button")].map((candidate) => {
     const style = getComputedStyle(candidate);
     return { opacity: style.opacity, filter: style.filter };
@@ -228,6 +246,7 @@ test("stair and exterior relations use the same physical layer to swap their own
     await stairControls.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "stairs:stair_lighting=route");
     await expect(stage.locator("[data-cinematic-live]")).toHaveText("Підсвітка сходів: Маршрут сходами.");
+    await expectContextualPhysicalSvg(layer, "stairs", "route");
     const stairsRoute = await physicalSignature(stage);
     await expectPhysicalSceneMirror(stage);
     expect(stairsRoute.src).toMatch(/stairs-route-(768|1536)\.webp$/);
@@ -247,6 +266,7 @@ test("stair and exterior relations use the same physical layer to swap their own
     await exteriorControls.getByRole("button", { name: "Нічне зниження", exact: true }).click();
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "exterior:exterior_lighting=reduced-night");
     await expect(stage.locator("[data-cinematic-live]")).toHaveText("Зовнішнє освітлення: Нічне зниження.");
+    await expectContextualPhysicalSvg(layer, "exterior", "route");
     const exteriorReduced = await physicalSignature(stage);
     await expectPhysicalSceneMirror(stage);
     expect(exteriorReduced.src).toMatch(/exterior-reduced-night-(768|1536)\.webp$/);

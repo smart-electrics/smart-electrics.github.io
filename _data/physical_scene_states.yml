@@ -67,3 +67,189 @@ systems:
       - { state: { exterior_lighting: approach }, src_768: /assets/images/cinematic/residence/exterior-approach-768.webp, src_1536: /assets/images/cinematic/residence/exterior-approach-1536.webp, alt: "Візуальна концепція: освітлений підхід до входу" }
       - { state: { exterior_lighting: evening }, src_768: /assets/images/cinematic/residence/exterior-evening-768.webp, src_1536: /assets/images/cinematic/residence/exterior-evening-1536.webp, alt: "Візуальна концепція: вечірнє освітлення ландшафту" }
       - { state: { exterior_lighting: reduced-night }, src_768: /assets/images/cinematic/residence/exterior-reduced-night-768.webp, src_1536: /assets/images/cinematic/residence/exterior-reduced-night-1536.webp, alt: "Візуальна концепція: знижене нічне зовнішнє освітлення" }
+
+svg:
+  view_box: { width: 1536, height: 1024 }
+  systems:
+    - id: room
+      layers:
+        - id: room-ambient-light
+          effect: glow
+          geometry: { kind: line, x1: 620, y1: 154, x2: 1490, y2: 154 }
+          binding: { control_id: lighting, type: segment, parameter: level, output: { "off": 0.04, route: 0.3, evening: 0.62, full: 0.9 } }
+        - id: room-window-coverage
+          effect: zone
+          geometry: { kind: rect, x: 620, y: 164, width: 870, height: 516 }
+          binding: { control_id: window_treatment, type: segment, parameter: coverage, output: { open: 0, tulle: 0.3, blinds: 0.52, blackout: 1, curtains: 0.74 } }
+        - id: room-tulle-diffusion
+          effect: tulle
+          geometry: { kind: rect, x: 620, y: 164, width: 870, height: 516 }
+          bindings:
+            - { control_id: window_treatment, type: segment, parameter: scale, output: { open: 0, tulle: 1, blinds: 0, blackout: 0, curtains: 0 } }
+            - { control_id: lighting, type: segment, parameter: level, output: { "off": 0.1, route: 0.28, evening: 0.55, full: 0.82 } }
+          visible_when: { control_id: window_treatment, equals: tulle }
+        - id: room-blind-slats
+          effect: blind
+          geometry: { kind: rect, x: 620, y: 164, width: 870, height: 516 }
+          binding: { control_id: window_treatment, type: segment, parameter: angle, output: { open: 0, tulle: 0, blinds: 18, blackout: 0, curtains: 0 } }
+          visible_when: { control_id: window_treatment, equals: blinds }
+        - id: room-curtain-left
+          effect: curtain
+          geometry: { kind: polygon, points: [[1055, 164], [1055, 680], [855, 680], [855, 164]] }
+          binding: { control_id: window_treatment, type: segment, parameter: translate_x, output: { open: -250, tulle: -230, blinds: -214, blackout: -160, curtains: -62 } }
+          visible_when: { control_id: window_treatment, equals: curtains }
+        - id: room-curtain-right
+          effect: curtain
+          geometry: { kind: polygon, points: [[1055, 164], [1255, 164], [1255, 680], [1055, 680]] }
+          binding: { control_id: window_treatment, type: segment, parameter: translate_x, output: { open: 250, tulle: 230, blinds: 214, blackout: 160, curtains: 62 } }
+          visible_when: { control_id: window_treatment, equals: curtains }
+        - id: room-roller-closure
+          effect: roller
+          geometry: { kind: rect, x: 620, y: 164, width: 870, height: 516 }
+          binding: { control_id: window_treatment, type: segment, parameter: coverage, output: { open: 0, tulle: 0, blinds: 0, blackout: 1, curtains: 0 } }
+          visible_when: { control_id: window_treatment, equals: blackout }
+
+    - id: stairs
+      layers:
+        - id: stairs-sequential-route
+          effect: route
+          geometry: { kind: path, points: [[1330, 902], [1256, 840], [1190, 766], [1126, 690], [1062, 614], [1000, 536], [940, 458], [894, 390]] }
+          binding: { control_id: stair_lighting, type: segment, parameter: progress, output: { "off": 0, route: 0.54, full: 1 } }
+
+    - id: exterior
+      layers:
+        - id: exterior-approach-path
+          effect: route
+          geometry: { kind: path, points: [[408, 910], [520, 838], [610, 782], [670, 730], [708, 684], [732, 632]] }
+          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.48, evening: 0.82, reduced-night: 0.18 } }
+
+    - id: lighting
+      layers:
+        - id: lighting-living-pool
+          effect: glow
+          geometry: { kind: line, x1: 748, y1: 237, x2: 1412, y2: 237 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.84 } }
+        - id: lighting-route-mask
+          effect: route
+          geometry: { kind: path, points: [[398, 908], [462, 814], [520, 746], [578, 689], [666, 642]] }
+          binding: { control_id: layer, type: segment, parameter: progress, output: { route: 0.35, evening: 0.68, full: 1 } }
+
+    - id: climate
+      layers:
+        - id: climate-zone-flow
+          effect: thermal
+          geometry: { kind: path, points: [[458, 825], [476, 811], [493, 798], [510, 785], [528, 774]] }
+          bindings:
+            - { control_id: comfort, type: segment, parameter: bias, output: { warm: 1, balanced: 0, cool: -1 } }
+            - { control_id: operation, type: segment, parameter: progress, output: { auto: 0.45, heating: 0.7, cooling: 1 } }
+
+    - id: access
+      layers:
+        - id: access-arrival-route
+          effect: route
+          geometry: { kind: path, points: [[568, 884], [626, 821], [696, 773], [768, 724], [842, 675], [928, 626]] }
+          bindings:
+            - { control_id: arrival_route, type: toggle, parameter: level, output: { 'false': 0, 'true': 1 } }
+            - { control_id: entry_zone, type: segment, parameter: progress, output: { gate: 0.3, entry: 0.65, garage: 1 } }
+        - id: access-target-node
+          effect: node
+          geometry: { kind: circle, cx: 974, cy: 598, r: 22 }
+          binding: { control_id: entry_zone, type: segment, parameter: scale, output: { gate: 0.62, entry: 0.84, garage: 1 } }
+
+    - id: security
+      layers:
+        - id: security-coverage-cone
+          effect: coverage
+          geometry: { kind: polygon, points: [[500, 198], [1040, 716], [654, 716]] }
+          binding: { control_id: coverage, type: segment, parameter: coverage, output: { entry: 0.38, perimeter: 0.88, quiet: 0.16 } }
+        - id: security-event-path
+          effect: topology
+          geometry: { kind: path, points: [[500, 198], [612, 356], [736, 484], [872, 578], [974, 626]] }
+          binding: { control_id: event_path, type: segment, parameter: progress, output: { video: 0.72, sensors: 1, quiet: 0.16 } }
+
+    - id: panel
+      layers:
+        - id: panel-protection-distribution
+          effect: topology
+          geometry: { kind: path, points: [[870, 222], [970, 222], [970, 350], [1080, 350], [1080, 466], [1014, 466], [1014, 548], [1110, 548], [1110, 720]] }
+          bindings:
+            - { control_id: layer, type: segment, parameter: progress, output: { protection: 0.3, groups: 0.66, priorities: 1 } }
+            - { control_id: priority_groups, type: toggle, parameter: level, output: { 'false': 0.12, 'true': 1 } }
+        - id: panel-priority-node
+          effect: node
+          geometry: { kind: circle, cx: 1092, cy: 548, r: 18 }
+          binding: { control_id: priority_groups, type: toggle, parameter: scale, output: { 'false': 0.56, 'true': 1 } }
+
+    - id: low-voltage
+      layers:
+        - id: low-voltage-route
+          effect: topology
+          geometry: { kind: path, points: [[432, 790], [566, 790], [566, 932], [900, 932], [900, 530], [1038, 530], [1038, 690], [974, 690]] }
+          bindings:
+            - { control_id: route, type: segment, parameter: progress, output: { network: 0.36, video: 0.7, signals: 1 } }
+            - { control_id: topology_focus, type: segment, parameter: bias, output: { routes: 0.2, points: 0.58, interfaces: 1 } }
+        - id: low-voltage-interface-node
+          effect: node
+          geometry: { kind: circle, cx: 916, cy: 530, r: 20 }
+          binding: { control_id: topology_focus, type: segment, parameter: scale, output: { routes: 0.5, points: 0.76, interfaces: 1 } }
+
+    - id: backup-power
+      layers:
+        - id: backup-source-priorities
+          effect: topology
+          geometry: { kind: path, points: [[112, 254], [258, 254], [258, 466], [402, 466], [402, 514], [526, 514]] }
+          bindings:
+            - { control_id: priority_groups, type: toggle, parameter: level, output: { 'false': 0.08, 'true': 1 } }
+            - { control_id: restore_intent, type: segment, parameter: progress, output: { essential: 0.36, staged: 0.72, manual: 1 } }
+        - id: backup-source-node
+          effect: node
+          geometry: { kind: circle, cx: 228, cy: 632, r: 20 }
+          binding: { control_id: restore_intent, type: segment, parameter: scale, output: { essential: 0.62, staged: 0.82, manual: 1 } }
+
+    - id: audio
+      layers:
+        - id: audio-source-zone-group
+          effect: audio
+          geometry: { kind: rect, x: 790, y: 300, width: 34, height: 126 }
+          bindings:
+            - { control_id: source, type: segment, parameter: progress, output: { local: 0.28, media: 0.6, scenario: 1 } }
+            - { control_id: zone, type: segment, parameter: bias, output: { living: 0.32, terrace: 0.66, private: 1 } }
+            - { control_id: group, type: segment, parameter: scale, output: { single: 0.42, shared: 0.72, floor: 1 } }
+            - { control_id: muted, type: toggle, parameter: level, output: { 'false': 1, 'true': 0.08 } }
+    - id: shading
+      layers:
+        - id: shading-tulle-diffusion
+          effect: tulle
+          geometry: { kind: rect, x: 520, y: 156, width: 382, height: 522 }
+          bindings:
+            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: coverage, output: { min: 0.08, max: 0.72 } }
+            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 1, blinds: 0, curtains: 0, rollers: 0 } }
+          visible_when: { control_id: treatment, equals: tulle }
+        - id: shading-blind-slats
+          effect: blind
+          geometry: { kind: rect, x: 898, y: 156, width: 594, height: 516 }
+          bindings:
+            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: angle, output: { min: -18, max: 18 } }
+            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 1, curtains: 0, rollers: 0 } }
+          visible_when: { control_id: treatment, equals: blinds }
+        - id: shading-curtain-left
+          effect: curtain
+          geometry: { kind: polygon, points: [[1006, 156], [1006, 678], [806, 678], [806, 156]] }
+          bindings:
+            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: -308 } }
+            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 1, rollers: 0 } }
+          visible_when: { control_id: treatment, equals: curtains }
+        - id: shading-curtain-right
+          effect: curtain
+          geometry: { kind: polygon, points: [[1006, 156], [1206, 156], [1206, 678], [1006, 678]] }
+          bindings:
+            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: 308 } }
+            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 1, rollers: 0 } }
+          visible_when: { control_id: treatment, equals: curtains }
+        - id: shading-roller-coverage
+          effect: roller
+          geometry: { kind: rect, x: 898, y: 156, width: 594, height: 516 }
+          bindings:
+            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: coverage, output: { min: 1, max: 0 } }
+            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 0, rollers: 1 } }
+          visible_when: { control_id: treatment, equals: rollers }
