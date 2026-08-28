@@ -13,11 +13,12 @@
   hidden
 >
   <defs>
-    <linearGradient id="{{ include.instance_id }}-glow-gradient" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fff0d2" stop-opacity="0.82"></stop>
-      <stop offset="0.46" stop-color="#efad78" stop-opacity="0.48"></stop>
-      <stop offset="1" stop-color="#9f583b" stop-opacity="0.08"></stop>
-    </linearGradient>
+    <radialGradient id="{{ include.instance_id }}-glow-gradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff4dc" stop-opacity="0.86"></stop>
+      <stop offset="0.22" stop-color="#ffd7a7" stop-opacity="0.62"></stop>
+      <stop offset="0.58" stop-color="#efad78" stop-opacity="0.24"></stop>
+      <stop offset="1" stop-color="#9f583b" stop-opacity="0"></stop>
+    </radialGradient>
     <pattern id="{{ include.instance_id }}-pattern" width="20" height="22" patternUnits="userSpaceOnUse" patternTransform="skewX(-8)">
       <path d="M 0 6 H 20" stroke="currentColor" stroke-opacity="0.52" stroke-width="1.5"></path>
     </pattern>
@@ -28,12 +29,11 @@
       <stop offset="0.92" stop-color="#fff0dc" stop-opacity="0.22"></stop>
       <stop offset="1" stop-color="#fff0dc" stop-opacity="0"></stop>
     </linearGradient>
-    <linearGradient id="{{ include.instance_id }}-curtain-gradient" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#21130f" stop-opacity="0.82"></stop>
-      <stop offset="0.24" stop-color="#583327" stop-opacity="0.58"></stop>
-      <stop offset="0.52" stop-color="#291813" stop-opacity="0.76"></stop>
-      <stop offset="0.78" stop-color="#68402f" stop-opacity="0.5"></stop>
-      <stop offset="1" stop-color="#1d110e" stop-opacity="0.82"></stop>
+    <linearGradient id="{{ include.instance_id }}-curtain-gradient" x1="0" y1="0" x2="0.16" y2="0" spreadMethod="reflect">
+      <stop offset="0" stop-color="#21130f" stop-opacity="0.7"></stop>
+      <stop offset="0.42" stop-color="#754b38" stop-opacity="0.34"></stop>
+      <stop offset="0.68" stop-color="#3c241b" stop-opacity="0.5"></stop>
+      <stop offset="1" stop-color="#1b100d" stop-opacity="0.72"></stop>
     </linearGradient>
     <filter id="{{ include.instance_id }}-glow-filter" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="12" result="physical-glow"></feGaussianBlur>

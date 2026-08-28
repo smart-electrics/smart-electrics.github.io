@@ -1,6 +1,6 @@
 import { createCinematicMotion } from "./cinematic-motion.js";
 import { createPhysicalSceneState } from "./physical-scene-state.js";
-import { createPhysicalSceneSvgOverlay } from "./physical-scene-svg-overlay.js";
+import { createPhysicalSceneSvgOverlay, createPhysicalSceneSvgSnapshot } from "./physical-scene-svg-overlay.js";
 
 const text = (value) => typeof value === "string" ? value.trim() : "";
 
@@ -258,7 +258,49 @@ function enhanceSmartHomePhysicalControls(root) {
     signatureAttributes: ["data-smart-home-physical-svg-signature", "data-physical-scene-svg-signature"]
   });
   let activeSystem = initialSystem;
-  let syncPending = false;
+  let transitionGeneration = 0;
+  const removeSnapshots = () => root.querySelectorAll("[data-smart-home-physical-snapshot]").forEach((snapshot) => snapshot.dispatchEvent(new Event("smart-home-physical:snapshot-remove")));
+  const clearTransition = () => {
+    removeSnapshots();
+    media.removeAttribute("data-smart-home-physical-transition");
+  };
+  const createOutgoingSnapshot = () => {
+    if (reducedMotion.matches) return;
+    const existingSnapshot = root.querySelector("[data-smart-home-physical-snapshot]");
+    const existingRaster = existingSnapshot?.querySelector("[data-smart-home-physical-snapshot-raster]");
+    const existingSvg = existingSnapshot?.querySelector("[data-physical-scene-svg-snapshot]");
+    const imageStyle = getComputedStyle(image);
+    const backgroundImage = existingRaster?.style.backgroundImage || cssImage(image.currentSrc || image.src);
+    const backgroundPosition = existingRaster?.style.backgroundPosition || imageStyle.objectPosition;
+    const svgSnapshot = existingSvg?.cloneNode(true) || createPhysicalSceneSvgSnapshot(media);
+    removeSnapshots();
+    const snapshot = document.createElement("span");
+    snapshot.className = "smart-home__physical-snapshot";
+    snapshot.dataset.smartHomePhysicalSnapshot = "true";
+    snapshot.setAttribute("aria-hidden", "true");
+    const raster = document.createElement("span");
+    raster.className = "smart-home__physical-snapshot-raster";
+    raster.dataset.smartHomePhysicalSnapshotRaster = "true";
+    raster.style.backgroundImage = backgroundImage;
+    raster.style.backgroundPosition = backgroundPosition;
+    snapshot.append(raster);
+    if (svgSnapshot) snapshot.append(svgSnapshot);
+    const remove = () => {
+      snapshot.removeEventListener("animationend", onAnimationEnd);
+      snapshot.removeEventListener("animationcancel", remove);
+      snapshot.removeEventListener("smart-home-physical:snapshot-remove", remove);
+      reducedMotion.removeEventListener("change", onPreference);
+      snapshot.remove();
+    };
+    const onAnimationEnd = (event) => { if (event.animationName === "smart-home-disassemble") remove(); };
+    const onPreference = (event) => { if (event.matches) remove(); };
+    snapshot.addEventListener("animationend", onAnimationEnd);
+    snapshot.addEventListener("animationcancel", remove);
+    snapshot.addEventListener("smart-home-physical:snapshot-remove", remove);
+    reducedMotion.addEventListener("change", onPreference);
+    media.dataset.smartHomePhysicalTransition = "true";
+    media.append(snapshot);
+  };
   const synchronize = (announce = false) => {
     const state = states.get(activeSystem.id);
     const scene = activeSystem.sceneFor(state);
@@ -274,16 +316,43 @@ function enhanceSmartHomePhysicalControls(root) {
     if (announce) live.textContent = activeSystem.controls.map((control) => `${control.label}: ${control.choices.find((choice) => choice.id === state[control.id])?.label || ""}`).join("; ") + ".";
     return true;
   };
-  const applyPendingSync = () => {
-    if (!syncPending) return;
-    syncPending = false;
-    synchronize(true);
+  const motion = createCinematicMotion({
+    durations: { disassemble: 280, hold: 0, reassemble: 0 },
+    onPhase: (phase) => {
+      root.dataset.smartHomePhysicalMotionPhase = phase;
+      if (phase === "hold" || phase === "idle") clearTransition();
+    }
+  });
+  const transition = async () => {
+    const generation = ++transitionGeneration;
+    motion.cancel();
+    createOutgoingSnapshot();
+    if (!synchronize(true)) {
+      clearTransition();
+      return;
+    }
+    if (reducedMotion.matches) {
+      motion.start({ reducedMotion: true });
+      root.dataset.smartHomePhysicalMotionPhase = "idle";
+      clearTransition();
+      return;
+    }
+    try {
+      await image.decode();
+    } catch (_) {
+      // The semantic state and alt remain available if the decorative raster fails.
+    }
+    if (generation !== transitionGeneration) return;
+    const snapshot = root.querySelector("[data-smart-home-physical-snapshot]");
+    if (snapshot) snapshot.dataset.smartHomePhysicalSnapshotActive = "true";
+    motion.start();
   };
-  const motion = createCinematicMotion({ onPhase: (phase) => { svg.setPhase(phase); if (phase === "hold") applyPendingSync(); } });
-  const transition = () => {
-    syncPending = true;
-    motion.start({ reducedMotion: reducedMotion.matches });
-    if (reducedMotion.matches) applyPendingSync();
+  const applyManualControl = () => {
+    transitionGeneration += 1;
+    motion.cancel();
+    root.dataset.smartHomePhysicalMotionPhase = "idle";
+    clearTransition();
+    synchronize(true);
   };
 
   root.addEventListener("click", (event) => {
@@ -301,13 +370,15 @@ function enhanceSmartHomePhysicalControls(root) {
     const next = activeSystem.reduce(states.get(activeSystem.id), { type: "select-control", controlId: control.dataset.physicalControlId, valueId: control.dataset.physicalValueId });
     if (next !== states.get(activeSystem.id)) {
       states.set(activeSystem.id, next);
-      transition();
+      applyManualControl();
     }
   });
   reducedMotion.addEventListener("change", (event) => {
     if (!event.matches) return;
-    if (motion.phase !== "idle") motion.cancel();
-    applyPendingSync();
+    transitionGeneration += 1;
+    motion.cancel();
+    root.dataset.smartHomePhysicalMotionPhase = "idle";
+    clearTransition();
   });
   if (!synchronize()) return;
   root.dataset.smartHomePhysicalEnhanced = "true";

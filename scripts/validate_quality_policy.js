@@ -11,14 +11,14 @@ import {
 const failures = [];
 const AUDITED_PLAYWRIGHT_CONFIG_SHA256 =
   "de1f2bf0cc7c97df5093b47d05bd9b2438260345211c71109d5f96fb4e116203";
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 663;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 678;
 const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
-  "fd1b7f40069d4d6f3199e4faf3756afe091cd3acce451550e1da9d85913c9d80";
+  "59faec1a741f25f3b158edab888f57f73d3e811a86635450ab1206e136c2a03b";
 const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
   ["run_node_tests.js", "52ea1f3ace01f16ea93a95f405bd7a7d38ad737e9a623b51c3dbff9edf4f2523"],
-  ["run_ruby_test.rb", "515dfed6a28cbfb0d8e8e619b8cc59566d8e6eb028d26d0724a2cbb505c8d035"],
+  ["run_ruby_test.rb", "1daed1cff21ea344d2182f58b66a5ad4ac8441ead6a241b5cf5839b780d0ebde"],
   ["verify_agent_skills.rb", "37095cc3690e974f688b79d427ceadc4f69554acac5d666514c37affaad440fc"],
   ["validate_integrations.rb", "4d61fda2e1a474a0f3aaef69c1f033f7d018e87374a286fc25fc6881eaf4d531"],
   ["validate_production_assets.rb", "71f4bab684aad3b2375e9897012af27c57fed9c84c623c06ebb655699879a736"],
@@ -89,7 +89,7 @@ if (
   EXPECTED_PLAYWRIGHT_CONFIG_SHA256 !== AUDITED_PLAYWRIGHT_CONFIG_SHA256 ||
   EXPECTED_PLAYWRIGHT_TEST_COUNT !== AUDITED_PLAYWRIGHT_TEST_COUNT
 ) {
-  failures.push("Playwright digest and 663-test contract must match the independent policy literal.");
+  failures.push("Playwright digest and 678-test contract must match the independent policy literal.");
 }
 const playwrightRunnerDigest = createHash("sha256")
   .update(playwrightRunnerSource)

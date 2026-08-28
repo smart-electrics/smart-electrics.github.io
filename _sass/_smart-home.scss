@@ -76,9 +76,7 @@
 }
 
 .smart-home__scene::before {
-  background:
-    linear-gradient(90deg, transparent 0 48%, rgba(255, 220, 183, 0.11) 50%, transparent 52%) center / 100% 1px no-repeat,
-    linear-gradient(180deg, rgba(255, 223, 190, 0.12), transparent 25%, transparent 74%, rgba(255, 223, 190, 0.08));
+  background: linear-gradient(180deg, rgba(255, 223, 190, 0.12), transparent 25%, transparent 74%, rgba(255, 223, 190, 0.08));
   content: "";
   inset: 0;
   pointer-events: none;
@@ -147,172 +145,40 @@
     linear-gradient(0deg, rgba(4, 2, 1, 0.68), transparent 48%, rgba(4, 2, 1, 0.12));
   mix-blend-mode: multiply;
   opacity: 0.88;
+  transition: opacity 90ms linear;
   z-index: 1;
 }
 
 .smart-home__scene-preview {
-  --smart-home-preview-control-1: 0.5;
-  --smart-home-preview-control-2: 0.5;
-  --smart-home-preview-control-3: 0.5;
-  --smart-home-preview-control-4: 0;
-  background:
-    radial-gradient(circle at calc(23% + var(--smart-home-preview-control-2) * 54%) calc(17% + var(--smart-home-preview-control-3) * 55%), rgba(255, 205, 142, calc(0.12 + var(--smart-home-preview-control-1) * 0.3)), transparent calc(15% + var(--smart-home-preview-control-2) * 13%)),
-    linear-gradient(90deg, rgba(226, 127, 75, 0.22), transparent 26% 74%, rgba(245, 184, 116, 0.12));
+  background: none;
   inset: 0;
-  mix-blend-mode: screen;
-  opacity: calc(0.46 + var(--smart-home-preview-control-1) * 0.54);
+  opacity: 0;
   pointer-events: none;
   position: absolute;
-  transition: background 220ms ease-out, opacity 220ms ease-out;
+  visibility: hidden;
   z-index: 3;
 }
 
+.smart-home__simulator[data-system="lighting"] .smart-home__scene-background img {
+  filter:
+    saturate(calc(0.78 + var(--smart-home-preview-control-1) * 0.14))
+    contrast(calc(1.06 - var(--smart-home-preview-control-1) * 0.03))
+    brightness(calc(0.64 + var(--smart-home-preview-control-1) * 0.44 + var(--smart-home-preview-control-2) * 0.04));
+  transition-duration: 90ms;
+  transition-timing-function: linear;
+}
+
+.smart-home__simulator[data-system="lighting"] .smart-home__scene-wash {
+  opacity: calc(0.92 - var(--smart-home-preview-control-1) * 0.38 - var(--smart-home-preview-control-2) * 0.04);
+}
+
 .smart-home__simulator[data-motion-phase="disassemble"] .smart-home__outgoing-snapshot {
-  animation: smart-home-disassemble 320ms cubic-bezier(.45, 0, .75, .25) both;
-}
-
-.smart-home__simulator[data-motion-phase="disassemble"] .smart-home__preset-panel:not([hidden]) {
-  animation: smart-home-panel-exit 320ms cubic-bezier(.28, .74, .22, 1) both;
-}
-
-.smart-home__simulator[data-motion-phase="disassemble"] .smart-home__scene-copy,
-.smart-home__simulator[data-motion-phase="disassemble"] .smart-home__scene-topology {
-  animation: smart-home-copy-exit 300ms cubic-bezier(.45, 0, .75, .25) both;
-}
-
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__preset-panel {
-  visibility: hidden;
-}
-
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__scene-background:not([hidden]) {
-  clip-path: inset(7% 9% 13% 7%);
-  transform: translate3d(0.7rem, -0.35rem, 0) scale(1.035);
-}
-
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__scene-wash {
-  clip-path: inset(5% 8% 12% 6%);
-  opacity: 0.58;
-}
-
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__scene-preview {
-  clip-path: inset(9% 13% 15% 11%);
-  opacity: 0.36;
-}
-
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__scene-copy,
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__scene-topology {
-  visibility: hidden;
-}
-
-.smart-home__simulator[data-motion-phase="disassemble"] .smart-home__scene-topology [data-topology-connector],
-.smart-home__simulator[data-motion-phase="hold"] .smart-home__scene-topology [data-topology-connector] {
-  opacity: 0;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__scene-background:not([hidden]) {
-  animation: smart-home-scene-reassemble 720ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__scene-wash {
-  animation: smart-home-light-reassemble 620ms 40ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__scene-preview {
-  animation: smart-home-preview-reassemble 620ms 60ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__scene-copy {
-  animation: smart-home-type-reveal 520ms 100ms cubic-bezier(.2, .72, .18, 1) both;
-  visibility: visible;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__scene-topology {
-  animation: smart-home-type-reveal 480ms 140ms cubic-bezier(.2, .72, .18, 1) both;
-  visibility: visible;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__scene-topology [data-topology-connector] {
-  animation: smart-home-topology-draw 360ms 160ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__preset-panel:not([hidden]) {
-  animation: smart-home-panel-reveal 520ms 80ms cubic-bezier(.2, .72, .18, 1) both;
-  visibility: visible;
-}
-
-.smart-home__simulator[data-motion-phase="reassemble"] .smart-home__preset-panel:not([hidden]) > * {
-  animation: smart-home-type-reveal 420ms 160ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-@keyframes smart-home-copy-exit {
-  from { clip-path: inset(0); transform: translate3d(0, 0, 0); }
-  to { clip-path: inset(0 0 100% 0); transform: translate3d(0, -0.65rem, 0); }
-}
-
-@keyframes smart-home-scene-reassemble {
-  from { clip-path: inset(7% 9% 13% 7%); transform: translate3d(0.7rem, -0.35rem, 0) scale(1.035); }
-  to { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
-}
-
-@keyframes smart-home-light-reassemble {
-  from { clip-path: inset(5% 8% 12% 6%); opacity: 0.58; }
-  to { clip-path: inset(0); opacity: 0.88; }
-}
-
-@keyframes smart-home-preview-reassemble {
-  from { clip-path: inset(9% 13% 15% 11%); opacity: 0.36; }
-  to { clip-path: inset(0); opacity: calc(0.46 + var(--smart-home-preview-control-1) * 0.54); }
-}
-
-@keyframes smart-home-panel-exit {
-  from { transform: translate3d(0, 0, 0); }
-  to { transform: translate3d(0, -0.65rem, 0); }
-}
-
-@keyframes smart-home-panel-reveal {
-  from { transform: translate3d(0, 0.65rem, 0); }
-  to { transform: translate3d(0, 0, 0); }
-}
-
-@keyframes smart-home-type-reveal {
-  from { clip-path: inset(0 100% 0 0); }
-  to { clip-path: inset(0); }
-}
-
-@keyframes smart-home-topology-draw {
-  from { clip-path: inset(0 100% 0 0); opacity: 0; }
-  to { clip-path: inset(0); opacity: 1; }
+  animation: smart-home-disassemble 240ms cubic-bezier(.45, 0, .75, .25) both;
 }
 
 .smart-home__scene-preview::before,
 .smart-home__scene-preview::after {
-  border: 1px solid rgba(255, 220, 184, 0.2);
-  content: "";
-  opacity: 0;
-  position: absolute;
-  transition: opacity 220ms ease-out, transform 220ms ease-out;
-}
-
-.smart-home__scene-preview::before {
-  border-inline: 0;
-  inset: calc(11% + var(--smart-home-preview-control-3) * 26%) calc(6% + var(--smart-home-preview-control-2) * 7%) auto;
-  transform: scaleX(calc(0.72 + var(--smart-home-preview-control-1) * 0.28));
-}
-
-.smart-home__scene-preview::after {
-  border-block: 0;
-  inset: calc(6% + var(--smart-home-preview-control-2) * 8%) calc(12% + var(--smart-home-preview-control-3) * 24%) calc(7% + var(--smart-home-preview-control-1) * 9%) auto;
-  transform: scaleY(calc(0.72 + var(--smart-home-preview-control-2) * 0.28));
-}
-
-[data-smart-home-simulator][data-system="lighting"] .smart-home__scene-preview,
-[data-smart-home-simulator][data-system="audio"] .smart-home__scene-preview {
-  opacity: 1;
-}
-
-[data-smart-home-simulator][data-system="security"] .smart-home__scene-preview,
-[data-smart-home-simulator][data-system="backup-power"] .smart-home__scene-preview {
-  background: linear-gradient(122deg, rgba(102, 49, 31, 0.28), transparent 48%, rgba(235, 144, 73, 0.14));
+  content: none;
 }
 
 .smart-home__scene-copy {
@@ -1182,10 +1048,18 @@
 .smart-home__physical-media { aspect-ratio: 3 / 2; background: #100b08; margin: 0; min-height: 0; overflow: hidden; position: relative; }
 .smart-home__physical-media picture, .smart-home__physical-media img { height: 100%; inset: 0; position: absolute; width: 100%; }
 .smart-home__physical-media img { display: block; object-fit: cover; }
-.smart-home__physical-media figcaption { background: linear-gradient(0deg, rgba(4, 2, 1, 0.86), transparent); bottom: 0; color: #f3e6e4; font-size: 0.75rem; left: 0; padding: 2rem 0.75rem 0.75rem; position: absolute; right: 0; }
-[data-smart-home-physical-motion-phase="disassemble"] .smart-home__physical-media picture { animation: residence-spine-physical-outgoing 320ms cubic-bezier(.28, .74, .22, 1) both; }
-[data-smart-home-physical-motion-phase="hold"] .smart-home__physical-media picture { visibility: hidden; }
-[data-smart-home-physical-motion-phase="reassemble"] .smart-home__physical-media picture { animation: residence-spine-physical-incoming 760ms cubic-bezier(.2, .72, .18, 1) both; }
+.smart-home__physical-media figcaption { background: linear-gradient(0deg, rgba(4, 2, 1, 0.86), transparent); bottom: 0; color: #f3e6e4; font-size: 0.75rem; left: 0; padding: 2rem 0.75rem 0.75rem; position: absolute; right: 0; z-index: 4; }
+.smart-home__physical-snapshot {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 3;
+}
+.smart-home__physical-snapshot-raster,
+.smart-home__physical-snapshot > [data-physical-scene-svg-snapshot] { height: 100%; inset: 0; pointer-events: none; position: absolute; width: 100%; }
+.smart-home__physical-snapshot-raster { background-position: center; background-size: cover; z-index: 0; }
+.smart-home__physical-snapshot > [data-physical-scene-svg-snapshot] { z-index: 1; }
+.smart-home__physical-snapshot[data-smart-home-physical-snapshot-active="true"] { animation: smart-home-disassemble 240ms cubic-bezier(.45, 0, .75, .25) both; }
 .smart-home__physical-controls { display: grid; gap: 0.65rem; align-content: start; }
 .smart-home__physical-controls [role="group"], .smart-home__physical-controls fieldset > div { display: grid; gap: 0.35rem; grid-template-columns: repeat(var(--physical-control-count, 2), minmax(0, 1fr)); }
 .smart-home__physical-controls fieldset { border: 0; margin: 0; min-inline-size: 0; padding: 0; }
@@ -1198,13 +1072,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-smart-home-physical-motion-phase] .smart-home__physical-media picture {
-    animation: none !important;
-    visibility: visible;
-  }
-
   .smart-home [data-motion-layer],
   .smart-home .smart-home__outgoing-snapshot,
+  .smart-home .smart-home__physical-snapshot,
   .smart-home .smart-home__scene-background img,
   .smart-home .smart-home__scene-preview,
   .smart-home .smart-home__scene-preview::before,

@@ -6,6 +6,8 @@ Every visible product context owns one exact SVG system: `room`, `stairs`, `exte
 
 Every public control must change at least one finite, visibly distinct SVG parameter or layer visibility condition. Overlay geometry is registered to identifiable architecture or equipment in the active WebP instead of floating HUD shapes. The raster and SVG use the same `object-fit: cover` model and the same per-system focal point; the raster has no independent steady-state transform that could move it away from the SVG viewBox. An overlay that cannot validate its system, geometry, bindings, crop or DOM registry fails closed while the contextual WebP and semantic controls remain usable.
 
+Continuous and manual controls render their latest value directly: they do not create a snapshot, hide the phone, suspend the panel, or enter the cinematic lifecycle. A discrete system or preset change applies its semantic state immediately, waits for the target WebP to decode, and then fades the outgoing raster together with an inert clone of its registered SVG for 240 ms. The incoming raster and SVG are therefore revealed as one contextual scene while copy, controls and topology stay stable above the crossfade. The wider site may retain explicit assemble/disassemble choreography, but the simulator must not introduce a blank hold, geometric clipping, translation, or reassembly delay into an operational control surface.
+
 ## Considered options
 
 - Pure SVG scenes, which would reduce the photorealistic character.

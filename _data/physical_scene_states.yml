@@ -95,12 +95,12 @@ svg:
           visible_when: { control_id: window_treatment, equals: blinds }
         - id: room-curtain-left
           effect: curtain
-          geometry: { kind: polygon, points: [[1055, 164], [1055, 680], [855, 680], [855, 164]] }
+          geometry: { kind: polygon, points: [[1055, 164], [1055, 680], [1030, 670], [1005, 680], [980, 671], [955, 680], [930, 669], [905, 680], [880, 671], [855, 680], [855, 164]] }
           binding: { control_id: window_treatment, type: segment, parameter: translate_x, output: { open: -250, tulle: -230, blinds: -214, blackout: -160, curtains: -62 } }
           visible_when: { control_id: window_treatment, equals: curtains }
         - id: room-curtain-right
           effect: curtain
-          geometry: { kind: polygon, points: [[1055, 164], [1255, 164], [1255, 680], [1055, 680]] }
+          geometry: { kind: polygon, points: [[1055, 164], [1255, 164], [1255, 680], [1230, 671], [1205, 680], [1180, 669], [1155, 680], [1130, 671], [1105, 680], [1080, 670], [1055, 680]] }
           binding: { control_id: window_treatment, type: segment, parameter: translate_x, output: { open: 250, tulle: 230, blinds: 214, blackout: 160, curtains: 62 } }
           visible_when: { control_id: window_treatment, equals: curtains }
         - id: room-roller-closure
@@ -125,14 +125,46 @@ svg:
 
     - id: lighting
       layers:
-        - id: lighting-living-pool
+        - id: lighting-route-entry
           effect: glow
-          geometry: { kind: line, x1: 748, y1: 237, x2: 1412, y2: 237 }
-          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.84 } }
-        - id: lighting-route-mask
-          effect: route
-          geometry: { kind: path, points: [[398, 908], [462, 814], [520, 746], [578, 689], [666, 642]] }
-          binding: { control_id: layer, type: segment, parameter: progress, output: { route: 0.35, evening: 0.68, full: 1 } }
+          geometry: { kind: circle, cx: 578, cy: 690, r: 56 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.58 } }
+          visible_when: { control_id: layer, equals: route }
+        - id: lighting-route-corridor
+          effect: glow
+          geometry: { kind: ellipse, cx: 626, cy: 590, rx: 92, ry: 176 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.42 } }
+          visible_when: { control_id: layer, equals: route }
+        - id: lighting-evening-table-lamp
+          effect: glow
+          geometry: { kind: ellipse, cx: 794, cy: 646, rx: 100, ry: 72 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.72 } }
+          visible_when: { control_id: layer, equals: evening }
+        - id: lighting-evening-wall-wash
+          effect: glow
+          geometry: { kind: ellipse, cx: 1012, cy: 462, rx: 105, ry: 250 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.56 } }
+          visible_when: { control_id: layer, equals: evening }
+        - id: lighting-full-cove
+          effect: glow
+          geometry: { kind: ellipse, cx: 1110, cy: 238, rx: 360, ry: 92 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.52 } }
+          visible_when: { control_id: layer, equals: full }
+        - id: lighting-full-downlight-west
+          effect: glow
+          geometry: { kind: circle, cx: 852, cy: 206, r: 38 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.6 } }
+          visible_when: { control_id: layer, equals: full }
+        - id: lighting-full-downlight-center
+          effect: glow
+          geometry: { kind: circle, cx: 973, cy: 206, r: 38 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.6 } }
+          visible_when: { control_id: layer, equals: full }
+        - id: lighting-full-downlight-east
+          effect: glow
+          geometry: { kind: circle, cx: 1154, cy: 206, r: 38 }
+          binding: { control_id: brightness, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0, max: 0.6 } }
+          visible_when: { control_id: layer, equals: full }
 
     - id: climate
       layers:
@@ -145,27 +177,43 @@ svg:
 
     - id: access
       layers:
-        - id: access-arrival-route
-          effect: route
-          geometry: { kind: path, points: [[568, 884], [626, 821], [696, 773], [768, 724], [842, 675], [928, 626]] }
-          bindings:
-            - { control_id: arrival_route, type: toggle, parameter: level, output: { 'false': 0, 'true': 1 } }
-            - { control_id: entry_zone, type: segment, parameter: progress, output: { gate: 0.3, entry: 0.65, garage: 1 } }
-        - id: access-target-node
-          effect: node
-          geometry: { kind: circle, cx: 974, cy: 598, r: 22 }
-          binding: { control_id: entry_zone, type: segment, parameter: scale, output: { gate: 0.62, entry: 0.84, garage: 1 } }
+        - id: access-gate-zone
+          effect: coverage
+          geometry: { kind: ellipse, cx: 1135, cy: 780, rx: 135, ry: 170 }
+          binding: { control_id: arrival_route, type: toggle, parameter: coverage, output: { 'false': 0.08, 'true': 0.62 } }
+          visible_when: { control_id: entry_zone, equals: gate }
+        - id: access-entry-zone
+          effect: coverage
+          geometry: { kind: ellipse, cx: 690, cy: 620, rx: 125, ry: 150 }
+          binding: { control_id: arrival_route, type: toggle, parameter: coverage, output: { 'false': 0.08, 'true': 0.62 } }
+          visible_when: { control_id: entry_zone, equals: entry }
+        - id: access-garage-zone
+          effect: coverage
+          geometry: { kind: ellipse, cx: 960, cy: 550, rx: 170, ry: 190 }
+          binding: { control_id: arrival_route, type: toggle, parameter: coverage, output: { 'false': 0.08, 'true': 0.62 } }
+          visible_when: { control_id: entry_zone, equals: garage }
 
     - id: security
       layers:
-        - id: security-coverage-cone
+        - id: security-entry-field
           effect: coverage
-          geometry: { kind: polygon, points: [[500, 198], [1040, 716], [654, 716]] }
-          binding: { control_id: coverage, type: segment, parameter: coverage, output: { entry: 0.38, perimeter: 0.88, quiet: 0.16 } }
-        - id: security-event-path
-          effect: topology
-          geometry: { kind: path, points: [[500, 198], [612, 356], [736, 484], [872, 578], [974, 626]] }
-          binding: { control_id: event_path, type: segment, parameter: progress, output: { video: 0.72, sensors: 1, quiet: 0.16 } }
+          geometry: { kind: ellipse, cx: 900, cy: 600, rx: 260, ry: 220 }
+          binding: { control_id: event_path, type: segment, parameter: coverage, output: { video: 0.56, sensors: 0.36, quiet: 0.12 } }
+          visible_when: { control_id: coverage, equals: entry }
+        - id: security-perimeter-field
+          effect: coverage
+          geometry: { kind: ellipse, cx: 940, cy: 570, rx: 480, ry: 360 }
+          binding: { control_id: event_path, type: segment, parameter: coverage, output: { video: 0.56, sensors: 0.36, quiet: 0.12 } }
+          visible_when: { control_id: coverage, equals: perimeter }
+        - id: security-quiet-field
+          effect: coverage
+          geometry: { kind: ellipse, cx: 780, cy: 760, rx: 220, ry: 140 }
+          binding: { control_id: event_path, type: segment, parameter: coverage, output: { video: 0.56, sensors: 0.36, quiet: 0.12 } }
+          visible_when: { control_id: coverage, equals: quiet }
+        - id: security-camera-marker
+          effect: glow
+          geometry: { kind: circle, cx: 500, cy: 198, r: 20 }
+          binding: { control_id: event_path, type: segment, parameter: level, output: { video: 0.56, sensors: 0.34, quiet: 0.14 } }
 
     - id: panel
       layers:
@@ -210,7 +258,7 @@ svg:
       layers:
         - id: audio-source-zone-group
           effect: audio
-          geometry: { kind: rect, x: 790, y: 300, width: 34, height: 126 }
+          geometry: { kind: ellipse, cx: 807, cy: 363, rx: 22, ry: 72 }
           bindings:
             - { control_id: source, type: segment, parameter: progress, output: { local: 0.28, media: 0.6, scenario: 1 } }
             - { control_id: zone, type: segment, parameter: bias, output: { living: 0.32, terrace: 0.66, private: 1 } }
@@ -234,14 +282,14 @@ svg:
           visible_when: { control_id: treatment, equals: blinds }
         - id: shading-curtain-left
           effect: curtain
-          geometry: { kind: polygon, points: [[1006, 156], [1006, 678], [806, 678], [806, 156]] }
+          geometry: { kind: polygon, points: [[1006, 156], [1006, 678], [981, 668], [956, 678], [931, 669], [906, 678], [881, 667], [856, 678], [831, 669], [806, 678], [806, 156]] }
           bindings:
             - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: -308 } }
             - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 1, rollers: 0 } }
           visible_when: { control_id: treatment, equals: curtains }
         - id: shading-curtain-right
           effect: curtain
-          geometry: { kind: polygon, points: [[1006, 156], [1206, 156], [1206, 678], [1006, 678]] }
+          geometry: { kind: polygon, points: [[1006, 156], [1206, 156], [1206, 678], [1181, 669], [1156, 678], [1131, 667], [1106, 678], [1081, 669], [1056, 678], [1031, 668], [1006, 678]] }
           bindings:
             - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: 308 } }
             - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 1, rollers: 0 } }
