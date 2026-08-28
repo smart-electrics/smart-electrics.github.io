@@ -57,6 +57,20 @@ class LandingInlineCssContractTest < Minitest::Test
     end
   end
 
+  def test_initial_dark_shell_precedes_the_full_landing_stylesheet
+    build_site do |destination|
+      homepage_html = File.read(File.join(destination, "index.html"))
+      initial_shell = '<style data-initial-page-shell>html,body{background:#040201}</style>'
+
+      assert_includes homepage_html, initial_shell
+      assert_operator homepage_html.index(initial_shell), :<,
+                      homepage_html.index('<style data-landing-inline-css>')
+
+      about_html = File.read(File.join(destination, "about", "index.html"))
+      assert_includes about_html, initial_shell
+    end
+  end
+
   def test_generator_rejects_a_stale_generated_artifact
     original = File.binread(GENERATED_CSS)
     File.binwrite(GENERATED_CSS, "#{original} ")
