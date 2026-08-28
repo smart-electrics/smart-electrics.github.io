@@ -187,6 +187,13 @@ const dynamicFallbacks = Object.freeze([
   }))
 ]);
 const geometryWidths = Object.freeze([375, 768, 900, 1024, 1440, 1980]);
+const cinematicFirstFrameViewports = Object.freeze([
+  { width: 320, height: 700 },
+  { width: 375, height: 812 },
+  { width: 768, height: 1024 },
+  { width: 1440, height: 1000 },
+  { width: 1980, height: 1200 }
+]);
 const compositionGeometryContracts = Object.freeze([
   ...["/", "/services/"].map((route) => ({
     family: "residence",
@@ -1163,12 +1170,82 @@ async function transitJourney(page, route) {
 
 test("all twenty-four public routes stay semantic, linked, fluid, and error-free in the full JavaScript matrix", async ({ browser }) => {
   expect(publicRoutes).toHaveLength(24);
-  const context = await browser.newContext({ baseURL, locale: "uk-UA" });
-  const page = await context.newPage();
+  let context = await browser.newContext({ baseURL, locale: "uk-UA" });
+  let page = await context.newPage();
   const checkedInternalRoutes = new Set();
   const matrix = [];
 
+  await page.addInitScript(() => {
+    window.__cinematicStageCls = 0;
+    new PerformanceObserver((entries) => {
+      for (const entry of entries.getEntries()) {
+        if (!entry.hadRecentInput) window.__cinematicStageCls += entry.value;
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+
   try {
+    const delayCinematicStage = async (route) => {
+      await page.waitForTimeout(900);
+      await route.continue();
+    };
+    await page.route("**/assets/js/cinematic-stage.js", delayCinematicStage);
+    for (const viewport of cinematicFirstFrameViewports) {
+      await page.setViewportSize(viewport);
+      for (const route of ["/", "/services/"]) {
+        const response = await page.goto(route, { waitUntil: "commit" });
+        expect(response?.ok(), route + " must begin a successful first-frame document").toBeTruthy();
+        const root = page.locator("[data-cinematic-root]");
+        const stage = root.locator("[data-cinematic-stage]");
+        const fallback = root.locator("[data-cinematic-fallback]");
+        await expect(root).not.toHaveAttribute("data-cinematic-enhanced", "true");
+        await expect(root).not.toHaveAttribute("data-cinematic-failed", "true");
+        await expect(stage).toBeVisible();
+        await expect(stage).toHaveAttribute("inert", "");
+        await expect(stage).toHaveAttribute("aria-hidden", "true");
+        await expect(fallback).toBeHidden();
+        await expect(stage.locator("[data-cinematic-panel='assembled'] [data-cinematic-physical-controls='room']")).toBeHidden();
+        const before = await page.evaluate(() => {
+          const bounds = (element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+          };
+          return {
+            root: bounds(document.querySelector("[data-cinematic-root]")),
+            footer: bounds(document.querySelector("footer"))
+          };
+        });
+
+        await expect(root).toHaveAttribute("data-cinematic-enhanced", "true");
+        await page.evaluate(() => document.fonts.ready);
+        await page.evaluate(() => new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame))));
+        await expect(stage).not.toHaveAttribute("inert");
+        await expect(stage).not.toHaveAttribute("aria-hidden");
+        await expect(stage.getByRole("button").first()).toBeEnabled();
+        await expect(fallback).toBeHidden();
+        const after = await page.evaluate(() => {
+          const bounds = (element) => {
+            const rect = element.getBoundingClientRect();
+            return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+          };
+          return {
+            root: bounds(document.querySelector("[data-cinematic-root]")),
+            footer: bounds(document.querySelector("footer")),
+            cls: window.__cinematicStageCls
+          };
+        });
+        for (const element of ["root", "footer"]) {
+          for (const dimension of ["left", "top", "width", "height"]) {
+            expect(Math.abs(after[element][dimension] - before[element][dimension]), `${route} cinematic ${element} ${dimension} must remain stable at ${viewport.width}px`).toBeLessThanOrEqual(1);
+          }
+        }
+        expect(after.cls, route + " cinematic first-frame CLS must stay below 0.001 at " + viewport.width + "px").toBeLessThanOrEqual(0.001);
+      }
+    }
+    await context.close();
+    context = await browser.newContext({ baseURL, locale: "uk-UA" });
+    page = await context.newPage();
+
     for (const width of acceptanceWidths) {
       await page.setViewportSize(viewportFor(width));
       for (const route of publicRoutes) {

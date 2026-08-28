@@ -17,6 +17,10 @@ function responsiveCandidates(scene) {
   return `${scene.src768} 768w, ${scene.src1536} 1536w`;
 }
 
+function settleCinematicStagePending() {
+  document.documentElement.removeAttribute("data-cinematic-stage-pending");
+}
+
 function stateSignature(system, state) {
   if (system.id === "room") return `${state.lighting}:${state.window_treatment}`;
   return `${system.id}:${system.controls.map((control) => `${control.id}=${state[control.id]}`).join(":")}`;
@@ -79,13 +83,13 @@ function enhancePhysicalControls(root) {
   const snapshot = one(root, "[data-cinematic-physical-snapshot]");
   const picture = one(layer || root, "picture[data-cinematic-physical-picture]");
   const image = one(picture || root, "img[data-cinematic-physical-image]");
-  if (!physical || !stage || !live || !layer || !snapshot || !picture || !image) return;
+  if (!physical || !stage || !live || !layer || !snapshot || !picture || !image) return settleCinematicStagePending();
 
   const controlContainers = [...stage.querySelectorAll("[data-cinematic-physical-controls]")];
   const containerBySystem = new Map(controlContainers.map((container) => [text(container.dataset.cinematicPhysicalControls), container]));
   const room = physical.systemForSceneKey("assembled");
   const initialScene = room?.sceneFor(room.initialState);
-  if (!room || !initialScene || picture.dataset.cinematicPhysicalPicture !== "room" || image.getAttribute("src") !== initialScene.src768 || image.getAttribute("srcset") !== responsiveCandidates(initialScene) || image.alt !== initialScene.alt || containerBySystem.size !== physical.systems.length || physical.systems.some((system) => !containerBySystem.get(system.id) || !controlsMatch(containerBySystem.get(system.id), system))) return;
+  if (!room || !initialScene || picture.dataset.cinematicPhysicalPicture !== "room" || image.getAttribute("src") !== initialScene.src768 || image.getAttribute("srcset") !== responsiveCandidates(initialScene) || image.alt !== initialScene.alt || containerBySystem.size !== physical.systems.length || physical.systems.some((system) => !containerBySystem.get(system.id) || !controlsMatch(containerBySystem.get(system.id), system))) return settleCinematicStagePending();
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const states = new Map(physical.systems.map((system) => [system.id, system.initialState]));
@@ -224,6 +228,7 @@ function enhancePhysicalControls(root) {
   root.dataset.cinematicPhysicalEnhanced = "true";
   svg.setPhase("idle");
   setAvailability(root.dataset.cinematicState, root.dataset.cinematicRelation);
+  settleCinematicStagePending();
 }
 
 document.querySelectorAll("[data-cinematic-root]").forEach(enhancePhysicalControls);

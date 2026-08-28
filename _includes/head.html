@@ -6,9 +6,48 @@
 {% unless site.launch.indexing %}
   <meta name="robots" content="noindex, nofollow, noarchive">
 {% endunless %}
+{% if page.layout == 'landing' or page.services_catalogue %}
+<script>
+  (function () {
+    var documentRoot = document.documentElement;
+    var settlePhysicalBootstrap = function () {
+      documentRoot.removeAttribute("data-cinematic-stage-pending");
+    };
+    documentRoot.setAttribute("data-cinematic-stage-pending", "true");
+    document.addEventListener("DOMContentLoaded", settlePhysicalBootstrap, { once: true });
+    window.addEventListener("error", function (event) {
+      var target = event.target;
+      if (!target || target.tagName !== "SCRIPT") return;
+      if (target.hasAttribute("data-cinematic-physical-module")) {
+        settlePhysicalBootstrap();
+        return;
+      }
+      if (!target.hasAttribute("data-cinematic-stage-module")) return;
+      document.querySelectorAll("[data-cinematic-root]").forEach(function (root) {
+        var fallback = root.querySelector("[data-cinematic-fallback]");
+        var stage = root.querySelector("[data-cinematic-stage]");
+        root.removeAttribute("data-cinematic-enhanced");
+        root.setAttribute("data-cinematic-failed", "true");
+        if (fallback) {
+          fallback.hidden = false;
+          fallback.removeAttribute("aria-hidden");
+        }
+        if (stage) {
+          stage.hidden = true;
+          stage.setAttribute("inert", "");
+          stage.setAttribute("aria-hidden", "true");
+        }
+      });
+      documentRoot.removeAttribute("data-cinematic-stage-pending");
+    }, true);
+  }());
+</script>
+{% endif %}
+<link rel="preload" as="font" href="{{ '/assets/fonts/manrope-cyrillic.woff2' | relative_url }}" type="font/woff2" crossorigin>
+<link rel="preload" as="font" href="{{ '/assets/fonts/manrope-latin.woff2' | relative_url }}" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
 {% if page.url == '/' %}
-  <link rel="preload" as="image" href="{{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }}" imagesrcset="{{ '/assets/images/cinematic/residence/room-evening-open-768.webp' | relative_url }} 768w, {{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }} 1536w" imagesizes="(max-width: 767px) 100vw, 52vw">
+  <link rel="preload" as="image" href="{{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }}" imagesrcset="{{ '/assets/images/cinematic/residence/room-evening-open-768.webp' | relative_url }} 768w, {{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }} 1536w" imagesizes="(max-width: 767px) 100vw, 52vw" fetchpriority="high">
 {% endif %}
 <link rel="icon" href="{{ '/assets/brand/favicon.svg' | relative_url }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ '/assets/brand/apple-touch-icon.png' | relative_url }}">
