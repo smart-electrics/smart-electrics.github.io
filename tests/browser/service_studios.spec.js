@@ -227,9 +227,44 @@ test("outgoing snapshots animate and rapid rail changes clean up to one settled 
   await page.addStyleTag({ content: "[data-service-studio-outgoing-snapshot][data-service-studio-snapshot-active] { animation-duration: 10s !important; }" });
   const snapshot = stage.locator("[data-service-studio-outgoing-snapshot]");
   await stage.getByRole("button", { name: "Підключення", exact: true }).click();
+  await expect.poll(() => root.evaluate((studio) => {
+    const panels = studio.querySelector(".service-studio__panels");
+    const panel = studio.querySelector('[data-service-studio-panel="focus"]');
+    return {
+      phase: studio.dataset.serviceStudioMotionPhase,
+      panelsVisibility: panels ? getComputedStyle(panels).visibility : "missing",
+      panelVisibility: panel ? getComputedStyle(panel).visibility : "missing",
+      panelClipPath: panel ? getComputedStyle(panel).clipPath : "missing",
+      heading: panel?.querySelector("h3")?.textContent.trim() || ""
+    };
+  })).toEqual({
+    phase: "disassemble",
+    panelsVisibility: "visible",
+    panelVisibility: "visible",
+    panelClipPath: "none",
+    heading: "Підключення груп"
+  });
   await expect(snapshot).toBeVisible();
   await expect(snapshot).toHaveAttribute("data-service-studio-snapshot-active", "true");
   await expect(snapshot).toHaveCSS("animation-name", "service-studio-outgoing");
+  await expect(root).toHaveAttribute("data-service-studio-motion-phase", "hold");
+  expect(await root.evaluate((studio) => {
+    const panels = studio.querySelector(".service-studio__panels");
+    const panel = studio.querySelector('[data-service-studio-panel="focus"]');
+    return {
+      phase: studio.dataset.serviceStudioMotionPhase,
+      panelsVisibility: panels ? getComputedStyle(panels).visibility : "missing",
+      panelVisibility: panel ? getComputedStyle(panel).visibility : "missing",
+      panelClipPath: panel ? getComputedStyle(panel).clipPath : "missing",
+      heading: panel?.querySelector("h3")?.textContent.trim() || ""
+    };
+  })).toEqual({
+    phase: "hold",
+    panelsVisibility: "visible",
+    panelVisibility: "visible",
+    panelClipPath: "none",
+    heading: "Підключення груп"
+  });
   await stage.getByRole("button", { name: "Траси й точки", exact: true }).click();
   await stage.getByRole("button", { name: "Розподіл", exact: true }).click();
 
