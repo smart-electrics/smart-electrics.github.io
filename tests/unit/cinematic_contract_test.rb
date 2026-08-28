@@ -284,10 +284,9 @@ class CinematicContractTest < Minitest::Test
     assert_includes adapter, 'return `${scene.src768} 768w, ${scene.src1536} 1536w`'
   end
 
-  def test_keeps_panel_and_type_choreography_masked_without_opacity_or_filter_keyframes
+  def test_keeps_masked_panel_choreography_without_blank_service_studio_copy
     keyframes = {
       "_sass/_cinematic.scss" => %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal],
-      "_sass/_service-studio.scss" => %w[service-studio-panel-exit service-studio-panel-reveal service-studio-type-reveal],
       "_sass/_cinematic-solutions.scss" => %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal],
       "_sass/_route-journey.scss" => %w[route-journey-panel-exit route-journey-panel-reveal route-journey-type-reveal]
     }
@@ -299,6 +298,14 @@ class CinematicContractTest < Minitest::Test
         refute_match(/(?:opacity|filter)\s*:/, keyframe, "#{name} must use masked clip-path/transform choreography only")
       end
     end
+
+    service_studio = File.read(File.join(project_root, "_sass/_service-studio.scss"))
+    %w[service-studio-panel-exit service-studio-panel-reveal service-studio-type-reveal].each do |name|
+      refute_match(/@keyframes #{Regexp.escape(name)}\b/, service_studio, "#{name} must not clip the selected service copy")
+    end
+    refute service_studio.match?(/data-service-studio-motion-phase="disassemble"[^\n]*service-studio__panel/)
+    refute service_studio.match?(/data-service-studio-motion-phase="hold"[^\n]*service-studio__panels/)
+    refute service_studio.match?(/data-service-studio-motion-phase="reassemble"[^\n]*service-studio__panel/)
   end
 
   def test_requires_a_reusable_data_driven_decorative_inline_svg_physical_scene_overlay
