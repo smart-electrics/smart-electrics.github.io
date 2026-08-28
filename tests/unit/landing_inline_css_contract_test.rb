@@ -103,6 +103,11 @@ class LandingInlineCssContractTest < Minitest::Test
       assert_equal "high", preload["fetchpriority"]
       assert_equal "eager", assembled_image["loading"]
       assert_equal "high", assembled_image["fetchpriority"]
+
+      services = document(destination, "services/index.html")
+      services_image = services.at_css('[data-cinematic-scene-state="assembled"] picture > img')
+      assert_equal "lazy", services_image["loading"]
+      assert_nil services_image["fetchpriority"]
     end
   end
 end
