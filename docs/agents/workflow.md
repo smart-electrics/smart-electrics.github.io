@@ -31,6 +31,12 @@ Codex автоматично знаходить ці project-scoped ролі я�
 
 Перед handoff агент передає номер Issue/PR, acceptance criteria, межі файлів, команду перевірки, отриманий результат і відкриті ризики. Sol перевіряє первинні артефакти, а не лише переказ, перед злиттям результатів.
 
+## Exact `origin/main` bootstrap
+
+Перед створенням гілки або worktree агент виконує `git fetch origin main` і записує SHA командою `git rev-parse origin/main`. Нову гілку й ізольований worktree створюють саме від записаного SHA, наприклад `git worktree add -b <branch> <path> <sha>`.
+
+Для наявної feature-гілки до продовження роботи й ще раз безпосередньо перед PR агент повторює fetch, записує поточний `origin/main` SHA і вливає його в гілку командою `git merge --no-edit <sha>`; коли можливо, це буде fast-forward, інакше — звичайний merge commit. Синхронізацію починають лише з чистого призначеного worktree. Конфлікт або unrelated dirty state зупиняє процес до безпечного ізольованого worktree та ручного рішення щодо конфлікту. `rebase`, `reset` і `force-push` для цього потоку заборонені.
+
 ## Acceptance і GitHub workflows
 
 Перед handoff або PR реалізатор запускає локальний literal `node scripts/validate_quality_policy.js && make -f Makefile check`. Перший, незалежний від Make dependency graph, preflight відхиляє змінений або спорожнений `check` target до його виконання. Це fail-closed acceptance: перший failed або flaky тест блокує delivery, а Playwright retries лишаються `0`. Безпосередньо перед Chromium gate Make і browser wrapper повторно перевіряють quality policy, тому попередні тести не можуть підмінити Playwright config або test inventory.
