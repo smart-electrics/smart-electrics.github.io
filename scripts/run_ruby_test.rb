@@ -12,7 +12,8 @@ EXPECTED_RESULTS = {
   "route_content_contract_test.rb" => [8, 132],
   "cinematic_route_transition_contract_test.rb" => [1, 2],
   "production_assets_contract_test.rb" => [6, 94],
-  "public_claims_contract_test.rb" => [14, 382]
+  "public_claims_contract_test.rb" => [14, 382],
+  "landing_inline_css_contract_test.rb" => [4, 38]
 }.freeze
 
 require "open3"

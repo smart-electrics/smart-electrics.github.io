@@ -196,6 +196,7 @@ test("the local gate retains production assets, public claims, and exactly one d
   assert.match(makefile, /^check:.*\bvalidate-production-assets\b.*\bvalidate-public-claims\b.*\btest-browser\b/mu);
   assert.match(makefile, /^\tsh scripts\/run_ruby_test\.sh tests\/unit\/production_assets_contract_test\.rb$/mu);
   assert.match(makefile, /^\tsh scripts\/run_ruby_test\.sh tests\/unit\/public_claims_contract_test\.rb$/mu);
+  assert.match(makefile, /^\tsh scripts\/run_ruby_test\.sh tests\/unit\/landing_inline_css_contract_test\.rb$/mu);
   assert.match(playwright, /name: "final-acceptance"/u);
   assert.match(playwright, /testMatch: finalAcceptanceFile/u);
   assert.match(playwright, /const motionChoreographyFile = \/motion_choreography\\\.spec\\\.js\/u;/u);
@@ -205,6 +206,7 @@ test("the local gate retains production assets, public claims, and exactly one d
   assert.equal(packageJson.scripts.test, "node scripts/run_playwright_tests.js");
   assert.equal(packageJson.scripts["test:browser"], "node scripts/run_playwright_tests.js");
   assert.equal(packageJson.devDependencies.acorn, "8.18.0");
+  assert.equal(packageJson.devDependencies.fontkit, "2.0.4");
   assert.equal(playwright.match(/\["\.\/scripts\/fail_on_skipped_reporter\.js"\]/gu)?.length, 1);
   assert.match(makefile, /^test-js-unit:.*\n\tnode scripts\/run_node_tests\.js$/mu);
   assert.match(
@@ -312,7 +314,7 @@ test("runtime reporters turn skipped Playwright and Node tests into failures", (
       { cwd: repositoryRoot, encoding: "utf8", env: nestedNodeEnvironment }
     );
     assert.notEqual(emptyNodeRun.status, 0);
-    assert.match(emptyNodeRun.stderr, /incomplete suite.*expected=72, received=1/iu);
+    assert.match(emptyNodeRun.stderr, /incomplete suite.*expected=73, received=1/iu);
 
     const rubyFixturePath = join(rubyFixtureRoot, "integration_config_test.rb");
     writeFileSync(

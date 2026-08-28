@@ -42,6 +42,7 @@ test-unit: ## Перевірити guard інтеграцій
 	sh scripts/run_ruby_test.sh tests/unit/cinematic_route_transition_contract_test.rb
 	sh scripts/run_ruby_test.sh tests/unit/production_assets_contract_test.rb
 	sh scripts/run_ruby_test.sh tests/unit/public_claims_contract_test.rb
+	sh scripts/run_ruby_test.sh tests/unit/landing_inline_css_contract_test.rb
 	node scripts/run_node_tests.js
 
 test-js-unit: ## Перевірити pure state contracts
