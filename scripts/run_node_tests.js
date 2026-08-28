@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-const EXPECTED_NODE_TEST_COUNT = 72;
+const EXPECTED_NODE_TEST_COUNT = 73;
 const forwardedArguments = process.argv.slice(2);
 const forbiddenArguments = forwardedArguments.filter((argument) => argument.startsWith("-"));
 const forbiddenEnvironment = ["NODE_OPTIONS", "NODE_TEST_CONTEXT"].filter(

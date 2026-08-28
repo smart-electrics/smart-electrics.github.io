@@ -45,9 +45,11 @@
 {% endif %}
 <link rel="preload" as="font" href="{{ '/assets/fonts/manrope-cyrillic.woff2' | relative_url }}" type="font/woff2" crossorigin>
 <link rel="preload" as="font" href="{{ '/assets/fonts/manrope-latin.woff2' | relative_url }}" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
 {% if page.url == '/' %}
-  <link rel="preload" as="image" href="{{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }}" imagesrcset="{{ '/assets/images/cinematic/residence/room-evening-open-768.webp' | relative_url }} 768w, {{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }} 1536w" imagesizes="(max-width: 767px) 100vw, 52vw" fetchpriority="high">
+  <style data-landing-inline-css>{% include generated/landing-inline.css %}</style>
+  <link rel="preload" as="image" href="{{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }}" imagesrcset="{{ '/assets/images/cinematic/residence/room-evening-open-768.webp' | relative_url }} 768w, {{ '/assets/images/cinematic/residence/room-evening-open-1536.webp' | relative_url }} 1536w" imagesizes="(max-width: 767px) 100vw, 52vw" media="(min-width: 768px)" fetchpriority="high">
+{% else %}
+  <link rel="stylesheet" href="{{ '/assets/css/main.css' | relative_url }}">
 {% endif %}
 <link rel="icon" href="{{ '/assets/brand/favicon.svg' | relative_url }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ '/assets/brand/apple-touch-icon.png' | relative_url }}">
