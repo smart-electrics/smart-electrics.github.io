@@ -434,6 +434,7 @@ function enhanceSimulator(root) {
     motion.cancel();
     createOutgoingSnapshot();
     state = next;
+    if (!reducedMotion.matches) motion.prepare();
     synchronize({ announce: true, cinematic: true });
     if (reducedMotion.matches) {
       motion.start({ reducedMotion: true });
@@ -447,6 +448,8 @@ function enhanceSimulator(root) {
     } catch (_) {
       // The semantic scene and alt remain available if the decorative raster fails.
     }
+    if (generation !== transitionGeneration) return;
+    await new Promise((resolveFrame) => requestAnimationFrame(resolveFrame));
     if (generation !== transitionGeneration) return;
     motion.start();
   };

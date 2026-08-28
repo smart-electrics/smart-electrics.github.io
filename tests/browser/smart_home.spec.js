@@ -820,7 +820,7 @@ test("keeps rapid scene replacement bounded and supplies inert responsive metada
   await expect.poll(() => root.evaluate(() => window.__slowSmartHomeDecodePending)).toBe(true);
   await page.waitForTimeout(330);
   await expect(root).toHaveAttribute("data-system", "security");
-  await expect(root).toHaveAttribute("data-motion-phase", "idle");
+  await expect(root).toHaveAttribute("data-motion-phase", "prepare");
   await expect(root.locator("[data-outgoing-snapshot]"), "the previous generation must not clear the newest cold-image snapshot").toHaveCount(1);
   await root.evaluate(() => window.__releaseSlowSmartHomeDecode());
   await expect(root).toHaveAttribute("data-motion-phase", "disassemble");

@@ -104,6 +104,7 @@ async function expectBoundedSmartHomeCrossfade(root, label) {
   const reassemble = phase("reassemble");
   const idle = phase("idle");
   expect(timeline.map(({ phase: name }) => name), label + " must retain an observable causal order").toEqual([
+    "prepare",
     "disassemble",
     "hold",
     "reassemble",
@@ -287,10 +288,12 @@ test("rapid interactions restart each composition from the newest selected state
       const presets = root.locator("input[data-preset-radio]");
       await presets.nth(1).click();
       const newestPreset = await presets.nth(2).getAttribute("value");
+      const newestPresetSystem = await root.locator(`[data-preset-panel="${newestPreset}"]`).getAttribute("data-primary-system");
       await presets.nth(2).click();
       await expect(root).toHaveAttribute("data-preset", newestPreset);
+      await expect(root).toHaveAttribute("data-system", newestPresetSystem);
       await expect(root).toHaveAttribute(composition.phase, "idle");
-      await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", newestSystem);
+      await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", newestPresetSystem);
     } else {
       const newestSolution = await root.getAttribute("data-cinematic-solutions-solution-id");
       await root.locator('[data-cinematic-solutions-action="select-focus"]').click();

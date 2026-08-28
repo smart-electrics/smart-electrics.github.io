@@ -83,10 +83,17 @@ test("bypasses timers for reduced motion and can cancel a running lifecycle", ()
   assert.deepEqual(phases, []);
   assert.equal(clock.pending().length, 0);
 
+  motion.prepare();
+  assert.equal(motion.phase, "prepare");
+  assert.deepEqual(phases, ["prepare"]);
+  assert.equal(clock.pending().length, 0);
+  motion.cancel();
+  assert.equal(motion.phase, "idle");
+
   motion.start();
   motion.cancel();
   assert.equal(motion.phase, "idle");
-  assert.deepEqual(phases, ["disassemble", "idle"]);
+  assert.deepEqual(phases, ["prepare", "idle", "disassemble", "idle"]);
   assert.equal(clock.pending().length, 0);
 });
 
@@ -142,6 +149,8 @@ test("keeps smart-home system switches calm while manual controls remain continu
   assert.ok(Number(outgoing[1]) + Number(outgoing[2] || 0) + renderMargin <= disassembleDuration, "outgoing scene must fade before the phase ends");
   assert.match(components, /@keyframes smart-home-disassemble \{\s*from \{ opacity: 1; \}\s*to \{ opacity: 0; \}\s*\}/u, "the switch may fade only the outgoing raster-and-SVG composite without geometric clipping or translation");
   assert.match(simulator, /durations:\s*\{ disassemble: 280, hold: 0, reassemble: 0 \}/u, "the phone simulator must not retain an invisible hold or reassembly delay");
+  assert.match(simulator, /if \(!reducedMotion\.matches\) motion\.prepare\(\);\s*synchronize\(\{ announce: true, cinematic: true \}\);/u, "a cold phone scene must expose a non-idle preparation phase while its outgoing decoded frame remains intact");
+  assert.match(simulator, /await new Promise\(\(resolveFrame\) => requestAnimationFrame\(resolveFrame\)\);\s*if \(generation !== transitionGeneration\) return;\s*motion\.start\(\);/u, "the bounded crossfade must begin only after the decoded scene reaches a compositable frame");
   assert.match(physicalControls, /durations:\s*\{ disassemble: 280, hold: 0, reassemble: 0 \}/u, "the subordinate smart-home scenes must use the same bounded crossfade timing");
   assert.match(simulator, /const beginCinematicTransition = async \(next\) => \{\s*const generation = \+\+transitionGeneration;\s*motion\.cancel\(\);\s*createOutgoingSnapshot\(\);/u, "a new phone transition must cancel the previous generation before owning its snapshot");
   assert.match(physicalControls, /const transition = async \(\) => \{\s*const generation = \+\+transitionGeneration;\s*motion\.cancel\(\);\s*createOutgoingSnapshot\(\);/u, "a new subordinate system transition must cancel the previous generation before owning its snapshot");

@@ -63,6 +63,12 @@ export function createCinematicMotion({ timers = globalThis, durations, onPhase 
     get phase() {
       return phase;
     },
+    prepare() {
+      clearTimer();
+      generation += 1;
+      setPhase("prepare");
+      return phase;
+    },
     start({ reducedMotion = false } = {}) {
       clearTimer();
       generation += 1;

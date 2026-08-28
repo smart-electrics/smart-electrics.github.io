@@ -917,6 +917,15 @@ async function captureDeterministicScreenshot(page, file, width, route, state) {
   await expect(page.locator("[data-outgoing-snapshot]"), file + " must settle its outgoing smart-home frame before capture").toHaveCount(0);
   await page.locator("main img:visible").evaluateAll((images) => Promise.all(images.map((image) => image.decode())));
   await page.evaluate(() => document.fonts.ready);
+  await page.mouse.move(0, 0);
+  await page.evaluate(async () => {
+    const finiteAnimations = document.getAnimations().filter((animation) => {
+      const iterations = animation.effect?.getTiming().iterations;
+      return animation.playState === "running" && iterations !== Infinity;
+    });
+    await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)));
+    await new Promise((resolveFrame) => requestAnimationFrame(() => requestAnimationFrame(resolveFrame)));
+  });
   const options = { animations: "disabled", caret: "hide" };
   const first = await page.screenshot({ ...options, path: resolve(evidenceDirectory, file) });
   const second = await page.screenshot(options);
