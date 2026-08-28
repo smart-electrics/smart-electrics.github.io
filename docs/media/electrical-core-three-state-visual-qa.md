@@ -1,6 +1,15 @@
 # Візуальна перевірка: три стани електричного ядра
 
-Статус: PASS — незалежна візуальна перевірка 2026-08-28.
+- Дата: 2026-08-28
+- Reviewer: незалежна read-only роль visual QA, яка не брала участі в
+  генерації, конвертації або реалізації
+- Метод: окремий `view_image`-огляд accepted source PNG і всіх десяти
+  production WebP у `original` detail; попарне порівняння 768/1536 crop,
+  геометрії, причинного змісту та спільної visual family
+- Результат: PASS / S0; blocker-free
+- Evidence: результати для кожного family нижче, точні source/output SHA-256,
+  dimensions і provenance у
+  [generated-assets.md](generated-assets.md#electrical-core-three-state-scenes)
 
 ## Межі перевірки
 
