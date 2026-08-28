@@ -69,22 +69,17 @@
         {% for relation_id in studio_relation_ids %}
           {% assign studio_relation = cinematic.relations | where: "id", relation_id | first %}
           {% for state_id in studio_state_ids %}
+            {% assign scene_family = studio.scene_families[state_id] | default: studio_relation.scene_family %}
             <figure class="service-studio__scene" data-service-studio-scene="{{ state_id }}" data-service-studio-relation-id="{{ relation_id }}"{% unless forloop.parentloop.first and forloop.first %} hidden{% endunless %}>
               <picture>
-                <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: studio_relation.scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
-                <img src="{{ '/assets/images/smart-home/' | append: studio_relation.scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 48vw" alt="" loading="lazy">
+                <source media="(max-width: 767px)" srcset="{{ '/assets/images/smart-home/' | append: scene_family | append: '-768.webp' | relative_url }}" width="768" height="512">
+                <img src="{{ '/assets/images/smart-home/' | append: scene_family | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, 48vw" alt="" loading="lazy">
               </picture>
             </figure>
           {% endfor %}
         {% endfor %}
         <span class="service-studio__outgoing-snapshot" data-service-studio-outgoing-snapshot aria-hidden="true" hidden></span>
       </div>
-
-      <svg class="service-studio__relationship-connector" data-service-studio-relationship-connector aria-hidden="true" focusable="false" tabindex="-1" viewBox="0 0 1 1" preserveAspectRatio="none" hidden>
-        <path data-service-studio-relationship-connector-path pathLength="1"></path>
-        <circle data-cinematic-relationship-connector-source r="3"></circle>
-        <circle data-cinematic-relationship-connector-target r="3"></circle>
-      </svg>
 
       <div class="service-studio__panels">
         {% for relation_id in studio_relation_ids %}

@@ -287,4 +287,37 @@ class ServiceStudioContractTest < Minitest::Test
       assert_predicate status, :success?, stderr
     end
   end
+
+  def test_rejects_missing_identical_or_unknown_three_state_media_for_electrical_core_studios
+    [
+      ["electrical-design", nil, "scene_families must declare assembled, focus, reassembled"],
+      [
+        "electrical-installation",
+        { "assembled" => "electrical-installation", "focus" => "electrical-installation", "reassembled" => "panel" },
+        "scene_families must be distinct within the route"
+      ],
+      [
+        "panels-and-protection",
+        { "assembled" => "panel-intake", "focus" => "panel", "reassembled" => "unknown-panel-scene" },
+        "scene_families must use the canonical state media"
+      ]
+    ].each do |slug, scene_families, expected_error|
+      copy_services do |services|
+        path = File.join(services, "#{slug}.md")
+        document = File.read(path)
+        if scene_families
+          serialized = scene_families.map { |state, family| "    #{state}: #{family}" }.join("\n")
+          document = document.sub(/  scene_families:\n(?:    .*\n){3}/, "  scene_families:\n#{serialized}\n")
+        else
+          document = document.sub(/  scene_families:\n(?:    .*\n){3}/, "")
+        end
+        File.write(path, document)
+
+        _stdout, stderr, status = validate(services)
+
+        refute_predicate status, :success?
+        assert_includes stderr, expected_error
+      end
+    end
+  end
 end

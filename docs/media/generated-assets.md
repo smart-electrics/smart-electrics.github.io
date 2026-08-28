@@ -184,6 +184,53 @@ Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers,
 логотипи, UI, vendor-specific products, warped geometry, duplicated fixtures,
 random cables, exaggerated bloom і fantasy technology.
 
+## electrical-core-three-state-scenes
+
+- Дата: 2026-08-28
+- Інструмент: вбудований OpenAI image generation tool
+- Призначення: п’ять фотореалістичних scene families для причинно-візуальних
+  станів проєктування електрики, електромонтажу та щитів/захисту.
+- Вхідні зображення для art direction: існуючі
+  `assets/images/smart-home/electrical-installation-1536.webp` і
+  `assets/images/smart-home/panel-1536.webp`; прийнятий
+  `electrical-design-plan` також став family reference для другої генерації
+  `electrical-design-groups`.
+
+### Прийняті джерела й WebP-виходи
+
+| Family | Прийняте source image | 768×512 WebP | 1536×1024 WebP |
+| --- | --- | --- | --- |
+| `electrical-design-plan` | `exec-84a62fb6-2be5-4714-8d71-297aaf8342c1.png` | `6c75b6b456a2507adab79b54dbef03b200b08358f6bbee31acce01c391de0cd0`, 31,272 B | `23a370e301e1cab51b7561bcb90f2c76c34c26748276b3b2a06ad5f0cb326ea1`, 125,006 B |
+| `electrical-design-groups` | `exec-26858da1-3dce-40e6-afcd-f2f4e45dc7b9.png` | `c450883f30053668468b2754f3705d5c145f046fbf56395e35a9c9cd5155ed06`, 29,358 B | `7c2d86815423e1c1626a0bf91ae1173861aedbe4e984355d6e1b7db71887c97d`, 119,608 B |
+| `electrical-installation-finish` | `exec-2382574e-8b97-4379-a06a-92454974f9a3.png` | `7f302871aec4792a0da6a5b2642a86c71894b030458b6e193ee1eadbb9bcc487`, 18,926 B | `6b5191de49ed95bc4a8928c2bf67253169a4b753f9a4b28f1edfbdd3c4e846eb`, 125,800 B |
+| `panel-intake` | `exec-ce8a0c46-09df-4f3d-bab9-74774e991fbc.png` | `7fcb123f31da7208da7dc4d341724df1afe9534bad3130f985ad6726571f9b40`, 24,884 B | `2987a76700fe477cfa6110614df9200274c77166c34d25fe52983c949e6e521e`, 110,672 B |
+| `panel-priorities` | `exec-15b5faac-d5d5-4fde-81ba-a64d40d49dcc.png` | `f6929e24d3b52d746671d535f405a432203b62471b6e9ecd541ad1ea30ea9c88`, 25,290 B | `e34a2bad1207ab07556126da158617a5c18ca0118ccf094e1e0fed4d2f7e33a8`, 126,368 B |
+
+WebP перетворено без метаданих: mobile `768×512` через `cwebp` quality 80,
+desktop `1536×1024` через `cwebp` quality 84.
+
+### Prompt contract
+
+Усі п’ять сцен зберігають одну резиденцію, темний горіх, теплий травертин,
+стриману бронзу, blue hour, 2700K amber/copper, прямі вертикалі й фізично
+правдоподібний монтаж. Окремий причинний акцент: план і прив’язка точок;
+три відокремлені групи; завершені підключення в закритій стіні; ввід під
+прозорою кришкою; три яруси розподілу. Заборонені люди, бренди, написи,
+читабельні позначки, UI, водяні знаки, випадкові кабелі, немонтажні деталі,
+зламана геометрія та надмірний bloom.
+
+Перші варіанти `electrical-design-groups`,
+`electrical-installation-finish`, `panel-intake` і `panel-priorities` були
+відхилені та не ввійшли до production assets: відповідно невиразні групи й
+декоративні кабелі; незавершена стіна; псевдотекст і неоднозначна геометрія
+вводу; щільне невиразне обладнання з синтетичними повтореннями. Для цих
+family зафіксовані лише прийняті v2 sources у таблиці вище.
+
+- Повторне використання: `electrical-installation` і `panel` з
+  [`cinematic-engineering-scene-set`](#cinematic-engineering-scene-set), без
+  нового provenance.
+- Незалежний звіт: [`electrical-core-three-state-visual-qa.md`](electrical-core-three-state-visual-qa.md).
+
 ## cinematic-engineering-scene-set
 
 - Дата: 2026-08-24

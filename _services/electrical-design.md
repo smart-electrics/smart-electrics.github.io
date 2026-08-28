@@ -23,6 +23,10 @@ related_services:
 service_studio:
   direction_id: electrical-design
   relation_id: panels-and-protection--panel-assembly
+  scene_families:
+    assembled: electrical-design-plan
+    focus: electrical-design-groups
+    reassembled: panel
   states:
     assembled:
       label: План

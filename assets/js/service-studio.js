@@ -1,6 +1,5 @@
 import { createServiceStudioState } from "./service-studio-state.js";
 import { createCinematicMotion } from "./cinematic-motion.js";
-import { positionCinematicRelationshipConnector } from "./cinematic-relationship-connector.js";
 
 const PANEL_FALLBACK_DIRECTION_IDS = new Set(["electrical-design", "electrical-installation"]);
 
@@ -17,6 +16,44 @@ function readJson(root, attribute) {
   } catch (_) {
     return null;
   }
+}
+
+function sceneImage(scene) {
+  const image = scene?.querySelector("img");
+  return image instanceof HTMLImageElement ? image : null;
+}
+
+function decodeImage(image) {
+  if (!(image instanceof HTMLImageElement)) return Promise.reject(new TypeError("Service studio scene must contain an image."));
+  if (typeof image.decode === "function") return image.decode();
+  if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    image.addEventListener("load", resolve, { once: true });
+    image.addEventListener("error", reject, { once: true });
+  });
+}
+
+function activeResponsiveCandidate(image) {
+  const picture = image.closest("picture");
+  const source = [...(picture?.querySelectorAll("source") || [])].find((candidate) =>
+    candidate.srcset && (!candidate.media || window.matchMedia(candidate.media).matches)
+  );
+  const src = source?.srcset || image.currentSrc || image.src;
+  return src ? new URL(src, document.baseURI).href : null;
+}
+
+async function preloadSceneImage(image) {
+  if (!(image instanceof HTMLImageElement)) throw new TypeError("Service studio scene must contain an image.");
+  const candidate = activeResponsiveCandidate(image);
+  if (!candidate) throw new TypeError("Service studio scene must declare a responsive image candidate.");
+
+  const preload = new Image();
+  preload.src = candidate;
+  await decodeImage(preload);
+
+  image.loading = "eager";
+  await decodeImage(image);
+  if (image.currentSrc !== candidate) throw new TypeError("Service studio scene resolved an unexpected responsive image candidate.");
 }
 
 function relationIdsFor(config) {
@@ -78,11 +115,9 @@ function enhance(root) {
   const config = readJson(root, "data-service-studio-config");
   const fallback = one(root, "[data-service-studio-fallback]");
   const stage = one(root, "[data-service-studio-stage]");
-  const composition = one(root, ".service-studio__composition");
   const live = one(root, "[data-service-studio-live]");
   const snapshot = one(root, "[data-service-studio-outgoing-snapshot]");
-  const relationshipConnector = one(root, "svg[data-service-studio-relationship-connector]");
-  if (!graph || !config || !fallback || !stage || !composition || !live || !snapshot || !relationshipConnector) return;
+  if (!graph || !config || !fallback || !stage || !live || !snapshot) return;
 
   const relationIds = relationIdsFor(config);
   if (!relationIds) return;
@@ -140,11 +175,13 @@ function enhance(root) {
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let selectedRelationId = relationIds[0];
   let state = machines.get(selectedRelationId).initialState;
+  let transitionGeneration = 0;
 
   const clearTransition = () => {
     snapshot.hidden = true;
     snapshot.removeAttribute("data-service-studio-snapshot-active");
     snapshot.style.removeProperty("--service-studio-snapshot-image");
+    snapshot.style.removeProperty("--service-studio-snapshot-position");
     root.removeAttribute("data-service-studio-transition");
   };
 
@@ -153,34 +190,11 @@ function enhance(root) {
     const panel = activePanel();
     if (panel) panel.inert = inert;
   };
-  const synchronizeConnector = () => {
-    const scene = sceneFor(stateIdFor(state), selectedRelationId);
-    const relationControl = relationControls.find((control) => control.dataset.serviceStudioRelationId === selectedRelationId);
-    const stateControl = controls.find((control) => control.dataset.serviceStudioControlState === stateIdFor(state));
-    const source = relationControl || stateControl;
-    const stacked = window.matchMedia("(max-width: 56.25rem)").matches;
-    const target = scene;
-    if (state.state === "assembled" || !source || !target) {
-      relationshipConnector.setAttribute("hidden", "");
-      return;
-    }
-    positionCinematicRelationshipConnector({
-      connector: relationshipConnector,
-      container: composition,
-      source,
-      target,
-      state: state.state,
-      edgeRoute: stacked ? "right" : "top-right-perimeter",
-      sourceBias: stacked ? { x: 0.5, y: 1 } : { x: 1, y: 0.5 },
-      targetBias: { x: 0.82, y: 0.3 }
-    });
-  };
   const motion = createCinematicMotion({
     onPhase: (phase) => {
       root.dataset.serviceStudioMotionPhase = phase;
       synchronizePanelInertness(phase === "hold");
       if (phase === "hold" || phase === "idle") clearTransition();
-      if (phase === "reassemble" || phase === "idle") synchronizeConnector();
     }
   });
 
@@ -196,7 +210,6 @@ function enhance(root) {
     root.dataset.serviceStudioState = stateId;
     root.dataset.serviceStudioDirection = state.selectedDirectionId || "";
     root.dataset.serviceStudioRelation = state.selectedRelationId || "";
-    synchronizeConnector();
     if (announce) {
       const relationship = panel.querySelector(".service-studio__relation-label")?.textContent.trim() || "";
       const summary = panel.querySelector("[data-service-studio-summary]")?.textContent.trim() || "";
@@ -205,32 +218,55 @@ function enhance(root) {
     }
   };
 
+  const captureOutgoingScene = (outgoingScene) => {
+    const outgoingImage = sceneImage(outgoingScene);
+    const outgoingSource = outgoingImage?.currentSrc || outgoingImage?.src;
+    if (!outgoingImage || !outgoingSource) return;
+    snapshot.style.setProperty("--service-studio-snapshot-image", `url("${outgoingSource}")`);
+    snapshot.style.setProperty("--service-studio-snapshot-position", window.getComputedStyle(outgoingImage).objectPosition);
+    snapshot.hidden = false;
+    snapshot.dataset.serviceStudioSnapshotActive = "true";
+    root.dataset.serviceStudioTransition = "true";
+  };
+
+  const requestTransition = async ({ nextState, nextRelationId }) => {
+    const requestGeneration = ++transitionGeneration;
+    motion.cancel();
+    clearTransition();
+
+    const targetScene = sceneFor(stateIdFor(nextState), nextRelationId);
+    try {
+      await preloadSceneImage(sceneImage(targetScene));
+    } catch (_) {
+      return;
+    }
+    if (requestGeneration !== transitionGeneration) return;
+
+    const outgoingScene = sceneFor(stateIdFor(state), selectedRelationId);
+    if (!reducedMotion.matches) captureOutgoingScene(outgoingScene);
+    state = nextState;
+    selectedRelationId = nextRelationId;
+    motion.start({ reducedMotion: reducedMotion.matches });
+    synchronize(true);
+  };
+
   stage.addEventListener("click", (event) => {
     const target = event.target instanceof Element ? event.target : null;
     const relationControl = target?.closest("button[data-service-studio-relation-control]");
     const control = target?.closest("button[data-service-studio-action]");
     if ((!control && !relationControl) || !stage.contains(control || relationControl)) return;
-    const outgoingRelationId = selectedRelationId;
-    if (relationControl) selectedRelationId = relationControl.dataset.serviceStudioRelationId;
-    const machine = machines.get(selectedRelationId);
+    const nextRelationId = relationControl ? relationControl.dataset.serviceStudioRelationId : selectedRelationId;
+    const machine = machines.get(nextRelationId);
     if (!machine) return;
     const action = relationControl ? { type: "select-reassembled" } : { type: control.dataset.serviceStudioAction };
     const nextState = machine.reduce(state, action);
-    if (nextState === state) return;
-    clearTransition();
-    if (!reducedMotion.matches) {
-      const outgoingScene = sceneFor(stateIdFor(state), outgoingRelationId);
-      const outgoingImage = outgoingScene?.querySelector("img")?.currentSrc || outgoingScene?.querySelector("img")?.src;
-      if (outgoingImage) {
-        snapshot.style.setProperty("--service-studio-snapshot-image", `url("${outgoingImage}")`);
-        snapshot.hidden = false;
-        snapshot.dataset.serviceStudioSnapshotActive = "true";
-        root.dataset.serviceStudioTransition = "true";
-      }
+    if (nextState === state) {
+      transitionGeneration += 1;
+      motion.cancel();
+      clearTransition();
+      return;
     }
-    state = nextState;
-    motion.start({ reducedMotion: reducedMotion.matches });
-    synchronize(true);
+    void requestTransition({ nextState, nextRelationId });
   });
 
   snapshot.addEventListener("animationend", clearTransition);
@@ -244,10 +280,6 @@ function enhance(root) {
       synchronizePanelInertness(false);
     }
   });
-  window.addEventListener("resize", () => {
-    window.requestAnimationFrame(synchronizeConnector);
-  }, { passive: true });
-
   synchronize();
   root.dataset.serviceStudioMotionPhase = "idle";
   fallback.hidden = true;

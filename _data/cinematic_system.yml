@@ -1,11 +1,11 @@
 directions:
   - id: electrical-design
-    focus_scene_family: stairs
+    focus_scene_family: electrical-design-groups
     service_slug: electrical-design
     label: Електромонтажне проєктування
     description: Логіка системи починається з узгодженого плану електромонтажних робіт.
   - id: electrical-installation
-    focus_scene_family: electrical-installation
+    focus_scene_family: electrical-installation-finish
     service_slug: electrical-installation
     label: Електромонтажні роботи
     description: Траси й точки поєднують робочі частини електромонтажного проєкту.

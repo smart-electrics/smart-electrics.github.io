@@ -3,7 +3,16 @@ import { createHash } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 const route = "/smart-home/";
-const presets = ["Ранок", "Повернення", "Вечір", "Вихід", "Нічний маршрут", "Спека", "Резерв"];
+const presetExpectations = [
+  { id: "morning", label: "Ранок", brightness: 35 },
+  { id: "arrival", label: "Повернення", brightness: 70 },
+  { id: "evening", label: "Вечір", brightness: 55 },
+  { id: "away", label: "Вихід", brightness: 10 },
+  { id: "night", label: "Нічний маршрут", brightness: 15 },
+  { id: "heat", label: "Спека", brightness: 30 },
+  { id: "backup", label: "Резерв", brightness: 35 }
+];
+const presets = presetExpectations.map(({ label }) => label);
 const systems = [
   ["lighting", "Освітлення"], ["climate", "Клімат-контроль"], ["access", "Доступ"],
   ["security", "Безпека й відео"], ["panel", "Щит і захист"], ["low-voltage", "Слабкострумна інфраструктура"],
@@ -419,9 +428,8 @@ test("malformed subordinate physical picker, control, or initial media fails clo
 test("every preset atomically changes the configuration and returns from manual mode", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);
-  const presetIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
 
-  for (const [index, label] of presets.entries()) {
+  for (const { id, label, brightness } of presetExpectations) {
     const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
     await slider.evaluate((input) => {
       input.value = input.value === input.max ? input.min : input.max;
@@ -430,13 +438,18 @@ test("every preset atomically changes the configuration and returns from manual 
     await expect(root).toHaveAttribute("data-manual", "true");
     const manualPreview = await readPresetPreview(root);
     await root.getByRole("radio", { name: label }).click();
-    await expect(root).toHaveAttribute("data-preset", presetIds[index]);
+    await expect(root).toHaveAttribute("data-preset", id);
     await expect(root).toHaveAttribute("data-manual", "false");
     await expect(root.locator("[data-phone-live]")).toContainText(label);
-    await expect(root.locator(`[data-preset-panel="${presetIds[index]}"]`)).toBeVisible();
+    await expect(root.locator(`[data-preset-panel="${id}"]`)).toBeVisible();
+    await expect(root.locator('[data-control-output="lighting:brightness"]')).toHaveText(`Яскравість: ${brightness}%`);
+    // Computed image filters can settle one frame after the synchronous preset state.
+    await expect.poll(
+      async () => (await readPresetPreview(root)).exposure,
+      { message: `${label} computed scene exposure` }
+    ).not.toBe(manualPreview.exposure);
     const presetPreview = await readPresetPreview(root);
     expect(presetPreview.pixels, `${label} computed scene pixels`).not.toBe(manualPreview.pixels);
-    expect(presetPreview.exposure, `${label} computed scene exposure`).not.toBe(manualPreview.exposure);
     expect(presetPreview.svgSignature, `${label} physical scene state`).not.toBe(manualPreview.svgSignature);
     expect(presetPreview.signature, `${label} preview signature`).not.toBe(manualPreview.signature);
     expect(presetPreview.topology, `${label} causal topology`).not.toBe(manualPreview.topology);

@@ -129,11 +129,11 @@ class CinematicContractTest < Minitest::Test
   def test_rejects_a_missing_responsive_focus_scene_asset
     graph = canonical_graph
     with_graph(graph) do |path|
-      with_repository_missing_scene_asset("electrical-installation", 768) do |repository_root|
+      with_repository_missing_scene_asset("electrical-installation-finish", 768) do |repository_root|
         _stdout, stderr, status = validate(path, repository_root)
 
         refute_predicate status, :success?
-        assert_includes stderr, "scene family electrical-installation: missing 768px asset"
+        assert_includes stderr, "scene family electrical-installation-finish: missing 768px asset"
       end
     end
   end
@@ -238,10 +238,9 @@ class CinematicContractTest < Minitest::Test
     assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
 
-  def test_requires_motion_compositions_to_declare_real_relationship_connectors_and_a_mobile_safe_selector
+  def test_keeps_relationship_connectors_on_cinematic_compositions_but_not_service_studios
     templates = {
       "_includes/cinematic-stage.html" => "data-cinematic-relationship-connector",
-      "_includes/service-studio.html" => "data-service-studio-relationship-connector",
       "_includes/cinematic-solutions.html" => "data-cinematic-solutions-relationship-connector"
     }
     templates.each do |path, connector|
@@ -249,6 +248,9 @@ class CinematicContractTest < Minitest::Test
       assert_includes source, connector, "#{path} must expose an aria-hidden SVG relationship connector"
       assert_includes source, "pathLength=\"1\"", "#{path} connector must be drawable"
     end
+
+    service_studio = File.read(File.join(project_root, "_includes/service-studio.html"))
+    refute_includes service_studio, "data-service-studio-relationship-connector", "service studios must not render a decorative relationship line"
 
     %w[cinematic-stage service-studio cinematic-solutions route-journey].each do |adapter|
       source = File.read(File.join(project_root, "assets/js/#{adapter}.js"))
@@ -282,10 +284,9 @@ class CinematicContractTest < Minitest::Test
     assert_includes adapter, 'return `${scene.src768} 768w, ${scene.src1536} 1536w`'
   end
 
-  def test_keeps_panel_and_type_choreography_masked_without_opacity_or_filter_keyframes
+  def test_keeps_masked_panel_choreography_without_blank_service_studio_copy
     keyframes = {
       "_sass/_cinematic.scss" => %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal],
-      "_sass/_service-studio.scss" => %w[service-studio-panel-exit service-studio-panel-reveal service-studio-type-reveal],
       "_sass/_cinematic-solutions.scss" => %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal],
       "_sass/_route-journey.scss" => %w[route-journey-panel-exit route-journey-panel-reveal route-journey-type-reveal]
     }
@@ -297,6 +298,14 @@ class CinematicContractTest < Minitest::Test
         refute_match(/(?:opacity|filter)\s*:/, keyframe, "#{name} must use masked clip-path/transform choreography only")
       end
     end
+
+    service_studio = File.read(File.join(project_root, "_sass/_service-studio.scss"))
+    %w[service-studio-panel-exit service-studio-panel-reveal service-studio-type-reveal].each do |name|
+      refute_match(/@keyframes #{Regexp.escape(name)}\b/, service_studio, "#{name} must not clip the selected service copy")
+    end
+    refute service_studio.match?(/data-service-studio-motion-phase="disassemble"[^\n]*service-studio__panel/)
+    refute service_studio.match?(/data-service-studio-motion-phase="hold"[^\n]*service-studio__panels/)
+    refute service_studio.match?(/data-service-studio-motion-phase="reassemble"[^\n]*service-studio__panel/)
   end
 
   def test_requires_a_reusable_data_driven_decorative_inline_svg_physical_scene_overlay

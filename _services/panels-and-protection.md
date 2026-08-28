@@ -23,6 +23,10 @@ related_services:
 service_studio:
   direction_id: panels-and-protection
   relation_id: panels-and-protection--panel-assembly
+  scene_families:
+    assembled: panel-intake
+    focus: panel
+    reassembled: panel-priorities
   states:
     assembled:
       label: Ввід

@@ -22,8 +22,8 @@ module CinematicSystemContract
     "diagnostics" => "diagnostics"
   }.freeze
   FOCUS_SCENE_FAMILY_BY_DIRECTION_ID = {
-    "electrical-design" => "stairs",
-    "electrical-installation" => "electrical-installation",
+    "electrical-design" => "electrical-design-groups",
+    "electrical-installation" => "electrical-installation-finish",
     "panels-and-protection" => "panel",
     "lighting" => "stairs",
     "low-voltage" => "surveillance",
@@ -31,7 +31,10 @@ module CinematicSystemContract
     "smart-home-integration" => "climate",
     "diagnostics-and-service" => "diagnostics"
   }.freeze
-  SCENE_FAMILIES = (RELATION_SCENE_FAMILY_BY_CHILD_ID.values + FOCUS_SCENE_FAMILY_BY_DIRECTION_ID.values).uniq.freeze
+  SERVICE_STUDIO_SCENE_FAMILIES = %w[
+    electrical-design-plan electrical-design-groups electrical-installation-finish panel-intake panel-priorities
+  ].freeze
+  SCENE_FAMILIES = (RELATION_SCENE_FAMILY_BY_CHILD_ID.values + FOCUS_SCENE_FAMILY_BY_DIRECTION_ID.values + SERVICE_STUDIO_SCENE_FAMILIES).uniq.freeze
   DISTINCT_FOCUS_SCENE_PAIRS = [%w[electrical-installation panels-and-protection]].freeze
   REQUIRED_DIRECTION_FIELDS = %w[id focus_scene_family service_slug label description].freeze
   REQUIRED_RELATION_FIELDS = %w[id direction_id scene_family child related_direction_ids].freeze

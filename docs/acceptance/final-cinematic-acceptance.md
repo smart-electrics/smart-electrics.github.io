@@ -109,7 +109,7 @@ unit-тестів.
 відхиляє preload-контроли до старту Ruby. npm install виконується з
 `--ignore-scripts`, а package lifecycle hooks заборонені.
 Playwright config має audited source digest, кожен project дозволяє лише свій
-`viewport`, а runtime reporter вимагає рівно 678 discovered tests. Кожен Make
+`viewport`, а runtime reporter вимагає рівно 683 discovered tests. Кожен Make
 target має одне визначення; pattern/special rules, альтернативні default
 makefiles, `.npmrc` і зовнішні includes заборонені.
 Remote Quality workflow заборонений. Make відхиляє успадковані execution
