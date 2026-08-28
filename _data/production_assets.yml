@@ -621,6 +621,46 @@ assets:
   family: diagnostics
   provenance: docs/media/generated-assets.md#cinematic-engineering-scene-set
   qa: docs/media/smart-home-scenes-visual-qa.md
+- path: assets/images/smart-home/electrical-design-groups-1536.webp
+  sha256: 7c2d86815423e1c1626a0bf91ae1173861aedbe4e984355d6e1b7db71887c97d
+  bytes: 119608
+  width: 1536
+  height: 1024
+  responsive_pair: smart-home-electrical-design-groups
+  variant: desktop
+  family: electrical-design-groups
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/electrical-design-groups-768.webp
+  sha256: c450883f30053668468b2754f3705d5c145f046fbf56395e35a9c9cd5155ed06
+  bytes: 29358
+  width: 768
+  height: 512
+  responsive_pair: smart-home-electrical-design-groups
+  variant: mobile
+  family: electrical-design-groups
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/electrical-design-plan-1536.webp
+  sha256: 23a370e301e1cab51b7561bcb90f2c76c34c26748276b3b2a06ad5f0cb326ea1
+  bytes: 125006
+  width: 1536
+  height: 1024
+  responsive_pair: smart-home-electrical-design-plan
+  variant: desktop
+  family: electrical-design-plan
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/electrical-design-plan-768.webp
+  sha256: 6c75b6b456a2507adab79b54dbef03b200b08358f6bbee31acce01c391de0cd0
+  bytes: 31272
+  width: 768
+  height: 512
+  responsive_pair: smart-home-electrical-design-plan
+  variant: mobile
+  family: electrical-design-plan
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
 - path: assets/images/smart-home/electrical-installation-1536.webp
   sha256: 919923c8b99ca012b52c5cecb4b0b22087f0077427bedb3525d786fc8eb69e4e
   bytes: 148176
@@ -641,6 +681,26 @@ assets:
   family: electrical-installation
   provenance: docs/media/generated-assets.md#cinematic-engineering-scene-set
   qa: docs/media/smart-home-scenes-visual-qa.md
+- path: assets/images/smart-home/electrical-installation-finish-1536.webp
+  sha256: 6b5191de49ed95bc4a8928c2bf67253169a4b753f9a4b28f1edfbdd3c4e846eb
+  bytes: 125800
+  width: 1536
+  height: 1024
+  responsive_pair: smart-home-electrical-installation-finish
+  variant: desktop
+  family: electrical-installation-finish
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/electrical-installation-finish-768.webp
+  sha256: 7f302871aec4792a0da6a5b2642a86c71894b030458b6e193ee1eadbb9bcc487
+  bytes: 18926
+  width: 768
+  height: 512
+  responsive_pair: smart-home-electrical-installation-finish
+  variant: mobile
+  family: electrical-installation-finish
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
 - path: assets/images/smart-home/exterior-1536.webp
   sha256: 2e10c613fa1522b5d964e85957ef72979811336fdfc443fce20ec98ab7c2dbdc
   bytes: 231086
@@ -681,6 +741,46 @@ assets:
   family: panel
   provenance: docs/media/generated-assets.md#cinematic-engineering-scene-set
   qa: docs/media/smart-home-scenes-visual-qa.md
+- path: assets/images/smart-home/panel-intake-1536.webp
+  sha256: 2987a76700fe477cfa6110614df9200274c77166c34d25fe52983c949e6e521e
+  bytes: 110672
+  width: 1536
+  height: 1024
+  responsive_pair: smart-home-panel-intake
+  variant: desktop
+  family: panel-intake
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/panel-intake-768.webp
+  sha256: 7fcb123f31da7208da7dc4d341724df1afe9534bad3130f985ad6726571f9b40
+  bytes: 24884
+  width: 768
+  height: 512
+  responsive_pair: smart-home-panel-intake
+  variant: mobile
+  family: panel-intake
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/panel-priorities-1536.webp
+  sha256: e34a2bad1207ab07556126da158617a5c18ca0118ccf094e1e0fed4d2f7e33a8
+  bytes: 126368
+  width: 1536
+  height: 1024
+  responsive_pair: smart-home-panel-priorities
+  variant: desktop
+  family: panel-priorities
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
+- path: assets/images/smart-home/panel-priorities-768.webp
+  sha256: f6929e24d3b52d746671d535f405a432203b62471b6e9ecd541ad1ea30ea9c88
+  bytes: 25290
+  width: 768
+  height: 512
+  responsive_pair: smart-home-panel-priorities
+  variant: mobile
+  family: panel-priorities
+  provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
+  qa: docs/media/electrical-core-three-state-visual-qa.md
 - path: assets/images/smart-home/shading-1536.webp
   sha256: f1c024bcc5bbb8c3e4e53262c82bce88dc7e98526da7451131eadf45778b1661
   bytes: 95642

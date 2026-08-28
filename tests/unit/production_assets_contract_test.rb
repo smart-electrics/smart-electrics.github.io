@@ -45,9 +45,14 @@ class ProductionAssetsContractTest < Minitest::Test
     manifest = canonical_manifest
 
     assert_predicate status, :success?, stderr
-    assert_equal 86, manifest.fetch("assets").length
-    assert_equal 43, manifest.fetch("assets").group_by { |asset| asset.fetch("responsive_pair") }.length
+    assert_equal 96, manifest.fetch("assets").length
+    assert_equal 48, manifest.fetch("assets").group_by { |asset| asset.fetch("responsive_pair") }.length
     %w[panel stairs exterior surveillance audio backup climate shading diagnostics].each do |family|
+      assert_includes manifest.fetch("assets").map { |asset| asset.fetch("family") }, family
+    end
+    %w[
+      electrical-design-plan electrical-design-groups electrical-installation-finish panel-intake panel-priorities
+    ].each do |family|
       assert_includes manifest.fetch("assets").map { |asset| asset.fetch("family") }, family
     end
   end

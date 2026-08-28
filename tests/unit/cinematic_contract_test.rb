@@ -129,11 +129,11 @@ class CinematicContractTest < Minitest::Test
   def test_rejects_a_missing_responsive_focus_scene_asset
     graph = canonical_graph
     with_graph(graph) do |path|
-      with_repository_missing_scene_asset("electrical-installation", 768) do |repository_root|
+      with_repository_missing_scene_asset("electrical-installation-finish", 768) do |repository_root|
         _stdout, stderr, status = validate(path, repository_root)
 
         refute_predicate status, :success?
-        assert_includes stderr, "scene family electrical-installation: missing 768px asset"
+        assert_includes stderr, "scene family electrical-installation-finish: missing 768px asset"
       end
     end
   end
@@ -238,10 +238,9 @@ class CinematicContractTest < Minitest::Test
     assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
 
-  def test_requires_motion_compositions_to_declare_real_relationship_connectors_and_a_mobile_safe_selector
+  def test_keeps_relationship_connectors_on_cinematic_compositions_but_not_service_studios
     templates = {
       "_includes/cinematic-stage.html" => "data-cinematic-relationship-connector",
-      "_includes/service-studio.html" => "data-service-studio-relationship-connector",
       "_includes/cinematic-solutions.html" => "data-cinematic-solutions-relationship-connector"
     }
     templates.each do |path, connector|
@@ -249,6 +248,9 @@ class CinematicContractTest < Minitest::Test
       assert_includes source, connector, "#{path} must expose an aria-hidden SVG relationship connector"
       assert_includes source, "pathLength=\"1\"", "#{path} connector must be drawable"
     end
+
+    service_studio = File.read(File.join(project_root, "_includes/service-studio.html"))
+    refute_includes service_studio, "data-service-studio-relationship-connector", "service studios must not render a decorative relationship line"
 
     %w[cinematic-stage service-studio cinematic-solutions route-journey].each do |adapter|
       source = File.read(File.join(project_root, "assets/js/#{adapter}.js"))

@@ -6,12 +6,12 @@ EXPECTED_RESULTS = {
   "solution_contract_test.rb" => [18, 76],
   "cinematic_solutions_contract_test.rb" => [8, 136],
   "smart_home_contract_test.rb" => [16, 353],
-  "cinematic_contract_test.rb" => [21, 242],
+  "cinematic_contract_test.rb" => [21, 240],
   "physical_scene_contract_test.rb" => [6, 725],
-  "service_studio_contract_test.rb" => [12, 238],
+  "service_studio_contract_test.rb" => [13, 250],
   "route_content_contract_test.rb" => [8, 132],
   "cinematic_route_transition_contract_test.rb" => [1, 2],
-  "production_assets_contract_test.rb" => [6, 84],
+  "production_assets_contract_test.rb" => [6, 94],
   "public_claims_contract_test.rb" => [14, 382]
 }.freeze
 

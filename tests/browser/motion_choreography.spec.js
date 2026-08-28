@@ -22,8 +22,7 @@ const compositions = [
     snapshot: "[data-service-studio-outgoing-snapshot]",
     scene: "[data-service-studio-scene]",
     panel: "[data-service-studio-panel]",
-    connector: "svg[data-service-studio-relationship-connector]",
-    source: '[data-service-studio-relation-control][aria-pressed="true"], [data-service-studio-control][aria-pressed="true"]'
+    serviceStudio: true
   },
   {
     route: "/solutions/",
@@ -154,14 +153,28 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
         await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", selectedSystem);
         await expectBoundedSmartHomeCrossfade(root, `${composition.route} at ${width}px`);
         continue;
-      } else {
+      } else if (!composition.serviceStudio) {
         await expect(root.locator(composition.connector)).toBeHidden();
+      } else {
+        await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
       }
       await expect(root).toHaveAttribute(composition.phase, "hold");
       await expect(root.locator(composition.snapshot)).toBeHidden();
       await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
       await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(0);
       await expect(root).toHaveAttribute(composition.phase, "reassemble");
+      if (composition.serviceStudio) {
+        const scene = root.locator(`${composition.scene}:visible`);
+        const panel = root.locator(`${composition.panel}:visible`);
+        await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
+        await expect(scene).toHaveCount(1);
+        await expect(panel).toHaveCount(1);
+        expect(await scene.getAttribute("data-service-studio-scene")).toBe(await panel.getAttribute("data-service-studio-panel"));
+        expect(await scene.getAttribute("data-service-studio-relation-id")).toBe(await panel.getAttribute("data-service-studio-relation-id"));
+        await expect(root).toHaveAttribute(composition.phase, "idle");
+        await expectDeliberatePhaseDurations(root, `${composition.route} at ${width}px`);
+        continue;
+      }
       const connector = root.locator(composition.connector);
       await expect(connector).toBeVisible();
       await expect(connector).toHaveAttribute("aria-hidden", "true");
@@ -227,9 +240,14 @@ test("snapshot cancellation clears only the visual artifact and never aborts the
     await expect(snapshot).toBeHidden();
     if (composition.smartHome) {
       await expect(root).toHaveAttribute(composition.phase, "idle");
-    } else {
+    } else if (!composition.serviceStudio) {
       await expect(root).toHaveAttribute(composition.phase, "hold");
       await expect(root.locator(composition.connector)).toBeHidden();
+      await expect(root).toHaveAttribute(composition.phase, "reassemble");
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+    } else {
+      await expect(root).toHaveAttribute(composition.phase, "hold");
+      await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
       await expect(root).toHaveAttribute(composition.phase, "reassemble");
       await expect(root).toHaveAttribute(composition.phase, "idle");
     }

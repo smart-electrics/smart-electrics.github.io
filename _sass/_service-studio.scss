@@ -73,15 +73,8 @@
 .service-studio__scene[data-service-studio-scene="focus"] img { object-position: 68% center; }
 .service-studio__scene[data-service-studio-scene="reassembled"] img { object-position: 82% center; }
 .service-studio__scene::after { background: linear-gradient(90deg, rgba(18, 16, 13, 0.1), rgba(18, 16, 13, 0.38)); content: ""; inset: 0; pointer-events: none; position: absolute; }
-.service-studio__outgoing-snapshot { background-image: var(--service-studio-snapshot-image, none); background-position: 65% center; background-size: cover; inset: 0; pointer-events: none; position: absolute; }
+.service-studio__outgoing-snapshot { background-image: var(--service-studio-snapshot-image, none); background-position: var(--service-studio-snapshot-position, 65% center); background-size: cover; inset: 0; pointer-events: none; position: absolute; }
 .service-studio__outgoing-snapshot[data-service-studio-snapshot-active="true"] { animation: service-studio-outgoing 340ms cubic-bezier(.2, .72, .18, 1) both; }
-
-.service-studio__relationship-connector { height: 100%; inset: 0; overflow: visible; pointer-events: none; position: absolute; width: 100%; z-index: 2; }
-.service-studio__relationship-connector path { fill: none; stroke: var(--amber-light); stroke-dasharray: 1; stroke-dashoffset: 0; stroke-width: 2; }
-.service-studio__relationship-connector circle { fill: var(--amber-light); stroke: #15110e; stroke-width: 1.5; }
-.service-studio[data-service-studio-motion-phase="disassemble"] .service-studio__relationship-connector,
-.service-studio[data-service-studio-motion-phase="hold"] .service-studio__relationship-connector { visibility: hidden; }
-.service-studio[data-service-studio-motion-phase="reassemble"] .service-studio__relationship-connector path { animation: service-studio-relationship-draw 420ms cubic-bezier(.2, .72, .18, 1) both; }
 
 @keyframes service-studio-outgoing {
   from { opacity: 1; transform: scale(1); }
@@ -104,7 +97,6 @@
 @keyframes service-studio-panel-exit { from { clip-path: inset(0); transform: translateX(0); } to { clip-path: inset(0 0 0 100%); transform: translateX(-0.7rem); } }
 @keyframes service-studio-panel-reveal { from { clip-path: inset(0 100% 0 0); transform: translateX(-0.7rem); } to { clip-path: inset(0); transform: translateX(0); } }
 @keyframes service-studio-type-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes service-studio-relationship-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 
 @media (max-width: 900px) {
   .service-studio__composition { grid-template-columns: 1fr; }

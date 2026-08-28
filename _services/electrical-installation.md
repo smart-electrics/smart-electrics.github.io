@@ -23,6 +23,10 @@ related_services:
 service_studio:
   direction_id: electrical-installation
   relation_id: panels-and-protection--panel-assembly
+  scene_families:
+    assembled: electrical-installation
+    focus: electrical-installation-finish
+    reassembled: panel
   states:
     assembled:
       label: Траси й точки

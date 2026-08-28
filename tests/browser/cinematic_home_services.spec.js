@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 
 const surfaceRoutes = ["/", "/services/"];
 const directions = [
-  ["electrical-design", "Електромонтажне проєктування", 0, "stairs"],
-  ["electrical-installation", "Електромонтажні роботи", 0, "electrical-installation"],
+  ["electrical-design", "Електромонтажне проєктування", 0, "electrical-design-groups"],
+  ["electrical-installation", "Електромонтажні роботи", 0, "electrical-installation-finish"],
   ["panels-and-protection", "Щити й захист", 1, "panel"],
   ["lighting", "Освітлення", 2, "stairs"],
   ["low-voltage", "Слабкострумові системи", 2, "surveillance"],
@@ -450,7 +450,7 @@ test("electrical installation and panels use distinct focus images without movin
     const panels = await focusSceneSignature(stage);
     const panelsGeometry = await mediaAnchorGeometry(stage);
 
-    expect(installation.src).toMatch(/\/smart-home\/electrical-installation-(768|1536)\.webp$/);
+    expect(installation.src).toMatch(/\/smart-home\/electrical-installation-finish-(768|1536)\.webp$/);
     expect(panels.src).toMatch(/\/smart-home\/panel-(768|1536)\.webp$/);
     expect(panels.src).not.toBe(installation.src);
     expect(panels.hash).not.toBe(installation.hash);

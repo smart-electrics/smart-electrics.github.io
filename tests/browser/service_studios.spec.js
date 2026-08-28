@@ -111,6 +111,21 @@ async function studioFor(page) {
   return { root, stage: root.locator("[data-service-studio-stage]") };
 }
 
+async function serviceStudioMediaSignature(scene) {
+  return scene.locator("img").evaluate(async (image) => {
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 24;
+    canvas.height = 16;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    let signature = 0;
+    for (const pixel of pixels) signature = ((signature << 5) - signature + pixel) | 0;
+    return { currentSrc: image.currentSrc, signature };
+  });
+}
+
 test("all eight service studios retain their complete semantic reading order without JavaScript", async ({ page }) => {
   expect(allStudios).toHaveLength(8);
   await page.route("**/assets/js/service-studio.js", (route) => route.abort());
@@ -132,12 +147,18 @@ test("each studio rail changes the canonical state, explanation, scene and exact
   for (const studio of studios) {
     await page.goto(studio.route);
     const { root, stage } = await studioFor(page);
+    await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
 
     for (const [index, label] of studio.controls.entries()) {
       await stage.getByRole("button", { name: label, exact: true }).click();
       await expect(root).toHaveAttribute("data-service-studio-state", ["assembled", "focus", "reassembled"][index]);
-      await expect(stage.locator("[data-service-studio-scene]:visible")).toHaveCount(1);
-      await expect(stage.locator("[data-service-studio-panel]:visible")).toHaveCount(1);
+      const scene = stage.locator("[data-service-studio-scene]:visible");
+      const panel = stage.locator("[data-service-studio-panel]:visible");
+      await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
+      await expect(scene).toHaveCount(1);
+      await expect(panel).toHaveCount(1);
+      expect(await scene.getAttribute("data-service-studio-scene")).toBe(await panel.getAttribute("data-service-studio-panel"));
+      expect(await scene.getAttribute("data-service-studio-relation-id")).toBe(await panel.getAttribute("data-service-studio-relation-id"));
       await expect(stage.locator("[data-service-studio-panel]:visible [data-service-studio-summary]")).not.toHaveText("");
       const relatedLinks = stage.locator("[data-service-studio-panel]:visible [data-service-studio-related] a");
       await expect(relatedLinks).toHaveCount(studio.related[index].length);
@@ -149,6 +170,36 @@ test("each studio rail changes the canonical state, explanation, scene and exact
 
     await expect(root).toHaveAttribute("data-service-studio-direction", studio.resolvedDirection);
     await expect(root).toHaveAttribute("data-service-studio-relation", studio.relation);
+  }
+});
+
+test("electrical core rails own three responsive physical state-media scenes", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const expectedVariant = page.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
+  const coreStudios = [
+    [studios[0], ["electrical-design-plan", "electrical-design-groups", "panel"]],
+    [studios[1], ["electrical-installation", "electrical-installation-finish", "panel"]],
+    [studios[2], ["panel-intake", "panel", "panel-priorities"]]
+  ];
+
+  for (const [studio, expectedFamilies] of coreStudios) {
+    await page.goto(studio.route);
+    const { root, stage } = await studioFor(page);
+    const media = [];
+
+    for (const [index, label] of studio.controls.entries()) {
+      await stage.getByRole("button", { name: label, exact: true }).click();
+      await expect(root).toHaveAttribute("data-service-studio-state", ["assembled", "focus", "reassembled"][index]);
+      const scene = stage.locator("[data-service-studio-scene]:visible");
+      await expect(scene).toHaveCount(1);
+      media.push(await serviceStudioMediaSignature(scene));
+    }
+
+    expect(media.map(({ currentSrc }) => new URL(currentSrc).pathname)).toEqual(
+      expectedFamilies.map((family) => `/assets/images/smart-home/${family}${expectedVariant}`)
+    );
+    expect(new Set(media.map(({ currentSrc }) => currentSrc)).size).toBe(3);
+    expect(new Set(media.map(({ signature }) => signature)).size).toBe(3);
   }
 });
 
@@ -221,13 +272,19 @@ test("every multi-relation studio exposes each owned relation through the shared
   for (const studio of multiRelationStudios) {
     await page.goto(studio.route);
     const { root, stage } = await studioFor(page);
+    await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
     for (const relation of studio.relations) {
       await stage.getByRole("button", { name: relation.label, exact: true }).click();
       await expect(root).toHaveAttribute("data-service-studio-relation", relation.id);
       for (const [index, control] of studio.controls.entries()) {
         await stage.getByRole("button", { name: control, exact: true }).click();
         await expect(root).toHaveAttribute("data-service-studio-state", ["assembled", "focus", "reassembled"][index]);
-        await expect(stage.locator("[data-service-studio-scene]:visible img")).toHaveAttribute("src", relation.image);
+        const scene = stage.locator("[data-service-studio-scene]:visible");
+        const panel = stage.locator("[data-service-studio-panel]:visible");
+        await expect(root.locator("[data-service-studio-relationship-connector]")).toHaveCount(0);
+        await expect(scene.locator("img")).toHaveAttribute("src", relation.image);
+        expect(await scene.getAttribute("data-service-studio-scene")).toBe(await panel.getAttribute("data-service-studio-panel"));
+        expect(await scene.getAttribute("data-service-studio-relation-id")).toBe(await panel.getAttribute("data-service-studio-relation-id"));
         await expect(stage.locator("[data-service-studio-panel]:visible .service-studio__relation-label")).toContainText(relation.label);
         await expect(stage.locator("[data-service-studio-live]")).toContainText(relation.label);
         expect(await stage.locator("[data-service-studio-live]").textContent()).not.toContain("..");

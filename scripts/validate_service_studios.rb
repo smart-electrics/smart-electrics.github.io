@@ -7,10 +7,28 @@ module ServiceStudioContract
   module_function
 
   STUDIO_FIELDS = %w[direction_id relation_id states].freeze
+  TARGET_STUDIO_FIELDS = %w[direction_id relation_id scene_families states].freeze
   MULTI_RELATION_STUDIO_FIELDS = %w[direction_id relation_ids states].freeze
   STATE_IDS = %w[assembled focus reassembled].freeze
   STATE_FIELDS = %w[label title summary].freeze
   PANEL_FALLBACK_DIRECTION_IDS = %w[electrical-design electrical-installation].freeze
+  TARGET_SCENE_FAMILIES = {
+    "electrical-design" => {
+      "assembled" => "electrical-design-plan",
+      "focus" => "electrical-design-groups",
+      "reassembled" => "panel"
+    },
+    "electrical-installation" => {
+      "assembled" => "electrical-installation",
+      "focus" => "electrical-installation-finish",
+      "reassembled" => "panel"
+    },
+    "panels-and-protection" => {
+      "assembled" => "panel-intake",
+      "focus" => "panel",
+      "reassembled" => "panel-priorities"
+    }
+  }.freeze
   FORBIDDEN_WORDING = %r{
     (?:
       live[\s-]*video|жив(?:е|ого)\s+відео|прям(?:е|ого)\s+відео|\bportal\b|портал|\bvendor\b|вендор
@@ -38,7 +56,7 @@ module ServiceStudioContract
     value.is_a?(String) && !value.strip.empty?
   end
 
-  def validate(services_directory, graph_path)
+  def validate(services_directory, graph_path, repository_root = File.expand_path("..", __dir__))
     graph = YAML.safe_load(File.read(graph_path), permitted_classes: [], aliases: false)
     return ["cinematic_system.yml: must contain a canonical graph"] unless graph.is_a?(Hash)
 
@@ -63,13 +81,20 @@ module ServiceStudioContract
         errors << "#{prefix} must be a mapping"
         next
       end
-      expected_fields = expected_relation_ids.length == 1 ? STUDIO_FIELDS : MULTI_RELATION_STUDIO_FIELDS
+      expected_fields = if TARGET_SCENE_FAMILIES.key?(slug)
+                          TARGET_STUDIO_FIELDS
+                        elsif expected_relation_ids.length == 1
+                          STUDIO_FIELDS
+                        else
+                          MULTI_RELATION_STUDIO_FIELDS
+                        end
       errors << "#{prefix}: fields must be exactly #{expected_fields.join(', ')}" unless studio.keys.sort == expected_fields.sort
       unless studio["direction_id"] == slug && direction_ids.include?(studio["direction_id"])
         errors << "#{prefix}: direction_id must reference this service in the canonical cinematic graph"
       end
       validate_relations(errors, prefix, slug, studio, expected_relation_ids, relation_ids, graph.fetch("relations", []))
       validate_states(errors, prefix, studio["states"])
+      validate_scene_families(errors, prefix, slug, studio, graph, repository_root)
       validate_forbidden_wording(errors, prefix, studio["states"])
     end
 
@@ -157,6 +182,38 @@ module ServiceStudioContract
     errors << "#{prefix}: relation_id must declare the canonical relation for #{slug}" unless relation_id == expected_relation_ids.first
   end
 
+  def validate_scene_families(errors, prefix, slug, studio, graph, repository_root)
+    expected = TARGET_SCENE_FAMILIES[slug]
+    return unless expected
+
+    actual = studio["scene_families"]
+    unless actual.is_a?(Hash) && actual.keys.sort == STATE_IDS.sort
+      errors << "#{prefix}: scene_families must declare assembled, focus, reassembled"
+      return
+    end
+
+    STATE_IDS.each do |state_id|
+      family = actual[state_id]
+      errors << "#{prefix}.scene_families.#{state_id} must be a non-empty scalar" unless non_empty_string?(family)
+    end
+    errors << "#{prefix}: scene_families must use the canonical state media" unless actual == expected
+    errors << "#{prefix}: scene_families must be distinct within the route" unless actual.values.uniq.length == STATE_IDS.length
+
+    focus_family = graph.fetch("directions", []).find { |direction| direction.is_a?(Hash) && direction["id"] == slug }.to_h["focus_scene_family"]
+    unless actual["focus"] == focus_family
+      errors << "#{prefix}: focus scene family must equal the canonical cinematic direction focus_scene_family"
+    end
+
+    actual.each_value do |family|
+      next unless non_empty_string?(family)
+
+      [768, 1536].each do |width|
+        path = File.join(repository_root, "assets", "images", "smart-home", "#{family}-#{width}.webp")
+        errors << "#{prefix}: scene family #{family} is missing the #{width}px WebP pair member" unless File.file?(path)
+      end
+    end
+  end
+
   def validate_states(errors, prefix, states)
     unless states.is_a?(Hash)
       errors << "#{prefix}: states must be a mapping"
@@ -181,7 +238,8 @@ end
 if $PROGRAM_NAME == __FILE__
   services_directory = File.expand_path(ARGV.fetch(0, File.expand_path("../_services", __dir__)))
   graph_path = File.expand_path(ARGV.fetch(1, File.expand_path("../_data/cinematic_system.yml", __dir__)))
-  errors = ServiceStudioContract.validate(services_directory, graph_path)
+  repository_root = File.expand_path(ARGV.fetch(2, File.expand_path("..", __dir__)))
+  errors = ServiceStudioContract.validate(services_directory, graph_path, repository_root)
   if errors.any?
     warn errors.join("\n")
     exit 1

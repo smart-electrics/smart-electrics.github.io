@@ -434,9 +434,12 @@ test("every preset atomically changes the configuration and returns from manual 
     await expect(root).toHaveAttribute("data-manual", "false");
     await expect(root.locator("[data-phone-live]")).toContainText(label);
     await expect(root.locator(`[data-preset-panel="${presetIds[index]}"]`)).toBeVisible();
+    await expect.poll(
+      async () => (await readPresetPreview(root)).exposure,
+      { message: `${label} computed scene exposure` }
+    ).not.toBe(manualPreview.exposure);
     const presetPreview = await readPresetPreview(root);
     expect(presetPreview.pixels, `${label} computed scene pixels`).not.toBe(manualPreview.pixels);
-    expect(presetPreview.exposure, `${label} computed scene exposure`).not.toBe(manualPreview.exposure);
     expect(presetPreview.svgSignature, `${label} physical scene state`).not.toBe(manualPreview.svgSignature);
     expect(presetPreview.signature, `${label} preview signature`).not.toBe(manualPreview.signature);
     expect(presetPreview.topology, `${label} causal topology`).not.toBe(manualPreview.topology);
