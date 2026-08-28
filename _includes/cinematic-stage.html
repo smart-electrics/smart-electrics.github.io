@@ -103,7 +103,7 @@
             data-cinematic-scene-image="url('{{ initial_physical_scene.src_1536 | relative_url }}')"
           >
             <picture>
-              <img src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy"{% if stage_variant == 'home' %} fetchpriority="low"{% endif %}>
+              <img src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="{% if stage_variant == 'home' %}eager{% else %}lazy{% endif %}"{% if stage_variant == 'home' %} fetchpriority="high"{% endif %}>
             </picture>
           </figure>
 
