@@ -94,6 +94,28 @@ async function expectDeliberatePhaseDurations(root, label) {
   return timeline;
 }
 
+async function expectBoundedSmartHomeCrossfade(root, label) {
+  const timeline = await root.evaluate((element) => {
+    element.__cinematicPhaseObserver?.disconnect();
+    return element.__cinematicPhaseTimeline || [];
+  });
+  const phase = (name) => timeline.find((entry) => entry.phase === name);
+  const disassemble = phase("disassemble");
+  const hold = phase("hold");
+  const reassemble = phase("reassemble");
+  const idle = phase("idle");
+  expect(timeline.map(({ phase: name }) => name), label + " must retain an observable causal order").toEqual([
+    "disassemble",
+    "hold",
+    "reassemble",
+    "idle"
+  ]);
+  expect(hold.time - disassemble.time, label + " must give the outgoing decoded raster time to fade").toBeGreaterThanOrEqual(240);
+  expect(hold.time - disassemble.time, label + " crossfade must remain bounded").toBeLessThan(450);
+  expect(reassemble.time - hold.time, label + " must not retain a blank hold").toBeLessThan(100);
+  expect(idle.time - reassemble.time, label + " must not delay controls for a cosmetic reassembly").toBeLessThan(100);
+}
+
 test("cinematic compositions expose a bounded causal lifecycle with a clean single-scene hold", async ({ page }) => {
   for (const width of [375, 1440]) {
     await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 });
@@ -109,11 +131,29 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
       await expect(root).toHaveAttribute(composition.phase, "disassemble");
       await expect(root.locator(composition.snapshot)).toBeVisible();
       if (composition.smartHome) {
-        await expect(root).toHaveAttribute("data-system", previousSmartSystem);
-        await expect(root.locator(`${composition.panel}:not([hidden])`)).toHaveAttribute("inert", "");
+        expect(previousSmartSystem).not.toBe(nextSmartSystem);
+        await expect(root).toHaveAttribute("data-system", nextSmartSystem);
+        await expect(root.locator(`${composition.panel}:not([hidden])`)).not.toHaveAttribute("inert", "");
         expect(await root.locator(composition.connector).evaluateAll((connectors) =>
           connectors.map((connector) => getComputedStyle(connector).opacity)
-        )).toEqual(["0", "0"]);
+        )).toEqual(["1", "1"]);
+        await expect(root).toHaveAttribute(composition.phase, "idle");
+        await expect(root.locator(composition.snapshot)).toBeHidden();
+        await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
+        await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
+        await expect(root.locator(`${composition.panel}:not([hidden])`)).not.toHaveAttribute("inert", "");
+        await expect(root.locator(composition.topology)).toBeVisible();
+        await expect(root.locator(composition.connector)).toHaveCount(2);
+        expect(await root.locator(composition.connector).evaluateAll((connectors) =>
+          connectors.every((connector) => connector.getAnimations().length === 0 && getComputedStyle(connector).opacity === "1")
+        )).toBe(true);
+        expect(await root.locator(`${composition.scene} ${composition.sceneLayer}:not([hidden])`).evaluateAll((layers) =>
+          layers.length === 3 && layers.every((layer) => layer.getAnimations().length === 0)
+        )).toBe(true);
+        const selectedSystem = await root.getAttribute("data-system");
+        await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", selectedSystem);
+        await expectBoundedSmartHomeCrossfade(root, `${composition.route} at ${width}px`);
+        continue;
       } else {
         await expect(root.locator(composition.connector)).toBeHidden();
       }
@@ -121,35 +161,17 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
       await expect(root.locator(composition.snapshot)).toBeHidden();
       await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
       await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(0);
-      if (composition.smartHome) {
-        await expect(root).toHaveAttribute("data-system", nextSmartSystem);
-        await expect(root.locator(`${composition.panel}:not([hidden])`)).toHaveAttribute("inert", "");
-        expect(await root.locator(composition.topology).evaluate((topology) => getComputedStyle(topology).visibility)).toBe("hidden");
-      }
       await expect(root).toHaveAttribute(composition.phase, "reassemble");
-      if (composition.smartHome) {
-        await expect(root.locator(`${composition.panel}:not([hidden])`)).not.toHaveAttribute("inert", "");
-        await expect(root.locator(composition.topology)).toBeVisible();
-        await expect(root.locator(composition.connector)).toHaveCount(2);
-        expect(await root.locator(composition.connector).evaluateAll((connectors) =>
-          connectors.every((connector) => connector.getAnimations().some((animation) => animation.animationName === "smart-home-topology-draw"))
-        )).toBe(true);
-        expect(await root.locator(`${composition.scene} ${composition.sceneLayer}:not([hidden])`).evaluateAll((layers) =>
-          layers.length === 3 && layers.every((layer) => layer.getAnimations().length > 0)
-        )).toBe(true);
-      } else {
-        const connector = root.locator(composition.connector);
-        await expect(connector).toBeVisible();
-        await expect(connector).toHaveAttribute("aria-hidden", "true");
-        await expect(connector.locator("path[pathLength='1']")).toHaveCount(1);
-      }
+      const connector = root.locator(composition.connector);
+      await expect(connector).toBeVisible();
+      await expect(connector).toHaveAttribute("aria-hidden", "true");
+      await expect(connector.locator("path[pathLength='1']")).toHaveCount(1);
       expect(await root.locator(`${composition.panel}:not([hidden]), ${composition.panel}:not([hidden]) *`).evaluateAll((elements) =>
         elements.flatMap((element) => element.getAnimations()).some((animation) =>
           animation.effect?.getKeyframes().some((keyframe) => keyframe.opacity !== undefined || keyframe.filter !== undefined)
         )
       )).toBe(false);
-      if (!composition.smartHome) {
-        const connectorGeometry = await root.evaluate((element, selectors) => {
+      const connectorGeometry = await root.evaluate((element, selectors) => {
           const svg = element.querySelector(selectors.connector);
           const path = svg?.querySelector("path[pathLength='1']");
           const source = svg?.querySelector("[data-cinematic-relationship-connector-source]");
@@ -184,17 +206,9 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
             intersectsHeading
           };
         }, composition);
-        expect(connectorGeometry, `${composition.route} at ${width}px`).toEqual({ endpointInScene: true, sourceEndpointOnSelectedControl: true, intersectsHeading: false });
-      }
+      expect(connectorGeometry, `${composition.route} at ${width}px`).toEqual({ endpointInScene: true, sourceEndpointOnSelectedControl: true, intersectsHeading: false });
       await expect(root).toHaveAttribute(composition.phase, "idle");
       await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
-      if (composition.smartHome) {
-        const selectedSystem = await root.getAttribute("data-system");
-        await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", selectedSystem);
-        expect(await root.locator(composition.connector).evaluateAll((connectors) =>
-          connectors.map((connector) => getComputedStyle(connector).opacity)
-        )).toEqual(["1", "1"]);
-      }
       await expectDeliberatePhaseDurations(root, `${composition.route} at ${width}px`);
     }
   }
@@ -211,10 +225,14 @@ test("snapshot cancellation clears only the visual artifact and never aborts the
     await expect(root).toHaveAttribute(composition.phase, "disassemble");
     await snapshot.dispatchEvent("animationcancel");
     await expect(snapshot).toBeHidden();
-    await expect(root).toHaveAttribute(composition.phase, "hold");
-    if (!composition.smartHome) await expect(root.locator(composition.connector)).toBeHidden();
-    await expect(root).toHaveAttribute(composition.phase, "reassemble");
-    await expect(root).toHaveAttribute(composition.phase, "idle");
+    if (composition.smartHome) {
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+    } else {
+      await expect(root).toHaveAttribute(composition.phase, "hold");
+      await expect(root.locator(composition.connector)).toBeHidden();
+      await expect(root).toHaveAttribute(composition.phase, "reassemble");
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+    }
   }
 });
 

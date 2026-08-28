@@ -1,5 +1,5 @@
 import { createCinematicMotion } from "./cinematic-motion.js";
-import { createPhysicalSceneSvgOverlay } from "./physical-scene-svg-overlay.js";
+import { createPhysicalSceneSvgOverlay, createPhysicalSceneSvgSnapshot } from "./physical-scene-svg-overlay.js";
 import { createSmartHomeMachine } from "./smart-home-simulator-state.js";
 
 const isNonEmpty = (value) => typeof value === "string" && value.trim().length > 0;
@@ -228,12 +228,27 @@ function enhanceSimulator(root) {
     if (reducedMotion.matches) return;
     const image = markup.scene.querySelector("picture[data-scene-picture]:not([hidden]) img");
     if (!image) return;
+    const existingSnapshot = root.querySelector("[data-outgoing-snapshot]");
+    const existingRaster = existingSnapshot?.querySelector("[data-outgoing-snapshot-raster]");
+    const existingSvg = existingSnapshot?.querySelector("[data-physical-scene-svg-snapshot]");
+    const imageStyle = getComputedStyle(image);
+    const backgroundImage = existingRaster?.style.backgroundImage || `url("${image.currentSrc || image.src}")`;
+    const backgroundPosition = existingRaster?.style.backgroundPosition || imageStyle.objectPosition;
+    const imageFilter = existingRaster?.style.filter || imageStyle.filter;
+    const svgSnapshot = existingSvg?.cloneNode(true) || createPhysicalSceneSvgSnapshot(markup.scene);
     removeSnapshots();
     const snapshot = document.createElement("div");
     snapshot.className = "smart-home__outgoing-snapshot";
     snapshot.dataset.outgoingSnapshot = "true";
     snapshot.setAttribute("aria-hidden", "true");
-    snapshot.style.backgroundImage = `url("${image.currentSrc || image.src}")`;
+    const raster = document.createElement("span");
+    raster.className = "smart-home__snapshot-raster";
+    raster.dataset.outgoingSnapshotRaster = "true";
+    raster.style.backgroundImage = backgroundImage;
+    raster.style.backgroundPosition = backgroundPosition;
+    raster.style.filter = imageFilter;
+    snapshot.append(raster);
+    if (svgSnapshot) snapshot.append(svgSnapshot);
     const remove = () => {
       snapshot.removeEventListener("animationend", onAnimationEnd);
       snapshot.removeEventListener("animationcancel", remove);
@@ -311,7 +326,7 @@ function enhanceSimulator(root) {
     root.dataset.system = state.systemId;
     root.dataset.visual = button.dataset.systemVisual;
     root.dataset.manual = String(state.manual);
-    root.dataset.motionPhase = motionPhase;
+    if (root.dataset.motionPhase !== motionPhase) root.dataset.motionPhase = motionPhase;
     markup.phone.hidden = false;
     markup.staticExplainer.hidden = true;
     markup.radios.forEach((radio) => { radio.checked = radio.value === state.presetId; });
@@ -356,35 +371,38 @@ function enhanceSimulator(root) {
 
   synchronize({ initial: true });
 
-  let pendingCinematicSync = null;
-  const applyPendingCinematicSync = () => {
-    if (!pendingCinematicSync) return;
-    const options = pendingCinematicSync;
-    pendingCinematicSync = null;
-    synchronize(options);
-  };
+  let transitionGeneration = 0;
   const motion = createCinematicMotion({
+    durations: { disassemble: 280, hold: 0, reassemble: 0 },
     onPhase: (phase) => {
       motionPhase = phase;
       root.dataset.motionPhase = phase;
-      setPhysicalSceneSvgPhase(phase);
-      synchronizePanelInertness(phase === "disassemble" || phase === "hold");
-      if (phase === "hold" || phase === "idle") {
-        clearTransition();
-        applyPendingCinematicSync();
-      }
+      setPhysicalSceneSvgPhase("idle");
+      synchronizePanelInertness(false);
+      if (phase === "hold" || phase === "idle") clearTransition();
     }
   });
 
-  const beginCinematicTransition = (next, changedControlId = null) => {
+  const beginCinematicTransition = async (next) => {
+    const generation = ++transitionGeneration;
+    motion.cancel();
     createOutgoingSnapshot();
     state = next;
-    pendingCinematicSync = { announce: true, cinematic: true, changedControlId };
-    motion.start({ reducedMotion: reducedMotion.matches });
+    synchronize({ announce: true, cinematic: true });
     if (reducedMotion.matches) {
+      motion.start({ reducedMotion: true });
       setPhysicalSceneSvgPhase("idle");
-      applyPendingCinematicSync();
+      clearTransition();
+      return;
     }
+    const image = markup.scene.querySelector("picture[data-scene-picture]:not([hidden]) img");
+    try {
+      await image?.decode();
+    } catch (_) {
+      // The semantic scene and alt remain available if the decorative raster fails.
+    }
+    if (generation !== transitionGeneration) return;
+    motion.start();
   };
 
   const selectPreset = (presetId) => {
@@ -400,7 +418,12 @@ function enhanceSimulator(root) {
   const setControl = (systemId, controlId, value) => {
     const next = machine.transition(state, { type: "set-control", systemId, controlId, value });
     if (next === state) return;
-    beginCinematicTransition(next, controlId);
+    transitionGeneration += 1;
+    motion.cancel();
+    clearTransition();
+    synchronizePanelInertness(false);
+    state = next;
+    synchronize({ announce: true, changedControlId: controlId });
   };
 
   root.addEventListener("change", (event) => {
@@ -427,6 +450,7 @@ function enhanceSimulator(root) {
 
   reducedMotion.addEventListener("change", (event) => {
     if (!event.matches) return;
+    transitionGeneration += 1;
     clearTransition();
     motion.cancel();
     setPhysicalSceneSvgPhase("idle");

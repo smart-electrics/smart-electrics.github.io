@@ -130,6 +130,30 @@ function one(root, selector) {
   return matches.length === 1 ? matches[0] : null;
 }
 
+/**
+ * Freezes the currently rendered SVG into an inert visual-only clone so a
+ * raster crossfade never pairs an outgoing room with incoming engineering
+ * geometry. Definitions remain in the live sibling SVG and are immutable.
+ */
+export function createPhysicalSceneSvgSnapshot(host) {
+  if (!host || typeof host.querySelectorAll !== "function") return null;
+  const source = one(host, "svg[data-physical-scene-svg-overlay]");
+  if (!source || source.hasAttribute("hidden") || source.dataset.physicalSceneSvgEnhanced !== "true" || typeof source.cloneNode !== "function") return null;
+  const snapshot = source.cloneNode(true);
+  snapshot.querySelector("defs")?.remove();
+  snapshot.removeAttribute("data-physical-scene-svg-overlay");
+  snapshot.removeAttribute("data-physical-scene-svg-instance");
+  snapshot.removeAttribute("data-physical-scene-svg-enhanced");
+  snapshot.removeAttribute("data-physical-scene-svg-active-system");
+  snapshot.removeAttribute("data-physical-scene-svg-phase");
+  snapshot.removeAttribute("data-physical-scene-svg-signature");
+  snapshot.removeAttribute("hidden");
+  snapshot.removeAttribute("tabindex");
+  snapshot.dataset.physicalSceneSvgSnapshot = source.dataset.physicalSceneSvgSignature || "rendered";
+  snapshot.classList.add("physical-scene-svg-snapshot");
+  return snapshot;
+}
+
 function normalizedPosition(value) {
   const source = typeof value === "string" ? value.trim() : "";
   if (!source) return null;

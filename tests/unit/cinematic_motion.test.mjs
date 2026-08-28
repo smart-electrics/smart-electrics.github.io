@@ -126,42 +126,37 @@ test("keeps every residence phase animation inside the shared lifecycle", () => 
   }
 });
 
-test("keeps every smart-home phase animation inside the shared lifecycle", () => {
+test("keeps smart-home system switches calm while manual controls remain continuously available", () => {
   const clock = createClock();
   const motion = createCinematicMotion({ timers: clock });
   const styles = readFileSync(new URL("../../_sass/_smart-home.scss", import.meta.url), "utf8");
+  const components = readFileSync(new URL("../../_sass/_components.scss", import.meta.url), "utf8");
+  const simulator = readFileSync(new URL("../../assets/js/smart-home-simulator.js", import.meta.url), "utf8");
+  const physicalControls = readFileSync(new URL("../../assets/js/physical-scene-controls.js", import.meta.url), "utf8");
   const renderMargin = 32;
-  const assertFits = (name, pattern, phaseDuration) => {
-    const match = styles.match(pattern);
-    assert.ok(match, `${name} smart-home animation must remain declared`);
-    const duration = Number(match[1]);
-    const delay = Number(match[2] || 0);
-    assert.ok(duration + delay + renderMargin <= phaseDuration, `${name} animation plus two render frames must settle inside its smart-home phase`);
-  };
 
   motion.start();
   const disassembleDuration = clock.pending()[0]?.delay;
-  for (const [name, pattern] of [
-    ["snapshot", /data-motion-phase="disassemble"\] \.smart-home__outgoing-snapshot \{\s*animation: smart-home-disassemble (\d+)ms(?: (\d+)ms)?/u],
-    ["subordinate physical picture", /data-smart-home-physical-motion-phase="disassemble"\] \.smart-home__physical-media picture \{\s*animation: residence-spine-physical-outgoing (\d+)ms(?: (\d+)ms)?/u],
-    ["panel exit", /data-motion-phase="disassemble"\] \.smart-home__preset-panel:not\(\[hidden\]\) \{\s*animation: smart-home-panel-exit (\d+)ms(?: (\d+)ms)?/u],
-    ["copy exit", /data-motion-phase="disassemble"\] \.smart-home__scene-topology \{\s*animation: smart-home-copy-exit (\d+)ms(?: (\d+)ms)?/u]
-  ]) assertFits(name, pattern, disassembleDuration);
+  const outgoing = styles.match(/data-motion-phase="disassemble"\] \.smart-home__outgoing-snapshot \{\s*animation: smart-home-disassemble (\d+)ms(?: (\d+)ms)?/u);
+  assert.ok(outgoing, "smart-home outgoing scene crossfade must remain declared");
+  assert.ok(Number(outgoing[1]) + Number(outgoing[2] || 0) + renderMargin <= disassembleDuration, "outgoing scene must fade before the phase ends");
+  assert.match(components, /@keyframes smart-home-disassemble \{\s*from \{ opacity: 1; \}\s*to \{ opacity: 0; \}\s*\}/u, "the switch may fade only the outgoing raster-and-SVG composite without geometric clipping or translation");
+  assert.match(simulator, /durations:\s*\{ disassemble: 280, hold: 0, reassemble: 0 \}/u, "the phone simulator must not retain an invisible hold or reassembly delay");
+  assert.match(physicalControls, /durations:\s*\{ disassemble: 280, hold: 0, reassemble: 0 \}/u, "the subordinate smart-home scenes must use the same bounded crossfade timing");
+  assert.match(simulator, /const beginCinematicTransition = async \(next\) => \{\s*const generation = \+\+transitionGeneration;\s*motion\.cancel\(\);\s*createOutgoingSnapshot\(\);/u, "a new phone transition must cancel the previous generation before owning its snapshot");
+  assert.match(physicalControls, /const transition = async \(\) => \{\s*const generation = \+\+transitionGeneration;\s*motion\.cancel\(\);\s*createOutgoingSnapshot\(\);/u, "a new subordinate system transition must cancel the previous generation before owning its snapshot");
+  assert.match(physicalControls, /const applyManualControl = \(\) => \{\s*transitionGeneration \+= 1;\s*motion\.cancel\(\);\s*root\.dataset\.smartHomePhysicalMotionPhase = "idle";\s*clearTransition\(\);\s*synchronize\(true\);\s*\};/u, "subordinate manual controls must render their complete latest state directly without entering the snapshot lifecycle");
 
-  clock.runNext();
-  clock.runNext();
-  const reassembleDuration = clock.pending()[0]?.delay;
-  for (const [name, pattern] of [
-    ["scene", /data-motion-phase="reassemble"\] \.smart-home__scene-background:not\(\[hidden\]\) \{\s*animation: smart-home-scene-reassemble (\d+)ms(?: (\d+)ms)?/u],
-    ["subordinate physical picture", /data-smart-home-physical-motion-phase="reassemble"\] \.smart-home__physical-media picture \{\s*animation: residence-spine-physical-incoming (\d+)ms(?: (\d+)ms)?/u],
-    ["light", /data-motion-phase="reassemble"\] \.smart-home__scene-wash \{\s*animation: smart-home-light-reassemble (\d+)ms(?: (\d+)ms)?/u],
-    ["preview", /data-motion-phase="reassemble"\] \.smart-home__scene-preview \{\s*animation: smart-home-preview-reassemble (\d+)ms(?: (\d+)ms)?/u],
-    ["scene type", /data-motion-phase="reassemble"\] \.smart-home__scene-copy \{\s*animation: smart-home-type-reveal (\d+)ms(?: (\d+)ms)?/u],
-    ["topology", /data-motion-phase="reassemble"\] \.smart-home__scene-topology \{\s*animation: smart-home-type-reveal (\d+)ms(?: (\d+)ms)?/u],
-    ["connector", /data-motion-phase="reassemble"\] \.smart-home__scene-topology \[data-topology-connector\] \{\s*animation: smart-home-topology-draw (\d+)ms(?: (\d+)ms)?/u],
-    ["panel", /data-motion-phase="reassemble"\] \.smart-home__preset-panel:not\(\[hidden\]\) \{\s*animation: smart-home-panel-reveal (\d+)ms(?: (\d+)ms)?/u],
-    ["panel type", /data-motion-phase="reassemble"\] \.smart-home__preset-panel:not\(\[hidden\]\) > \* \{\s*animation: smart-home-type-reveal (\d+)ms(?: (\d+)ms)?/u]
-  ]) assertFits(name, pattern, reassembleDuration);
+  const phaseSelectors = [...styles.matchAll(/([^{}]*\[data-motion-phase="(?:disassemble|hold|reassemble)"\][^{]*)\{/gu)]
+    .map((match) => match[1].trim());
+  assert.deepEqual(phaseSelectors, [
+    '.smart-home__simulator[data-motion-phase="disassemble"] .smart-home__outgoing-snapshot'
+  ], "phone controls, copy, topology and the active scene must stay stable throughout a system switch");
+
+  const physicalOutgoing = styles.match(/\.smart-home__physical-snapshot\[data-smart-home-physical-snapshot-active="true"\] \{ animation: smart-home-disassemble (\d+)ms(?: (\d+)ms)?/u);
+  assert.ok(physicalOutgoing, "the subordinate physical scene must fade only its outgoing decoded raster-and-SVG composite");
+  assert.ok(Number(physicalOutgoing[1]) + Number(physicalOutgoing[2] || 0) + renderMargin <= disassembleDuration, "the subordinate physical scene must settle inside the bounded crossfade");
+  assert.doesNotMatch(styles, /data-smart-home-physical-motion-phase="(?:disassemble|hold|reassemble)"[^}]*\.smart-home__physical-media picture/u, "subordinate scene pictures must never clip, hide, or reassemble");
 });
 
 test("defines one bounded, cropped SVG physical-scene layer for every engineering effect", () => {
@@ -179,7 +174,12 @@ test("defines one bounded, cropped SVG physical-scene layer for every engineerin
     assert.match(styles, new RegExp(`\\[data-physical-scene-svg-effect="${effect}"\\]`, "u"));
   }
   assert.match(styles, /\[data-physical-scene-svg-effect="route"\][\s\S]*?var\(--physical-progress,\s*1\)/u, "route systems without a progress binding remain visible");
-  assert.match(styles, /\[data-physical-scene-svg-effect="audio"\][\s\S]*?stroke-width:\s*calc\([^;]*var\(--physical-bias,/u, "audio zones must change the physical grille emphasis instead of exposing a cosmetic-only parameter");
+  const audio = styles.match(/\[data-physical-scene-svg-effect="audio"\]\s*\{([^}]*)\}/u)?.[1] || "";
+  assert.match(audio, /fill:[^;]*var\(--physical-progress,/u, "audio level must alter the soft field at the physical grille");
+  assert.match(audio, /opacity:[^;]*var\(--physical-level,[^;]*var\(--physical-bias,/u, "audio level and balance must alter the rendered field");
+  assert.match(audio, /transform:[^;]*var\(--physical-scale,/u, "audio spread must alter the rendered field size");
+  assert.match(audio, /stroke:\s*none;/u, "audio feedback must not draw a technical HUD outline over the room");
+  assert.match(audio, /stroke-dasharray:\s*none;/u, "audio feedback must not add an unrelated dotted line");
   assert.match(styles, /\[data-physical-scene-svg-effect="roller"\][\s\S]*?transform-origin:\s*top center;/u, "rollers close from the window header");
   for (const variable of ["level", "progress", "bias", "angle", "translate-x", "coverage", "scale"]) {
     assert.match(styles, new RegExp(`var\\(--physical-${variable}(?:,|\\))`, "u"));
