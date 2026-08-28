@@ -161,7 +161,7 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
       await expect(root).toHaveAttribute(composition.phase, "hold");
       await expect(root.locator(composition.snapshot)).toBeHidden();
       await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
-      await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(0);
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(composition.serviceStudio ? 1 : 0);
       await expect(root).toHaveAttribute(composition.phase, "reassemble");
       if (composition.serviceStudio) {
         const scene = root.locator(`${composition.scene}:visible`);
