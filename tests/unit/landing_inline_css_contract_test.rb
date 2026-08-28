@@ -93,7 +93,7 @@ class LandingInlineCssContractTest < Minitest::Test
     end
   end
 
-  def test_homepage_defers_the_image_on_mobile_while_preserving_desktop_preload
+  def test_homepage_prioritizes_the_initial_scene_while_preserving_desktop_preload
     build_site do |destination|
       homepage = document(destination, "index.html")
       preload = homepage.at_css('head > link[rel="preload"][as="image"]')
@@ -101,8 +101,13 @@ class LandingInlineCssContractTest < Minitest::Test
 
       assert_equal "(min-width: 768px)", preload["media"]
       assert_equal "high", preload["fetchpriority"]
-      assert_equal "lazy", assembled_image["loading"]
-      assert_equal "low", assembled_image["fetchpriority"]
+      assert_equal "eager", assembled_image["loading"]
+      assert_equal "high", assembled_image["fetchpriority"]
+
+      services = document(destination, "services/index.html")
+      services_image = services.at_css('[data-cinematic-scene-state="assembled"] picture > img')
+      assert_equal "lazy", services_image["loading"]
+      assert_nil services_image["fetchpriority"]
     end
   end
 end
