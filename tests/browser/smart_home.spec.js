@@ -420,6 +420,7 @@ test("every preset atomically changes the configuration and returns from manual 
   await page.goto(route);
   const root = await simulator(page);
   const presetIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
+  const presetBrightness = [35, 70, 55, 10, 15, 30, 35];
 
   for (const [index, label] of presets.entries()) {
     const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
@@ -434,6 +435,8 @@ test("every preset atomically changes the configuration and returns from manual 
     await expect(root).toHaveAttribute("data-manual", "false");
     await expect(root.locator("[data-phone-live]")).toContainText(label);
     await expect(root.locator(`[data-preset-panel="${presetIds[index]}"]`)).toBeVisible();
+    await expect(root.locator('[data-control-output="lighting:brightness"]')).toHaveText(`Яскравість: ${presetBrightness[index]}%`);
+    // Computed image filters can settle one frame after the synchronous preset state.
     await expect.poll(
       async () => (await readPresetPreview(root)).exposure,
       { message: `${label} computed scene exposure` }
