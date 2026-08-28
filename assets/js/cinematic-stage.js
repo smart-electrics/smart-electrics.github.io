@@ -26,8 +26,26 @@ function readGraph(root) {
   }
 }
 
-function enhance(root) {
-  if (root.dataset.cinematicEnhanced === "true") return;
+function failClosed(root) {
+  if (!(root instanceof Element)) return;
+  const fallback = one(root, "[data-cinematic-fallback]");
+  const stage = one(root, "[data-cinematic-stage]");
+  root.removeAttribute("data-cinematic-enhanced");
+  root.setAttribute("data-cinematic-failed", "true");
+  root.removeAttribute("data-cinematic-motion-phase");
+  if (fallback) {
+    fallback.hidden = false;
+    fallback.removeAttribute("aria-hidden");
+  }
+  if (stage) {
+    stage.hidden = true;
+    stage.inert = true;
+    stage.setAttribute("aria-hidden", "true");
+  }
+  document.documentElement.removeAttribute("data-cinematic-stage-pending");
+}
+
+function enhanceValidated(root) {
 
   const source = readGraph(root);
   const fallback = one(root, "[data-cinematic-fallback]");
@@ -38,7 +56,7 @@ function enhance(root) {
   const snapshot = one(root, "[data-cinematic-outgoing-snapshot]");
   const live = one(root, "[data-cinematic-live]");
   const returnControl = one(root, "button[data-cinematic-return]");
-  if (!source || !fallback || !stage || !composition || !connectorLane || !relationshipConnector || !snapshot || !live || !returnControl) return;
+  if (!source || !fallback || !stage || !composition || !connectorLane || !relationshipConnector || !snapshot || !live || !returnControl) return false;
 
   const { graph, machine } = source;
   const directionIds = graph.directions.map((direction) => direction.id);
@@ -73,7 +91,7 @@ function enhance(root) {
     !idsMatch(relationScenes, "cinematicRelationScene", relationIds) ||
     scenes.length !== 1 + directionIds.length + relationIds.length ||
     panels.length !== 1 + directionIds.length + relationIds.length
-  ) return;
+  ) return false;
 
   const sceneByKey = new Map(scenes.map((scene) => [scene.dataset.cinematicSceneKey, scene]));
   const panelByKey = new Map([
@@ -81,7 +99,7 @@ function enhance(root) {
     ...focusPanels.map((panel) => [`focus:${panel.dataset.cinematicFocusPanel}`, panel]),
     ...reassembledPanels.map((panel) => [`relation:${panel.dataset.cinematicReassembledPanel}`, panel])
   ]);
-  if (sceneByKey.size !== scenes.length || panelByKey.size !== panels.length) return;
+  if (sceneByKey.size !== scenes.length || panelByKey.size !== panels.length) return false;
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let state = machine.initialState;
@@ -126,10 +144,14 @@ function enhance(root) {
   };
   const motion = createCinematicMotion({
     onPhase: (phase) => {
-      root.dataset.cinematicMotionPhase = phase;
-      synchronizePanelInertness(phase === "hold");
-      if (phase === "hold" || phase === "idle") clearTransition();
-      if (phase === "reassemble" || phase === "idle") synchronizeConnector();
+      try {
+        root.dataset.cinematicMotionPhase = phase;
+        synchronizePanelInertness(phase === "hold");
+        if (phase === "hold" || phase === "idle") clearTransition();
+        if (phase === "reassemble" || phase === "idle") synchronizeConnector();
+      } catch (_) {
+        failClosed(root);
+      }
     }
   });
 
@@ -184,28 +206,36 @@ function enhance(root) {
     if (!synchronize(true)) {
       clearTransition();
       motion.cancel();
-      return;
+      failClosed(root);
     }
   };
 
-  snapshot.addEventListener("animationend", (event) => {
+  const protect = (callback) => (...args) => {
+    try {
+      callback(...args);
+    } catch (_) {
+      failClosed(root);
+    }
+  };
+
+  snapshot.addEventListener("animationend", protect((event) => {
     if (event.animationName === "residence-spine-outgoing") clearTransition();
-  });
-  snapshot.addEventListener("animationcancel", () => {
+  }));
+  snapshot.addEventListener("animationcancel", protect(() => {
     clearTransition();
-  });
-  reducedMotion.addEventListener("change", (event) => {
+  }));
+  reducedMotion.addEventListener("change", protect((event) => {
     if (event.matches) {
       clearTransition();
       motion.cancel();
       synchronizePanelInertness(false);
     }
-  });
-  window.addEventListener("resize", () => {
-    window.requestAnimationFrame(synchronizeConnector);
-  }, { passive: true });
+  }));
+  window.addEventListener("resize", protect(() => {
+    window.requestAnimationFrame(protect(synchronizeConnector));
+  }), { passive: true });
 
-  root.addEventListener("click", (event) => {
+  root.addEventListener("click", protect((event) => {
     const control = event.target instanceof Element ? event.target.closest("button[data-cinematic-action]") : null;
     if (!(control instanceof HTMLButtonElement) || !stage.contains(control)) return;
 
@@ -216,13 +246,27 @@ function enhance(root) {
     } else if (control.dataset.cinematicAction === "return-to-system") {
       transition({ type: "return-to-system" });
     }
-  });
+  }));
 
-  if (!synchronize(false)) return;
+  if (!synchronize(false)) return false;
   root.dataset.cinematicMotionPhase = "idle";
   fallback.hidden = true;
+  fallback.setAttribute("aria-hidden", "true");
   stage.hidden = false;
+  stage.inert = false;
+  stage.removeAttribute("aria-hidden");
   root.dataset.cinematicEnhanced = "true";
+  root.removeAttribute("data-cinematic-failed");
+  return true;
+}
+
+function enhance(root) {
+  if (root.dataset.cinematicEnhanced === "true") return;
+  try {
+    if (!enhanceValidated(root)) failClosed(root);
+  } catch (_) {
+    failClosed(root);
+  }
 }
 
 document.querySelectorAll("[data-cinematic-root]").forEach(enhance);

@@ -277,6 +277,18 @@ test("stair and exterior relations use the same physical layer to swap their own
 });
 
 test("physical controls fail closed for malformed state data", async ({ page }) => {
+  await page.route("**/assets/js/physical-scene-controls.js", (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: "throw new Error('physical runtime failure');"
+  }));
+  await page.goto("/");
+  let rendered = await stageFor(page);
+  await expect(page.locator("html")).not.toHaveAttribute("data-cinematic-stage-pending", "true");
+  await expect(rendered.root).not.toHaveAttribute("data-cinematic-physical-enhanced", "true");
+  await expect(rendered.stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
+  await expect(rendered.stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
+
+  await page.unroute("**/assets/js/physical-scene-controls.js");
   await page.addInitScript(() => {
     const originalParse = JSON.parse;
     JSON.parse = function physicalSceneParse(value, ...rest) {
@@ -285,9 +297,9 @@ test("physical controls fail closed for malformed state data", async ({ page }) 
     };
   });
   await page.goto("/");
-  const { stage } = await stageFor(page);
-  await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
-  await expect(stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
+  rendered = await stageFor(page);
+  await expect(rendered.stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
+  await expect(rendered.stage.locator("[data-cinematic-physical-layer]")).toBeHidden();
 });
 
 test("a unique but wrong physical control ID fails closed before controls become interactive", async ({ page }) => {

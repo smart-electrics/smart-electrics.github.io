@@ -264,6 +264,8 @@ class CinematicContractTest < Minitest::Test
 
   def test_residence_physical_picture_exposes_one_preload_safe_responsive_candidate_list
     template = File.read(File.join(project_root, "_includes", "cinematic-stage.html"))
+    head = File.read(File.join(project_root, "_includes", "head.html"))
+    layout = File.read(File.join(project_root, "_layouts", "default.html"))
     physical_layer = template[/<div class="residence-spine__physical-layer"[^>]*data-cinematic-physical-layer[^>]*>/]
 
     refute_nil physical_layer
@@ -271,7 +273,12 @@ class CinematicContractTest < Minitest::Test
     refute_includes template, '<source data-cinematic-physical-source'
     refute_includes template, '<source media="(max-width: 767px)" srcset="{{ \'/assets/images/smart-home/\' | append: relation.scene_family | append: \'-768.webp\' | relative_url }}"'
     assert_includes template, '<img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w"'
-    assert_includes template, 'sizes="(max-width: 767px) 100vw, 52vw"'
+    assert template.include?('sizes="(max-width: 767px) 100vw, 52vw"') &&
+      head.match?(/<script>[\s\S]*?data-cinematic-stage-pending[\s\S]*?addEventListener\("error"[\s\S]*?data-cinematic-stage-module[\s\S]*?<\/script>[\s\S]*?<link rel="preload" as="font" href="\{\{ '\/assets\/fonts\/manrope-cyrillic\.woff2' \| relative_url \}\}" type="font\/woff2" crossorigin>[\s\S]*?<link rel="preload" as="font" href="\{\{ '\/assets\/fonts\/manrope-latin\.woff2' \| relative_url \}\}" type="font\/woff2" crossorigin>[\s\S]*?<link rel="stylesheet"/m) &&
+      head.match?(/rel="preload" as="image" href="\{\{ '\/assets\/images\/cinematic\/residence\/room-evening-open-1536\.webp' \| relative_url \}\}"[^>]*fetchpriority="high"/) &&
+      layout.match?(/<script type="module" src="\{\{ '\/assets\/js\/cinematic-stage\.js' \| relative_url \}\}" data-cinematic-stage-module><\/script>/) &&
+      layout.match?(/<script type="module" src="\{\{ '\/assets\/js\/physical-scene-controls\.js' \| relative_url \}\}" data-cinematic-physical-module><\/script>/), "cinematic first-frame bootstrap, font preloads, and LCP priority must retain their source contract"
+    assert template.include?('data-cinematic-stage hidden inert aria-hidden="true"'), "the first-paint stage must remain inaccessible until enhancement succeeds"
   end
 
   def test_physical_scene_adapter_updates_one_responsive_candidate_list

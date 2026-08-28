@@ -16,10 +16,10 @@
     </main>
     {% include footer.html %}
     {% if page.layout == 'landing' or page.services_catalogue %}
-      <script type="module" src="{{ '/assets/js/cinematic-stage.js' | relative_url }}"></script>
+      <script type="module" src="{{ '/assets/js/cinematic-stage.js' | relative_url }}" data-cinematic-stage-module></script>
     {% endif %}
     {% if page.layout == 'landing' or page.services_catalogue or page.url == '/smart-home/' %}
-      <script type="module" src="{{ '/assets/js/physical-scene-controls.js' | relative_url }}"></script>
+      <script type="module" src="{{ '/assets/js/physical-scene-controls.js' | relative_url }}" data-cinematic-physical-module></script>
     {% endif %}
     {% if page.service_studio %}
       <script type="module" src="{{ '/assets/js/service-studio.js' | relative_url }}"></script>

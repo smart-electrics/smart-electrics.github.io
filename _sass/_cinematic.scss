@@ -9,6 +9,20 @@
   display: none !important;
 }
 
+html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:not([data-cinematic-enhanced="true"]):not([data-cinematic-failed="true"]) > .residence-spine__stage[data-cinematic-stage] {
+  display: block !important;
+}
+
+html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:not([data-cinematic-enhanced="true"]):not([data-cinematic-failed="true"]) > .residence-spine__fallback[data-cinematic-fallback] {
+  display: none;
+}
+
+html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:not([data-cinematic-failed="true"]) .residence-spine__panel[data-cinematic-panel="assembled"]:not([hidden]) > .residence-spine__physical-controls[data-cinematic-physical-controls][hidden] {
+  display: grid !important;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .residence-spine__fallback {
   border-top: 1px solid var(--line-strong);
   display: grid;
