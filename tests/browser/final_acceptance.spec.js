@@ -763,7 +763,12 @@ async function expectSmartHomeScenePriority(page, simulator, width, state) {
     const activeControl = boundsFor("[data-phone-control-panel]:not([hidden]) input, [data-phone-control-panel]:not([hidden]) button");
     return {
       scene,
-      phone,
+      phone: phone && {
+        ...phone,
+        clientHeight: root.querySelector("[data-smart-home-phone]").clientHeight,
+        scrollHeight: root.querySelector("[data-smart-home-phone]").scrollHeight,
+        overflowY: getComputedStyle(root.querySelector("[data-smart-home-phone]")).overflowY
+      },
       controls,
       experience,
       activeControl,
@@ -776,17 +781,69 @@ async function expectSmartHomeScenePriority(page, simulator, width, state) {
   expect(geometry.controls, "smart-home needs a control surface for " + state).not.toBeNull();
   expect(geometry.experience, "smart-home needs an experience surface for " + state).not.toBeNull();
   expect(geometry.activeControl, "smart-home needs a reachable active control for " + state).not.toBeNull();
-  expect(geometry.scene.area, "smart-home scene must exceed its whole phone surface at " + width + "px for " + state).toBeGreaterThan(geometry.phone.area);
-  expect(geometry.scene.area, "smart-home scene must exceed its active control surface at " + width + "px for " + state).toBeGreaterThan(geometry.controls.area);
-  expect(geometry.scene.area, "smart-home scene must retain a substantial share of the experience at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.experience.area * 0.25);
   expect(geometry.phone.left, "smart-home phone must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(-2);
   expect(geometry.phone.right, "smart-home phone must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.width + 2);
-  expect(geometry.phone.top, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeGreaterThanOrEqual(-2);
-  expect(geometry.phone.bottom, "smart-home phone must be wholly inspectable at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.height + 2);
   expect(geometry.activeControl.left, "smart-home active control must not clip on the left at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.phone.left - 1);
   expect(geometry.activeControl.right, "smart-home active control must not clip on the right at " + width + "px for " + state).toBeLessThanOrEqual(geometry.phone.right + 1);
-  expect(geometry.activeControl.top, "smart-home active control must remain visible in the phone at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.phone.top - 1);
-  expect(geometry.activeControl.bottom, "smart-home active control must remain visible in the phone at " + width + "px for " + state).toBeLessThanOrEqual(geometry.phone.bottom + 1);
+  if (width <= 864) {
+    expect(geometry.scene.width, "mobile smart-home scene must span the experience at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.experience.width - 2);
+    expect(geometry.phone.width, "mobile configurator must span the experience at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.experience.width - 2);
+    expect(geometry.scene.height, "mobile smart-home scene must retain its cinematic frame at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.scene.width * 0.82);
+    expect(geometry.phone.scrollHeight - geometry.phone.clientHeight, "mobile controls must use natural page flow at " + width + "px for " + state).toBeLessThanOrEqual(1);
+    expect(["visible", "clip"], "mobile configurator must not capture vertical swipes at " + width + "px for " + state).toContain(geometry.phone.overflowY);
+    expect(geometry.activeControl.top, "mobile active control must be reachable in the viewport at " + width + "px for " + state).toBeGreaterThanOrEqual(-2);
+    expect(geometry.activeControl.bottom, "mobile active control must be reachable in the viewport at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.height + 2);
+  } else {
+    expect(geometry.scene.area, "smart-home scene must exceed its whole phone surface at " + width + "px for " + state).toBeGreaterThan(geometry.phone.area);
+    expect(geometry.scene.area, "smart-home scene must exceed its active control surface at " + width + "px for " + state).toBeGreaterThan(geometry.controls.area);
+    expect(geometry.scene.area, "smart-home scene must retain a substantial share of the experience at " + width + "px for " + state).toBeGreaterThanOrEqual(geometry.experience.area * 0.25);
+    expect(geometry.phone.scrollHeight - geometry.phone.clientHeight, "desktop controls must remain in one natural document surface at " + width + "px for " + state).toBeLessThanOrEqual(1);
+    expect(geometry.activeControl.top, "desktop active control must be reachable in the viewport at " + width + "px for " + state).toBeGreaterThanOrEqual(-2);
+    expect(geometry.activeControl.bottom, "desktop active control must be reachable in the viewport at " + width + "px for " + state).toBeLessThanOrEqual(geometry.viewport.height + 2);
+  }
+}
+
+async function expectNaturalMobileConfigurator(page, simulator, width, state) {
+  const phone = simulator.locator("[data-smart-home-phone]");
+  const geometry = await phone.evaluate((surface) => ({
+    clientHeight: surface.clientHeight,
+    scrollHeight: surface.scrollHeight,
+    scrollTop: surface.scrollTop,
+    overflowY: getComputedStyle(surface).overflowY,
+    documentOverflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  }));
+  expect(geometry.scrollHeight - geometry.clientHeight, `${width}px ${state} must expose every control in document flow`).toBeLessThanOrEqual(1);
+  expect(["visible", "clip"], `${width}px ${state} must not capture the page swipe`).toContain(geometry.overflowY);
+  expect(geometry.scrollTop, `${width}px ${state} must not create a nested scroll position`).toBe(0);
+  expect(geometry.documentOverflow, `${width}px ${state} must not create horizontal overflow`).toBe(0);
+}
+
+async function tapRangeFarFromCurrent(range) {
+  await range.scrollIntoViewIfNeeded();
+  const before = await range.inputValue();
+  const target = await range.evaluate((input) => {
+    const current = Number(input.value);
+    const minimum = Number(input.min);
+    const maximum = Number(input.max);
+    return current - minimum >= maximum - current ? 0.08 : 0.92;
+  });
+  const bounds = await range.boundingBox();
+  if (!bounds) throw new Error("touch range needs visible geometry");
+  await range.tap({ position: { x: Math.max(2, Math.min(bounds.width - 2, bounds.width * target)), y: bounds.height / 2 } });
+  await expect.poll(() => range.inputValue()).not.toBe(before);
+}
+
+async function mutatePhoneControlByTouch(control) {
+  const type = await control.getAttribute("data-control-type");
+  if (type === "range") {
+    await tapRangeFarFromCurrent(control.locator("input[type='range']"));
+  } else if (type === "segment") {
+    await control.locator('[data-phone-segment]:not([aria-pressed="true"])').first().tap();
+  } else if (type === "toggle") {
+    await control.locator("[data-phone-toggle]").tap();
+  } else {
+    throw new Error(`unknown mobile phone control type: ${type}`);
+  }
 }
 
 async function expectVisibleState(root, sceneSelector, panelSelector) {
@@ -1555,10 +1612,9 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
       await visit(page, "/smart-home/");
       const simulator = page.locator("[data-smart-home-simulator]");
       const phone = simulator.locator("[data-smart-home-phone]");
-      const scrollHint = phone.locator(".smart-home__phone-scroll-hint");
       await expect(simulator).toHaveAttribute("data-enhanced", "true");
-      await expect(phone).toHaveAttribute("tabindex", "0");
-      await expect(phone).toHaveAttribute("aria-label", /прокруч/iu);
+      await expect(phone).not.toHaveAttribute("tabindex", /./u);
+      await expect(phone).toHaveAttribute("aria-label", "Налаштування простору");
       await expectSmartHomeScenePriority(page, simulator, width, "initial");
 
       const phoneScroll = await phone.evaluate((element) => ({
@@ -1566,18 +1622,8 @@ test("smart-home keeps a dominant scene and a wholly usable phone surface after 
         scrollHeight: element.scrollHeight,
         scrollTop: element.scrollTop
       }));
-      if (phoneScroll.scrollHeight > phoneScroll.clientHeight + 1) {
-        await expect(scrollHint).toBeVisible();
-        await expect(scrollHint).toContainText("Прокручуйте панель");
-        await phone.focus();
-        expect(phoneScroll.scrollHeight, "scrollable phone must expose additional controls through its own surface").toBeGreaterThan(phoneScroll.clientHeight);
-        await page.keyboard.press("End");
-        await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBeGreaterThan(phoneScroll.scrollTop);
-        await page.keyboard.press("Home");
-        await expect.poll(() => phone.evaluate((element) => element.scrollTop)).toBe(0);
-      } else {
-        await expect(scrollHint).toBeHidden();
-      }
+      expect(phoneScroll.scrollHeight - phoneScroll.clientHeight, "configurator must expose every control through the document flow").toBeLessThanOrEqual(1);
+      expect(phoneScroll.scrollTop).toBe(0);
 
       const system = simulator.locator("button[data-phone-system]").nth(1);
       const systemId = await system.getAttribute("data-phone-system");
@@ -1694,7 +1740,16 @@ test("the nine residence scene families and physical controls produce real visib
   const presets = simulator.getByRole("radio");
   await expect(presets).toHaveCount(7);
   const initialPresetId = await presets.first().getAttribute("value");
+  await presets.first().check();
+  await expect(simulator).toHaveAttribute("data-preset", initialPresetId);
   const selectedPresets = [initialPresetId];
+  const presetPrimarySystems = [];
+  const presetMediaSources = [];
+  const initialPanel = simulator.locator(`[data-preset-panel="${initialPresetId}"]`);
+  const initialPrimarySystem = await initialPanel.getAttribute("data-primary-system");
+  await expect(simulator).toHaveAttribute("data-system", initialPrimarySystem || "");
+  presetPrimarySystems.push(initialPrimarySystem);
+  presetMediaSources.push((await mediaSignature(visibleSmartHomeImage())).src);
   await expectAxeClean(page, "smart-home preset " + initialPresetId);
   axeStates.push("preset:" + initialPresetId);
   let previousPresetPixels = await renderedPixelSignature(page, smartHomeScene);
@@ -1704,8 +1759,13 @@ test("the nine residence scene families and physical controls produce real visib
     const id = await preset.getAttribute("value");
     await preset.click();
     await expect(simulator).toHaveAttribute("data-preset", id);
+    const panel = simulator.locator(`[data-preset-panel="${id}"]`);
+    const primarySystem = await panel.getAttribute("data-primary-system");
+    await expect(simulator).toHaveAttribute("data-system", primarySystem || "");
     const currentPresetPixels = await renderedPixelSignature(page, smartHomeScene);
-    expect(currentPresetPixels, "each smart-home preset must visibly change scene pixels, even when it retains the selected system source").not.toBe(previousPresetPixels);
+    expect(currentPresetPixels, "each smart-home preset must visibly change its selected physical context").not.toBe(previousPresetPixels);
+    presetPrimarySystems.push(primarySystem);
+    presetMediaSources.push((await mediaSignature(visibleSmartHomeImage())).src);
     const currentPresetTopology = await smartHomeTopologySignature(simulator);
     expectMeaningfulTopologyChange(previousPresetTopology, currentPresetTopology, "smart-home preset " + id);
     await expectAxeClean(page, "smart-home preset " + id);
@@ -1715,6 +1775,8 @@ test("the nine residence scene families and physical controls produce real visib
     selectedPresets.push(id);
   }
   expect(new Set(selectedPresets).size).toBe(7);
+  expect(new Set(presetPrimarySystems).size, "every preset must select its own primary system").toBe(7);
+  expect(new Set(presetMediaSources).size, "every preset must resolve to a distinct contextual raster source").toBe(7);
   expect(axeStates.filter((state) => state.startsWith("system:"))).toHaveLength(9);
   expect(axeStates.filter((state) => state.startsWith("preset:"))).toHaveLength(7);
   page.off("request", recordSmartHomeSceneRequest);
@@ -1782,6 +1844,15 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
 
     await visit(page, "/smart-home/");
     const simulator = page.locator("[data-smart-home-simulator]");
+    const phone = simulator.locator("[data-smart-home-phone]");
+    const phoneScrollModel = await phone.evaluate((surface) => ({
+      overflowY: getComputedStyle(surface).overflowY,
+      hiddenContent: Math.max(0, surface.scrollHeight - surface.clientHeight),
+      scrollTop: surface.scrollTop
+    }));
+    expect(phoneScrollModel.hiddenContent, "mobile configurator must use the page scroll instead of hiding controls in a nested scroller").toBeLessThanOrEqual(1);
+    expect(["visible", "clip"], "mobile configurator must not capture the user's vertical swipe").toContain(phoneScrollModel.overflowY);
+    expect(phoneScrollModel.scrollTop).toBe(0);
     const smartScene = simulator.locator(".smart-home__scene");
     const smartImage = () => simulator.locator("picture[data-scene-picture]:visible img");
     const beforeSystemMedia = await mediaSignature(smartImage());
@@ -1816,6 +1887,107 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
 
   expect(evidence).toEqual(["residence", "service-studio", "solution", "journey", "smart-home"]);
   writeEvidence("touch-contracts.json", evidence);
+});
+
+test("mobile smart-home controls use one touch model across every compact width", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL,
+    hasTouch: true,
+    isMobile: true,
+    locale: "uk-UA",
+    reducedMotion: "reduce",
+    viewport: { width: 320, height: 568 }
+  });
+  const page = await context.newPage();
+  const evidence = [];
+
+  try {
+    await withInteractionDiagnostics(page, async () => {
+      for (const { width, height } of [
+        { width: 320, height: 568 },
+        { width: 375, height: 812 },
+        { width: 390, height: 844 },
+        { width: 414, height: 896 },
+        { width: 768, height: 1024 }
+      ]) {
+        await page.setViewportSize({ width, height });
+        await visit(page, "/smart-home/");
+        const simulator = page.locator("[data-smart-home-simulator]");
+        await expect(simulator).toHaveAttribute("data-enhanced", "true");
+        await expectNaturalMobileConfigurator(page, simulator, width, "initial");
+
+        const presetLabel = simulator.locator(".smart-home__preset-choice label").nth(1);
+        const presetId = await presetLabel.getAttribute("for");
+        await presetLabel.tap();
+        await expect(simulator).toHaveAttribute("data-preset", presetId?.replace(/^preset-/u, "") || "");
+
+        for (const systemId of ["shading", "audio", "security", "climate"]) {
+          await simulator.locator(`[data-phone-system="${systemId}"]`).tap();
+          await expect(simulator).toHaveAttribute("data-system", systemId);
+          const before = await simulator.getAttribute("data-preview-signature");
+          const activeControl = simulator.locator("[data-phone-control-panel]:visible [data-phone-control]:visible").first();
+          await mutatePhoneControlByTouch(activeControl);
+          await expect(simulator).not.toHaveAttribute("data-preview-signature", before || "");
+          await expect(simulator.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']")).toHaveAttribute("data-physical-scene-svg-active-system", systemId);
+          await expectNaturalMobileConfigurator(page, simulator, width, systemId);
+        }
+        evidence.push(width);
+      }
+    });
+  } finally {
+    await context.close();
+  }
+
+  expect(evidence).toEqual([320, 375, 390, 414, 768]);
+  writeEvidence("smart-home-mobile-widths.json", evidence);
+});
+
+test("mobile smart-home touch reaches and changes all twenty-four manual controls", async ({ browser }) => {
+  const context = await browser.newContext({
+    baseURL,
+    hasTouch: true,
+    isMobile: true,
+    locale: "uk-UA",
+    reducedMotion: "reduce",
+    viewport: { width: 375, height: 812 }
+  });
+  const page = await context.newPage();
+  const mutated = [];
+
+  try {
+    await withInteractionDiagnostics(page, async () => {
+      await visit(page, "/smart-home/");
+      const simulator = page.locator("[data-smart-home-simulator]");
+      const overlay = simulator.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
+      await expectNaturalMobileConfigurator(page, simulator, 375, "all controls");
+
+      for (const systemId of ["lighting", "climate", "access", "security", "panel", "low-voltage", "backup-power", "audio", "shading"]) {
+        await simulator.locator(`[data-phone-system="${systemId}"]`).tap();
+        await expect(simulator).toHaveAttribute("data-system", systemId);
+        await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", systemId);
+
+        while (true) {
+          const visibleKeys = await simulator.locator("[data-phone-control-panel]:visible [data-phone-control]:visible").evaluateAll((controls) => controls.map((control) => control.dataset.phoneControl));
+          const nextKey = visibleKeys.find((key) => !mutated.includes(key));
+          if (!nextKey) break;
+          const control = simulator.locator(`[data-phone-control="${nextKey}"]`);
+          const previewBefore = await simulator.getAttribute("data-preview-signature");
+          const svgBefore = await overlay.getAttribute("data-physical-scene-svg-signature");
+          await mutatePhoneControlByTouch(control);
+          await expect(simulator).not.toHaveAttribute("data-preview-signature", previewBefore || "");
+          await expect(overlay).not.toHaveAttribute("data-physical-scene-svg-signature", svgBefore || "");
+          mutated.push(nextKey);
+        }
+        await expectNaturalMobileConfigurator(page, simulator, 375, systemId);
+      }
+    });
+  } finally {
+    await context.close();
+  }
+
+  expect(mutated).toHaveLength(24);
+  expect(new Set(mutated).size).toBe(24);
+  writeEvidence("smart-home-mobile-controls.json", mutated);
 });
 
 test("reduced-motion produces zero running animation or transition across every public route", async ({ browser }) => {

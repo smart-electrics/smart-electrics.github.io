@@ -168,12 +168,27 @@ svg:
 
     - id: climate
       layers:
-        - id: climate-zone-flow
-          effect: thermal
-          geometry: { kind: path, points: [[458, 825], [476, 811], [493, 798], [510, 785], [528, 774]] }
+        - id: climate-comfort-field
+          effect: climate-comfort-field
+          geometry: { kind: rect, x: 390, y: 490, width: 610, height: 350 }
           bindings:
-            - { control_id: comfort, type: segment, parameter: bias, output: { warm: 1, balanced: 0, cool: -1 } }
-            - { control_id: operation, type: segment, parameter: progress, output: { auto: 0.45, heating: 0.7, cooling: 1 } }
+            - { control_id: comfort, type: segment, parameter: comfort, output: { warm: 0.64, balanced: 0.46, cool: 0.28 } }
+            - { control_id: operation, type: segment, parameter: level, output: { auto: 0.58, heating: 0.24, cooling: 0.24 } }
+          visible_when: { control_id: operation, equals: auto }
+        - id: climate-heating-floor-field
+          effect: climate-heating-floor
+          geometry: { kind: rect, x: 350, y: 650, width: 420, height: 235 }
+          bindings:
+            - { control_id: comfort, type: segment, parameter: comfort, output: { warm: 1, balanced: 0.58, cool: 0.18 } }
+            - { control_id: operation, type: segment, parameter: level, output: { auto: 0.18, heating: 1, cooling: 0.08 } }
+          visible_when: { control_id: operation, equals: heating }
+        - id: climate-cooling-air-field
+          effect: climate-cooling-air
+          geometry: { kind: rect, x: 570, y: 300, width: 360, height: 260 }
+          bindings:
+            - { control_id: comfort, type: segment, parameter: comfort, output: { warm: 0.18, balanced: 0.58, cool: 1 } }
+            - { control_id: operation, type: segment, parameter: level, output: { auto: 0.18, heating: 0.08, cooling: 1 } }
+          visible_when: { control_id: operation, equals: cooling }
 
     - id: access
       layers:
@@ -195,109 +210,165 @@ svg:
 
     - id: security
       layers:
-        - id: security-entry-field
-          effect: coverage
-          geometry: { kind: ellipse, cx: 900, cy: 600, rx: 260, ry: 220 }
-          binding: { control_id: event_path, type: segment, parameter: coverage, output: { video: 0.56, sensors: 0.36, quiet: 0.12 } }
+        - id: security-camera-body
+          effect: security-camera-body
+          geometry: { kind: rect, x: 480, y: 180, width: 40, height: 40 }
+          bindings:
+            - { control_id: coverage, type: segment, parameter: coverage, output: { entry: 0.76, perimeter: 1, quiet: 0.48 } }
+            - { control_id: event_path, type: segment, parameter: level, output: { video: 1, sensors: 0.62, quiet: 0.28 } }
+            - { control_id: view_angle, type: range, input: { min: 35, max: 110 }, parameter: view_angle, output: { min: 35, max: 110 } }
+        - id: security-camera-view
+          effect: security-camera-view
+          geometry: { kind: polygon, points: [[500, 220], [780, 500], [620, 610]] }
+          bindings:
+            - { control_id: event_path, type: segment, parameter: level, output: { video: 0.64, sensors: 0.42, quiet: 0.16 } }
+            - { control_id: view_angle, type: range, input: { min: 35, max: 110 }, parameter: spread, output: { min: 0.46, max: 1 } }
           visible_when: { control_id: coverage, equals: entry }
-        - id: security-perimeter-field
-          effect: coverage
-          geometry: { kind: ellipse, cx: 940, cy: 570, rx: 480, ry: 360 }
-          binding: { control_id: event_path, type: segment, parameter: coverage, output: { video: 0.56, sensors: 0.36, quiet: 0.12 } }
+        - id: security-perimeter-camera-view
+          effect: security-camera-view
+          geometry: { kind: polygon, points: [[500, 220], [1280, 510], [910, 860]] }
+          bindings:
+            - { control_id: event_path, type: segment, parameter: level, output: { video: 0.76, sensors: 0.5, quiet: 0.2 } }
+            - { control_id: view_angle, type: range, input: { min: 35, max: 110 }, parameter: spread, output: { min: 0.46, max: 1 } }
           visible_when: { control_id: coverage, equals: perimeter }
-        - id: security-quiet-field
-          effect: coverage
-          geometry: { kind: ellipse, cx: 780, cy: 760, rx: 220, ry: 140 }
-          binding: { control_id: event_path, type: segment, parameter: coverage, output: { video: 0.56, sensors: 0.36, quiet: 0.12 } }
+        - id: security-quiet-camera-view
+          effect: security-camera-view
+          geometry: { kind: polygon, points: [[500, 220], [720, 430], [610, 550]] }
+          bindings:
+            - { control_id: event_path, type: segment, parameter: level, output: { video: 0.42, sensors: 0.28, quiet: 0.12 } }
+            - { control_id: view_angle, type: range, input: { min: 35, max: 110 }, parameter: spread, output: { min: 0.46, max: 1 } }
           visible_when: { control_id: coverage, equals: quiet }
-        - id: security-camera-marker
-          effect: glow
-          geometry: { kind: circle, cx: 500, cy: 198, r: 20 }
-          binding: { control_id: event_path, type: segment, parameter: level, output: { video: 0.56, sensors: 0.34, quiet: 0.14 } }
 
     - id: panel
       layers:
-        - id: panel-protection-distribution
-          effect: topology
-          geometry: { kind: path, points: [[870, 222], [970, 222], [970, 350], [1080, 350], [1080, 466], [1014, 466], [1014, 548], [1110, 548], [1110, 720]] }
+        - id: panel-breaker-bank
+          effect: equipment-panel
+          geometry: { kind: rect, x: 845, y: 170, width: 325, height: 190 }
           bindings:
-            - { control_id: layer, type: segment, parameter: progress, output: { protection: 0.3, groups: 0.66, priorities: 1 } }
+            - { control_id: layer, type: segment, parameter: equipment_state, output: { protection: 1, groups: 0.62, priorities: 0.38 } }
             - { control_id: priority_groups, type: toggle, parameter: level, output: { 'false': 0.12, 'true': 1 } }
-        - id: panel-priority-node
-          effect: node
-          geometry: { kind: circle, cx: 1092, cy: 548, r: 18 }
-          binding: { control_id: priority_groups, type: toggle, parameter: scale, output: { 'false': 0.56, 'true': 1 } }
+        - id: panel-priority-bank
+          effect: equipment-panel
+          geometry: { kind: rect, x: 845, y: 545, width: 325, height: 170 }
+          bindings:
+            - { control_id: layer, type: segment, parameter: equipment_state, output: { protection: 0.32, groups: 0.68, priorities: 1 } }
+            - { control_id: priority_groups, type: toggle, parameter: level, output: { 'false': 0.08, 'true': 1 } }
 
     - id: low-voltage
       layers:
-        - id: low-voltage-route
-          effect: topology
-          geometry: { kind: path, points: [[432, 790], [566, 790], [566, 932], [900, 932], [900, 530], [1038, 530], [1038, 690], [974, 690]] }
+        - id: low-voltage-conduit-riser
+          effect: equipment-low-voltage
+          geometry: { kind: rect, x: 390, y: 145, width: 52, height: 700 }
           bindings:
-            - { control_id: route, type: segment, parameter: progress, output: { network: 0.36, video: 0.7, signals: 1 } }
-            - { control_id: topology_focus, type: segment, parameter: bias, output: { routes: 0.2, points: 0.58, interfaces: 1 } }
-        - id: low-voltage-interface-node
-          effect: node
-          geometry: { kind: circle, cx: 916, cy: 530, r: 20 }
-          binding: { control_id: topology_focus, type: segment, parameter: scale, output: { routes: 0.5, points: 0.76, interfaces: 1 } }
+            - { control_id: route, type: segment, parameter: equipment_state, output: { network: 1, video: 0.52, signals: 0.36 } }
+            - { control_id: topology_focus, type: segment, parameter: level, output: { routes: 0.3, points: 0.62, interfaces: 1 } }
+        - id: low-voltage-interface-boxes
+          effect: equipment-low-voltage
+          geometry: { kind: rect, x: 880, y: 455, width: 330, height: 245 }
+          bindings:
+            - { control_id: route, type: segment, parameter: equipment_state, output: { network: 0.54, video: 1, signals: 0.74 } }
+            - { control_id: topology_focus, type: segment, parameter: level, output: { routes: 0.24, points: 0.64, interfaces: 1 } }
 
     - id: backup-power
       layers:
-        - id: backup-source-priorities
-          effect: topology
-          geometry: { kind: path, points: [[112, 254], [258, 254], [258, 466], [402, 466], [402, 514], [526, 514]] }
+        - id: backup-inverter-bank
+          effect: equipment-backup
+          geometry: { kind: rect, x: 125, y: 180, width: 220, height: 290 }
           bindings:
             - { control_id: priority_groups, type: toggle, parameter: level, output: { 'false': 0.08, 'true': 1 } }
-            - { control_id: restore_intent, type: segment, parameter: progress, output: { essential: 0.36, staged: 0.72, manual: 1 } }
-        - id: backup-source-node
-          effect: node
-          geometry: { kind: circle, cx: 228, cy: 632, r: 20 }
-          binding: { control_id: restore_intent, type: segment, parameter: scale, output: { essential: 0.62, staged: 0.82, manual: 1 } }
+            - { control_id: restore_intent, type: segment, parameter: equipment_state, output: { essential: 1, staged: 0.66, manual: 0.4 } }
+        - id: backup-battery-bank
+          effect: equipment-backup
+          geometry: { kind: rect, x: 125, y: 540, width: 445, height: 310 }
+          bindings:
+            - { control_id: priority_groups, type: toggle, parameter: level, output: { 'false': 0.08, 'true': 1 } }
+            - { control_id: restore_intent, type: segment, parameter: equipment_state, output: { essential: 0.48, staged: 0.76, manual: 1 } }
 
     - id: audio
       layers:
-        - id: audio-source-zone-group
-          effect: audio
-          geometry: { kind: ellipse, cx: 807, cy: 363, rx: 22, ry: 72 }
+        - id: audio-source-field
+          effect: audio-source
+          geometry: { kind: rect, x: 755, y: 205, width: 82, height: 445 }
+          binding: { control_id: source, type: segment, parameter: source_state, output: { local: 0.38, media: 1, scenario: 0.7 } }
+        - id: audio-zone-field
+          effect: audio-zone-field
+          geometry: { kind: polygon, points: [[650, 600], [1120, 570], [1210, 900], [700, 930]] }
           bindings:
-            - { control_id: source, type: segment, parameter: progress, output: { local: 0.28, media: 0.6, scenario: 1 } }
-            - { control_id: zone, type: segment, parameter: bias, output: { living: 0.32, terrace: 0.66, private: 1 } }
-            - { control_id: group, type: segment, parameter: scale, output: { single: 0.42, shared: 0.72, floor: 1 } }
-            - { control_id: muted, type: toggle, parameter: level, output: { 'false': 1, 'true': 0.08 } }
+            - { control_id: group, type: segment, parameter: spread, output: { single: 0.45, shared: 0.72, floor: 1 } }
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
+          visible_when: { control_id: zone, equals: living }
+        - id: audio-terrace-zone-field
+          effect: audio-zone-field
+          geometry: { kind: polygon, points: [[390, 360], [650, 360], [650, 740], [390, 740]] }
+          bindings:
+            - { control_id: group, type: segment, parameter: spread, output: { single: 0.45, shared: 0.72, floor: 1 } }
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
+          visible_when: { control_id: zone, equals: terrace }
+        - id: audio-private-zone-field
+          effect: audio-zone-field
+          geometry: { kind: polygon, points: [[890, 590], [1160, 590], [1160, 900], [910, 900]] }
+          bindings:
+            - { control_id: group, type: segment, parameter: spread, output: { single: 0.45, shared: 0.72, floor: 1 } }
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
+          visible_when: { control_id: zone, equals: private }
+        - id: audio-speaker-west
+          effect: audio-speaker
+          geometry: { kind: ellipse, cx: 355, cy: 132, rx: 20, ry: 12 }
+          bindings:
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
+        - id: audio-speaker-east
+          effect: audio-speaker
+          geometry: { kind: ellipse, cx: 1418, cy: 145, rx: 20, ry: 12 }
+          bindings:
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
+        - id: audio-speaker-column-upper
+          effect: audio-speaker
+          geometry: { kind: rect, x: 803, y: 270, width: 30, height: 184 }
+          bindings:
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
+        - id: audio-speaker-column-lower
+          effect: audio-speaker
+          geometry: { kind: rect, x: 803, y: 530, width: 30, height: 148 }
+          bindings:
+            - { control_id: volume, type: range, input: { min: 0, max: 100 }, parameter: level, output: { min: 0.05, max: 1 } }
+            - { control_id: muted, type: toggle, parameter: muted, output: { 'false': 0, 'true': 1 } }
     - id: shading
       layers:
-        - id: shading-tulle-diffusion
+        - id: shading-tulle-left
           effect: tulle
-          geometry: { kind: rect, x: 520, y: 156, width: 382, height: 522 }
-          bindings:
-            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: coverage, output: { min: 0.08, max: 0.72 } }
-            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 1, blinds: 0, curtains: 0, rollers: 0 } }
+          geometry: { kind: rect, x: 527, y: 176, width: 482, height: 496 }
+          binding: { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: -482 } }
+          visible_when: { control_id: treatment, equals: tulle }
+        - id: shading-tulle-right
+          effect: tulle
+          geometry: { kind: rect, x: 1009, y: 176, width: 483, height: 496 }
+          binding: { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: 483 } }
           visible_when: { control_id: treatment, equals: tulle }
         - id: shading-blind-slats
           effect: blind
-          geometry: { kind: rect, x: 898, y: 156, width: 594, height: 516 }
+          geometry: { kind: rect, x: 527, y: 176, width: 965, height: 496 }
           bindings:
-            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: angle, output: { min: -18, max: 18 } }
-            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 1, curtains: 0, rollers: 0 } }
+            - { control_id: blind_lift, type: range, input: { min: 0, max: 100 }, parameter: translate_y, output: { min: 0, max: -475 } }
+            - { control_id: slat_angle, type: range, input: { min: -45, max: 45 }, parameter: slat_angle, output: { min: -45, max: 45 } }
           visible_when: { control_id: treatment, equals: blinds }
         - id: shading-curtain-left
           effect: curtain
-          geometry: { kind: polygon, points: [[1006, 156], [1006, 678], [981, 668], [956, 678], [931, 669], [906, 678], [881, 667], [856, 678], [831, 669], [806, 678], [806, 156]] }
-          bindings:
-            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: -308 } }
-            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 1, rollers: 0 } }
+          geometry: { kind: polygon, points: [[527, 176], [1009, 176], [1009, 672], [949, 662], [889, 672], [829, 661], [769, 672], [709, 662], [649, 672], [589, 661], [527, 672]] }
+          binding: { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: -482 } }
           visible_when: { control_id: treatment, equals: curtains }
         - id: shading-curtain-right
           effect: curtain
-          geometry: { kind: polygon, points: [[1006, 156], [1206, 156], [1206, 678], [1181, 669], [1156, 678], [1131, 667], [1106, 678], [1081, 669], [1056, 678], [1031, 668], [1006, 678]] }
-          bindings:
-            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: 308 } }
-            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 1, rollers: 0 } }
+          geometry: { kind: polygon, points: [[1009, 176], [1492, 176], [1492, 672], [1432, 661], [1372, 672], [1312, 662], [1252, 672], [1192, 661], [1132, 672], [1072, 662], [1009, 672]] }
+          binding: { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: translate_x, output: { min: 0, max: 483 } }
           visible_when: { control_id: treatment, equals: curtains }
         - id: shading-roller-coverage
           effect: roller
-          geometry: { kind: rect, x: 898, y: 156, width: 594, height: 516 }
-          bindings:
-            - { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: coverage, output: { min: 1, max: 0 } }
-            - { control_id: treatment, type: segment, parameter: scale, output: { tulle: 0, blinds: 0, curtains: 0, rollers: 1 } }
+          geometry: { kind: rect, x: 527, y: 176, width: 965, height: 496 }
+          binding: { control_id: position, type: range, input: { min: 0, max: 100 }, parameter: coverage, output: { min: 1, max: 0 } }
           visible_when: { control_id: treatment, equals: rollers }

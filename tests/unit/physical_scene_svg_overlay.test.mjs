@@ -59,7 +59,7 @@ test("presents a validated projector frame as immutable active SVG layers and sa
   const presenter = createPhysicalSceneSvgPresenter({
     systems: [
       { id: "lighting", layerIds: ["lighting-pool"] },
-      { id: "shading", layerIds: ["shading-curtain-left", "shading-curtain-right"] },
+      { id: "shading", layerIds: ["shading-curtain-left", "shading-curtain-right", "shading-blind-slats"] },
       { id: "climate", layerIds: ["climate-flow"] }
     ]
   });
@@ -86,7 +86,7 @@ test("presents a validated projector frame as immutable active SVG layers and sa
         cssProperties: { "--physical-translate-x": "42px" }
       }
     ],
-    hiddenLayerIds: ["lighting-pool", "climate-flow"]
+    hiddenLayerIds: ["lighting-pool", "shading-blind-slats", "climate-flow"]
   });
   assert.equal(Object.isFrozen(presentation), true);
   assert.equal(Object.isFrozen(presentation.layers), true);
@@ -99,4 +99,24 @@ test("presents a validated projector frame as immutable active SVG layers and sa
   assert.equal(presenter.present({ ...frame, layers: [{ ...frame.layers[0], parameters: { level: Infinity } }] }), null);
   assert.equal(presenter.present({ ...frame, layers: [{ ...frame.layers[0], parameters: { "background-image": "url(unsafe)" } }] }), null);
   assert.throws(() => createPhysicalSceneSvgPresenter({ systems: [{ id: "lighting", layerIds: ["duplicate", "duplicate"] }] }), TypeError);
+});
+
+test("serializes slat angle as a physical face projection and keeps blind lift independent", () => {
+  const presenter = createPhysicalSceneSvgPresenter({
+    systems: [{ id: "shading", layerIds: ["shading-blind-slats"] }]
+  });
+  const raised = presenter.present({
+    systemId: "shading",
+    signature: "shading:blind_lift=100|slat_angle=0",
+    layers: [{ id: "shading-blind-slats", geometry: { kind: "rect" }, parameters: { translate_y: -520, slat_angle: 0 } }]
+  });
+  const angled = presenter.present({
+    systemId: "shading",
+    signature: "shading:blind_lift=40|slat_angle=45",
+    layers: [{ id: "shading-blind-slats", geometry: { kind: "rect" }, parameters: { translate_y: -208, slat_angle: 45 } }]
+  });
+
+  assert.deepEqual(raised.layers[0].cssProperties, { "--physical-translate-y": "-520px", "--physical-slat-angle": "0deg", "--physical-slat-face": "0.16" });
+  assert.deepEqual(angled.layers[0].cssProperties, { "--physical-translate-y": "-208px", "--physical-slat-angle": "45deg", "--physical-slat-face": "1" });
+  assert.notDeepEqual(raised.layers[0].cssProperties, angled.layers[0].cssProperties);
 });

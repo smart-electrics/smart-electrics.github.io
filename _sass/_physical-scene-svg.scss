@@ -75,12 +75,60 @@
   transform: translateY(calc(var(--physical-bias, 0) * -5px));
 }
 
+[data-physical-scene-svg-effect="climate-comfort-field"],
+[data-physical-scene-svg-effect="climate-heating-floor"],
+[data-physical-scene-svg-effect="climate-cooling-air"] {
+  filter: blur(.55rem);
+  mix-blend-mode: screen;
+  stroke: none;
+}
+
+[data-physical-scene-svg-effect="climate-comfort-field"] {
+  fill: var(--physical-climate-comfort-fill, rgba(231, 171, 114, .2));
+  opacity: calc(.14 + var(--physical-comfort, .46) * .34 + var(--physical-level, .58) * .18);
+}
+
+[data-physical-scene-svg-effect="climate-heating-floor"] {
+  fill: var(--physical-climate-heating-fill, rgba(224, 126, 77, .28));
+  opacity: calc(.12 + var(--physical-comfort, .58) * .48 + var(--physical-level, 1) * .22);
+  transform: scaleX(calc(.8 + var(--physical-comfort, .58) * .2));
+}
+
+[data-physical-scene-svg-effect="climate-cooling-air"] {
+  fill: var(--physical-climate-cooling-fill, rgba(174, 197, 204, .22));
+  opacity: calc(.1 + var(--physical-comfort, .58) * .44 + var(--physical-level, 1) * .2);
+  transform: scaleX(calc(.8 + var(--physical-comfort, .58) * .2));
+}
+
 [data-physical-scene-svg-effect="coverage"] {
   fill: rgba(219, 141, 92, calc(0.04 + var(--physical-coverage, .72) * 0.18));
   filter: blur(1rem);
   mix-blend-mode: screen;
   opacity: var(--physical-coverage, .72);
   stroke: none;
+}
+
+[data-physical-scene-svg-effect="security-camera-body"] {
+  fill: rgba(50, 34, 27, .24);
+  filter: drop-shadow(0 .18rem .28rem rgba(9, 5, 4, .28));
+  opacity: calc(.28 + var(--physical-coverage, .76) * .38 + var(--physical-level, .62) * .22);
+  stroke: rgba(244, 193, 142, .42);
+  stroke-width: 1;
+}
+
+[data-physical-scene-svg-effect="security-camera-body"] rect {
+  rx: 8px;
+  ry: 8px;
+}
+
+[data-physical-scene-svg-effect="security-camera-view"] {
+  fill: rgba(223, 149, 98, .18);
+  filter: blur(.4rem);
+  mix-blend-mode: screen;
+  opacity: var(--physical-level, .62);
+  stroke: none;
+  transform: scaleX(var(--physical-spread, .72));
+  transform-origin: left top;
 }
 
 [data-physical-scene-svg-effect="topology"] {
@@ -102,6 +150,28 @@
   transform: scale(var(--physical-scale, 1));
 }
 
+[data-physical-scene-svg-effect="equipment-panel"],
+[data-physical-scene-svg-effect="equipment-low-voltage"],
+[data-physical-scene-svg-effect="equipment-backup"] {
+  fill: rgba(234, 168, 111, .12);
+  filter: drop-shadow(0 0 .4rem rgba(200, 112, 68, .2));
+  mix-blend-mode: screen;
+  opacity: calc(.06 + var(--physical-level, .7) * .22 + var(--physical-equipment-state, .6) * .26);
+  stroke: none;
+}
+
+[data-physical-scene-svg-effect="equipment-panel"] {
+  fill: rgba(235, 177, 125, .12);
+}
+
+[data-physical-scene-svg-effect="equipment-low-voltage"] {
+  fill: rgba(195, 149, 117, .11);
+}
+
+[data-physical-scene-svg-effect="equipment-backup"] {
+  fill: rgba(230, 154, 91, .13);
+}
+
 [data-physical-scene-svg-effect="audio"] {
   fill: rgba(239, 173, 120, calc(0.04 + var(--physical-progress, .72) * 0.16));
   filter: blur(.4rem) drop-shadow(0 0 .75rem rgba(239, 173, 120, 0.3));
@@ -112,19 +182,79 @@
   transform: scale(calc(0.82 + var(--physical-scale, 1) * 0.18));
 }
 
+[data-physical-scene-svg-effect="audio-source"],
+[data-physical-scene-svg-effect="audio-zone-field"],
+[data-physical-scene-svg-effect="audio-speaker"] {
+  mix-blend-mode: screen;
+  stroke: none;
+}
+
+[data-physical-scene-svg-effect="audio-source"] {
+  fill: rgba(236, 168, 109, .08);
+  filter: drop-shadow(0 0 .55rem rgba(236, 168, 109, .24));
+  opacity: calc(.16 + var(--physical-source-state, .6) * .46);
+  stroke: rgba(242, 188, 136, .3);
+  stroke-width: 1;
+}
+
+[data-physical-scene-svg-effect="audio-zone-field"] {
+  fill: var(--physical-audio-zone-fill, rgba(238, 174, 119, .16));
+  filter: blur(.65rem);
+  opacity: calc((.08 + var(--physical-level, .4) * .42) * (1 - var(--physical-muted, 0) * .88));
+  transform: scale(var(--physical-spread, .72));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+[data-physical-scene-svg-effect="audio-speaker"] {
+  fill: rgba(246, 196, 144, .12);
+  filter: drop-shadow(0 0 .42rem rgba(236, 168, 109, .3));
+  opacity: calc((.1 + var(--physical-level, .4) * .58) * (1 - var(--physical-muted, 0) * .9));
+  transform: scale(calc(.88 + var(--physical-level, .4) * .12));
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 [data-physical-scene-svg-effect="tulle"] {
-  fill: rgba(255, 231, 204, calc(0.08 + var(--physical-coverage, var(--physical-level, .58)) * 0.26));
-  opacity: calc(var(--physical-scale, 1) * (0.2 + var(--physical-level, var(--physical-coverage, .58)) * 0.5));
+  filter: drop-shadow(0 .24rem .28rem rgba(95, 57, 39, .1));
+  transform: translateX(var(--physical-translate-x, 0px));
+}
+
+[data-physical-tulle-veil] {
+  fill: rgba(244, 224, 205, .13);
+}
+
+[data-physical-tulle-folds] {
+  fill: var(--physical-tulle-fill, rgba(255, 231, 204, .2));
+  filter: blur(3px);
+  opacity: .38;
 }
 
 [data-physical-scene-svg-effect="blind"] {
   opacity: var(--physical-scale, 1);
   stroke: none;
-  transform: rotate(var(--physical-angle, 0deg));
+  transform: none;
+}
+
+[data-physical-blind-slat] {
+  fill: var(--physical-blind-open-fill, rgba(80, 54, 42, .62));
+  filter: drop-shadow(0 .12rem .08rem rgba(13, 7, 4, .22));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 180ms ease-out;
+  transform: translateY(calc(var(--physical-translate-y, 0px) * var(--physical-blind-lift-ratio, 0))) scaleY(var(--physical-slat-face, .16));
+}
+
+[data-physical-scene-svg-effect="blind"][data-physical-blind-tilt="toward"] [data-physical-blind-slat] {
+  fill: var(--physical-blind-toward-fill, rgba(130, 87, 65, .78));
+}
+
+[data-physical-scene-svg-effect="blind"][data-physical-blind-tilt="away"] [data-physical-blind-slat] {
+  fill: var(--physical-blind-away-fill, rgba(67, 43, 34, .82));
 }
 
 [data-physical-scene-svg-effect="curtain"] {
-  fill: rgba(53, 30, 24, 0.62);
+  fill: var(--physical-curtain-fill, rgba(53, 30, 24, 0.62));
   filter: drop-shadow(0 .55rem .5rem rgba(9, 5, 4, 0.28));
   mix-blend-mode: multiply;
   opacity: var(--physical-scale, 1);

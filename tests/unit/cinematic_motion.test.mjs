@@ -181,9 +181,10 @@ test("defines one bounded, cropped SVG physical-scene layer for every engineerin
   assert.match(audio, /stroke:\s*none;/u, "audio feedback must not draw a technical HUD outline over the room");
   assert.match(audio, /stroke-dasharray:\s*none;/u, "audio feedback must not add an unrelated dotted line");
   assert.match(styles, /\[data-physical-scene-svg-effect="roller"\][\s\S]*?transform-origin:\s*top center;/u, "rollers close from the window header");
-  for (const variable of ["level", "progress", "bias", "angle", "translate-x", "coverage", "scale"]) {
+  for (const variable of ["level", "progress", "bias", "translate-x", "coverage", "scale", "translate-y", "slat-face"]) {
     assert.match(styles, new RegExp(`var\\(--physical-${variable}(?:,|\\))`, "u"));
   }
+  assert.doesNotMatch(styles, /rotate\(var\(--physical-slat-angle/u, "blind slats must stay horizontal while their face and lift change independently");
   assert.match(styles, /\.smart-home__scene\s+\[data-physical-scene-svg-overlay\]\s*\{[^}]*--physical-crop-x:\s*var\(--physical-main-crop-x,\s*0\.60\);[^}]*--physical-crop-y:\s*0\.50;/su);
   assert.match(styles, /\.residence-spine__physical-layer\s+\[data-physical-scene-svg-overlay\]\s*\{[^}]*--physical-crop-x:\s*0\.72;[^}]*--physical-crop-y:\s*0\.50;/su);
   assert.match(styles, /@media \(max-width: 54rem\)\s*\{[\s\S]*?\.residence-spine__physical-layer\s+\[data-physical-scene-svg-overlay\]\s*\{[^}]*--physical-crop-x:\s*0\.68;/u);

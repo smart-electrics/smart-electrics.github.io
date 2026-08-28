@@ -133,6 +133,22 @@ function createCanonicalPresets(presetIds, systemIds, controlsById, presets) {
   return canonicalPresets;
 }
 
+function createPresetSystemIds(presetIds, allowedSystems, presetSystemIds) {
+  if (!hasOnlyKeys(presetSystemIds, presetIds)) {
+    throw new TypeError("Every preset must declare one primary system.");
+  }
+
+  const canonicalPresetSystemIds = {};
+  for (const presetId of presetIds) {
+    const systemId = presetSystemIds[presetId];
+    if (!allowedSystems.has(systemId)) {
+      throw new TypeError("Preset primary systems must be allowed systems.");
+    }
+    canonicalPresetSystemIds[presetId] = systemId;
+  }
+  return Object.freeze(canonicalPresetSystemIds);
+}
+
 /**
  * Pure state machine for the unified smart-home phone. The caller declares all
  * controls and canonical preset values, keeping the model independent of DOM,
@@ -141,7 +157,7 @@ function createCanonicalPresets(presetIds, systemIds, controlsById, presets) {
 export function createSmartHomeMachine(config) {
   if (!isRecord(config)) throw new TypeError("Smart-home machine configuration must be an object.");
 
-  const { systemIds, presetIds, initialPresetId, initialSystemId, controlsBySystem, presets } = config;
+  const { systemIds, presetIds, initialPresetId, initialSystemId, presetSystemIds, controlsBySystem, presets } = config;
   if (!hasExactIds(systemIds, REQUIRED_SYSTEM_IDS) || !hasExactIds(presetIds, REQUIRED_PRESET_IDS)) {
     throw new TypeError("The unified phone requires its nine systems and seven presets.");
   }
@@ -153,6 +169,10 @@ export function createSmartHomeMachine(config) {
   const canonicalPresetIds = Object.freeze([...presetIds]);
   const allowedSystems = new Set(canonicalSystemIds);
   const allowedPresets = new Set(canonicalPresetIds);
+  const canonicalPresetSystemIds = createPresetSystemIds(canonicalPresetIds, allowedSystems, presetSystemIds);
+  if (initialSystemId !== canonicalPresetSystemIds[initialPresetId]) {
+    throw new TypeError("Initial system must be the primary system of the initial preset.");
+  }
   const controlsById = createControlIndex(canonicalSystemIds, controlsBySystem);
   const canonicalPresets = createCanonicalPresets(canonicalPresetIds, canonicalSystemIds, controlsById, presets);
 
@@ -180,8 +200,9 @@ export function createSmartHomeMachine(config) {
 
       if (action.type === "select-preset") {
         if (!allowedPresets.has(action.presetId)) return state;
-        if (action.presetId === state.presetId && !state.manual) return state;
-        return makeState(state.systemId, action.presetId, canonicalPresets.get(action.presetId), false);
+        const nextSystemId = canonicalPresetSystemIds[action.presetId];
+        if (action.presetId === state.presetId && !state.manual && state.systemId === nextSystemId) return state;
+        return makeState(nextSystemId, action.presetId, canonicalPresets.get(action.presetId), false);
       }
 
       if (action.type === "set-control") {

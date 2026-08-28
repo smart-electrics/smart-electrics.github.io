@@ -4,7 +4,7 @@ layout: default
 {% assign smart_home = site.data.smart_home %}
 {% assign spatial = smart_home.spatial %}
 {% assign initial_preset = smart_home.presets.first %}
-{% assign initial_system = spatial.systems.first %}
+{% assign initial_system = spatial.systems | where: "id", initial_preset.logic.primary_system | first %}
 {% assign physical = site.data.physical_scene_states %}
 {% assign stairs_physical = physical.systems | where: "id", "stairs" | first %}
 {% assign exterior_physical = physical.systems | where: "id", "exterior" | first %}
@@ -63,13 +63,11 @@ layout: default
         </ul>
       </aside>
 
-      <section class="smart-home__phone" data-smart-home-phone hidden tabindex="0" aria-label="Налаштування простору. Прокручуйте панель, щоб переглянути всі елементи керування.">
+      <section class="smart-home__phone" data-smart-home-phone hidden aria-label="Налаштування простору">
         <header class="smart-home__phone-header">
           <p class="smart-home__phone-kicker">{{ smart_home.simulator.kicker }}</p>
           <h3 id="phone-title">Налаштування простору</h3>
         </header>
-        <p class="smart-home__phone-scroll-hint" aria-hidden="true">Прокручуйте панель, щоб переглянути всі налаштування.</p>
-
         <fieldset class="smart-home__preset-picker" data-preset-picker>
           <legend>{{ smart_home.simulator.legend }}</legend>
           <div class="smart-home__preset-options">
@@ -85,7 +83,7 @@ layout: default
 
         <div class="smart-home__phone-system-rail" role="group" aria-label="{{ smart_home.simulator.controls_label }}">
           {% for system in spatial.systems %}
-            <button class="smart-home__phone-system" data-phone-system="{{ system.id }}" data-system-visual="{{ system.visual }}" data-system-summary="{{ system.summary }}" data-topology-label="{{ system.topology.label }}" data-topology-detail="{{ system.topology.detail }}"{% if system.diagnostics %} data-diagnostic-observation="{{ system.diagnostics.observation }}" data-diagnostic-isolation="{{ system.diagnostics.isolation }}" data-diagnostic-next-step="{{ system.diagnostics.next_step }}"{% endif %} type="button" aria-pressed="{% if forloop.first %}true{% else %}false{% endif %}">{{ system.label }}</button>
+            <button class="smart-home__phone-system" data-phone-system="{{ system.id }}" data-system-visual="{{ system.visual }}" data-system-summary="{{ system.summary }}" data-topology-label="{{ system.topology.label }}" data-topology-detail="{{ system.topology.detail }}"{% if system.diagnostics %} data-diagnostic-observation="{{ system.diagnostics.observation }}" data-diagnostic-isolation="{{ system.diagnostics.isolation }}" data-diagnostic-next-step="{{ system.diagnostics.next_step }}"{% endif %} type="button" aria-pressed="{% if system.id == initial_system.id %}true{% else %}false{% endif %}">{{ system.label }}</button>
           {% endfor %}
         </div>
 
@@ -99,15 +97,15 @@ layout: default
         <div class="smart-home__phone-controls" data-phone-controls>
           {% for system in spatial.systems %}
             {% assign initial_values = initial_preset.values[system.id] %}
-            <section class="smart-home__phone-control-panel" data-phone-control-panel="{{ system.id }}"{% unless forloop.first %} hidden{% endunless %} aria-labelledby="phone-controls-{{ system.id }}">
+            <section class="smart-home__phone-control-panel" data-phone-control-panel="{{ system.id }}"{% unless system.id == initial_system.id %} hidden{% endunless %} aria-labelledby="phone-controls-{{ system.id }}">
               <h4 id="phone-controls-{{ system.id }}">Керування: {{ system.label }}</h4>
               {% for control in system.controls %}
                 {% assign initial_value = initial_values[control.id] %}
-                <div class="smart-home__phone-control" data-phone-control="{{ system.id }}:{{ control.id }}" data-control-type="{{ control.type }}">
+                <div class="smart-home__phone-control" data-phone-control="{{ system.id }}:{{ control.id }}" data-control-type="{{ control.type }}"{% if control.visible_when %} data-control-visible-values="{{ control.visible_when.control_id }}:{% for value in control.visible_when.in %}{{ value }}{% unless forloop.last %},{% endunless %}{% endfor %}"{% endif %}>
                   {% if control.type == 'range' %}
                     <label class="smart-home__phone-range-label" for="phone-control-{{ system.id }}-{{ control.id }}">{{ control.label }}</label>
                     <input id="phone-control-{{ system.id }}-{{ control.id }}" data-phone-range data-control-system="{{ system.id }}" data-control-id="{{ control.id }}" type="range" min="{{ control.min }}" max="{{ control.max }}" step="{{ control.step }}" value="{{ initial_value }}">
-                    <output data-control-output="{{ system.id }}:{{ control.id }}" for="phone-control-{{ system.id }}-{{ control.id }}">{{ control.output_label }}: <span>{{ initial_value }}</span>{{ control.output_suffix }}</output>
+                    <output data-control-output="{{ system.id }}:{{ control.id }}" data-control-output-suffix="{{ control.output_suffix }}" for="phone-control-{{ system.id }}-{{ control.id }}">{{ control.output_label }}: <span>{{ initial_value }}</span>{{ control.output_suffix }}</output>
                   {% elsif control.type == 'segment' %}
                     <p class="smart-home__phone-control-label">{{ control.label }}</p>
                     <div class="smart-home__phone-segments" role="group" aria-label="{{ control.label }}">

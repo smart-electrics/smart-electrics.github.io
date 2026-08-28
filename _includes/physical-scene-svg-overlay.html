@@ -1,4 +1,6 @@
 {% assign svg_profile = site.data.physical_scene_states.svg %}
+{% assign shading_system = svg_profile.systems | where: "id", "shading" | first %}
+{% assign shading_clip_layer = shading_system.layers | where: "id", "shading-blind-slats" | first %}
 <svg
   class="physical-scene-svg-overlay"
   data-physical-scene-svg-overlay
@@ -9,7 +11,7 @@
   tabindex="-1"
   viewBox="0 0 {{ svg_profile.view_box.width }} {{ svg_profile.view_box.height }}"
   preserveAspectRatio="xMidYMid slice"
-  style="--physical-glow-fill: url(#{{ include.instance_id }}-glow-gradient); --physical-glow-filter: url(#{{ include.instance_id }}-glow-filter)"
+  style="--physical-glow-fill: url(#{{ include.instance_id }}-glow-gradient); --physical-glow-filter: url(#{{ include.instance_id }}-glow-filter); --physical-climate-comfort-fill: url(#{{ include.instance_id }}-climate-comfort-gradient); --physical-climate-heating-fill: url(#{{ include.instance_id }}-climate-heating-gradient); --physical-climate-cooling-fill: url(#{{ include.instance_id }}-climate-cooling-gradient); --physical-audio-zone-fill: url(#{{ include.instance_id }}-audio-zone-gradient); --physical-tulle-fill: url(#{{ include.instance_id }}-tulle-gradient); --physical-curtain-fill: url(#{{ include.instance_id }}-curtain-gradient); --physical-blind-open-fill: url(#{{ include.instance_id }}-blind-open-gradient); --physical-blind-toward-fill: url(#{{ include.instance_id }}-blind-toward-gradient); --physical-blind-away-fill: url(#{{ include.instance_id }}-blind-away-gradient)"
   hidden
 >
   <defs>
@@ -19,21 +21,56 @@
       <stop offset="0.58" stop-color="#efad78" stop-opacity="0.24"></stop>
       <stop offset="1" stop-color="#9f583b" stop-opacity="0"></stop>
     </radialGradient>
+    <radialGradient id="{{ include.instance_id }}-climate-comfort-gradient" cx="50%" cy="64%" r="62%">
+      <stop offset="0" stop-color="#e8ad78" stop-opacity="0.32"></stop>
+      <stop offset="0.56" stop-color="#c87850" stop-opacity="0.13"></stop>
+      <stop offset="1" stop-color="#754333" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="{{ include.instance_id }}-climate-heating-gradient" cx="42%" cy="86%" r="72%">
+      <stop offset="0" stop-color="#f0a06d" stop-opacity="0.5"></stop>
+      <stop offset="0.48" stop-color="#d66f48" stop-opacity="0.2"></stop>
+      <stop offset="1" stop-color="#8f4736" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="{{ include.instance_id }}-climate-cooling-gradient" cx="50%" cy="0" r="82%">
+      <stop offset="0" stop-color="#d5e5e6" stop-opacity="0.42"></stop>
+      <stop offset="0.38" stop-color="#9cbcc3" stop-opacity="0.17"></stop>
+      <stop offset="1" stop-color="#7796a0" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="{{ include.instance_id }}-audio-zone-gradient" cx="50%" cy="50%" r="68%">
+      <stop offset="0" stop-color="#efad78" stop-opacity="0.24"></stop>
+      <stop offset="0.54" stop-color="#c87950" stop-opacity="0.11"></stop>
+      <stop offset="1" stop-color="#754333" stop-opacity="0"></stop>
+    </radialGradient>
     <pattern id="{{ include.instance_id }}-pattern" width="20" height="22" patternUnits="userSpaceOnUse" patternTransform="skewX(-8)">
       <path d="M 0 6 H 20" stroke="currentColor" stroke-opacity="0.52" stroke-width="1.5"></path>
     </pattern>
-    <linearGradient id="{{ include.instance_id }}-tulle-gradient" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fff0dc" stop-opacity="0"></stop>
-      <stop offset="0.08" stop-color="#fff0dc" stop-opacity="0.22"></stop>
-      <stop offset="0.5" stop-color="#f5d4b5" stop-opacity="0.14"></stop>
-      <stop offset="0.92" stop-color="#fff0dc" stop-opacity="0.22"></stop>
-      <stop offset="1" stop-color="#fff0dc" stop-opacity="0"></stop>
+    <linearGradient id="{{ include.instance_id }}-tulle-gradient" x1="0" y1="0" x2="0.18" y2="0" spreadMethod="repeat">
+      <stop offset="0" stop-color="#e7c6a8" stop-opacity="0.08"></stop>
+      <stop offset="0.22" stop-color="#fff7eb" stop-opacity="0.2"></stop>
+      <stop offset="0.48" stop-color="#f3d6bb" stop-opacity="0.1"></stop>
+      <stop offset="0.74" stop-color="#fffaf1" stop-opacity="0.24"></stop>
+      <stop offset="1" stop-color="#dcb18d" stop-opacity="0.07"></stop>
     </linearGradient>
     <linearGradient id="{{ include.instance_id }}-curtain-gradient" x1="0" y1="0" x2="0.16" y2="0" spreadMethod="reflect">
       <stop offset="0" stop-color="#21130f" stop-opacity="0.7"></stop>
       <stop offset="0.42" stop-color="#754b38" stop-opacity="0.34"></stop>
       <stop offset="0.68" stop-color="#3c241b" stop-opacity="0.5"></stop>
       <stop offset="1" stop-color="#1b100d" stop-opacity="0.72"></stop>
+    </linearGradient>
+    <linearGradient id="{{ include.instance_id }}-blind-open-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d4aa87" stop-opacity="0.7"></stop>
+      <stop offset="0.42" stop-color="#72503f" stop-opacity="0.62"></stop>
+      <stop offset="1" stop-color="#2a1a16" stop-opacity="0.78"></stop>
+    </linearGradient>
+    <linearGradient id="{{ include.instance_id }}-blind-toward-gradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e4bc98" stop-opacity="0.8"></stop>
+      <stop offset="0.28" stop-color="#9b7058" stop-opacity="0.74"></stop>
+      <stop offset="1" stop-color="#31201a" stop-opacity="0.86"></stop>
+    </linearGradient>
+    <linearGradient id="{{ include.instance_id }}-blind-away-gradient" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#c6926f" stop-opacity="0.74"></stop>
+      <stop offset="0.34" stop-color="#6f4939" stop-opacity="0.76"></stop>
+      <stop offset="1" stop-color="#241713" stop-opacity="0.9"></stop>
     </linearGradient>
     <filter id="{{ include.instance_id }}-glow-filter" x="-24%" y="-24%" width="148%" height="148%" color-interpolation-filters="sRGB">
       <feGaussianBlur stdDeviation="12" result="physical-glow"></feGaussianBlur>
@@ -42,10 +79,13 @@
     <clipPath id="{{ include.instance_id }}-clip-path">
       <rect width="{{ svg_profile.view_box.width }}" height="{{ svg_profile.view_box.height }}"></rect>
     </clipPath>
+    <clipPath id="{{ include.instance_id }}-shading-clip-path">
+      <rect x="{{ shading_clip_layer.geometry.x }}" y="{{ shading_clip_layer.geometry.y }}" width="{{ shading_clip_layer.geometry.width }}" height="{{ shading_clip_layer.geometry.height }}"></rect>
+    </clipPath>
   </defs>
 
   {% for system in svg_profile.systems %}
-    <g data-physical-scene-svg-system="{{ system.id }}"{% unless system.id == include.system_id %} hidden{% endunless %}>
+    <g data-physical-scene-svg-system="{{ system.id }}"{% if system.id == 'shading' %} clip-path="url(#{{ include.instance_id }}-shading-clip-path)"{% endif %}{% unless system.id == include.system_id %} hidden{% endunless %}>
       {% for layer in system.layers %}
         {% assign shape = layer.geometry %}
         <g data-physical-scene-svg-layer="{{ layer.id }}" data-physical-scene-svg-effect="{{ layer.effect }}" clip-path="url(#{{ include.instance_id }}-clip-path)">
@@ -53,8 +93,22 @@
             <ellipse data-physical-scene-svg-shape="ellipse" cx="{{ shape.cx }}" cy="{{ shape.cy }}" rx="{{ shape.rx }}" ry="{{ shape.ry }}"></ellipse>
           {% elsif shape.kind == 'circle' %}
             <circle data-physical-scene-svg-shape="circle" cx="{{ shape.cx }}" cy="{{ shape.cy }}" r="{{ shape.r }}"></circle>
+          {% elsif shape.kind == 'rect' and layer.effect == 'blind' %}
+            <g data-physical-scene-svg-shape="rect" data-physical-blind-slat-group>
+              {% for slat in (0..19) %}
+                {% assign slat_offset = slat | times: 25 %}
+                {% assign slat_y = shape.y | plus: slat_offset %}
+                {% assign slat_ratio = slat | divided_by: 19.0 %}
+                <rect data-physical-blind-slat x="{{ shape.x }}" y="{{ slat_y }}" width="{{ shape.width }}" height="14" style="--physical-blind-lift-ratio: {{ slat_ratio }}"></rect>
+              {% endfor %}
+            </g>
+          {% elsif shape.kind == 'rect' and layer.effect == 'tulle' %}
+            <g data-physical-scene-svg-shape="rect" data-physical-tulle-panel>
+              <rect data-physical-tulle-veil x="{{ shape.x }}" y="{{ shape.y }}" width="{{ shape.width }}" height="{{ shape.height }}"></rect>
+              <rect data-physical-tulle-folds x="{{ shape.x }}" y="{{ shape.y }}" width="{{ shape.width }}" height="{{ shape.height }}"></rect>
+            </g>
           {% elsif shape.kind == 'rect' %}
-            <rect data-physical-scene-svg-shape="rect" x="{{ shape.x }}" y="{{ shape.y }}" width="{{ shape.width }}" height="{{ shape.height }}"{% if layer.effect == 'blind' %} fill="url(#{{ include.instance_id }}-pattern)"{% elsif layer.effect == 'tulle' %} fill="url(#{{ include.instance_id }}-tulle-gradient)"{% endif %}></rect>
+            <rect data-physical-scene-svg-shape="rect" x="{{ shape.x }}" y="{{ shape.y }}" width="{{ shape.width }}" height="{{ shape.height }}"></rect>
           {% elsif shape.kind == 'line' %}
             <line data-physical-scene-svg-shape="line" pathLength="1" x1="{{ shape.x1 }}" y1="{{ shape.y1 }}" x2="{{ shape.x2 }}" y2="{{ shape.y2 }}"></line>
           {% elsif shape.kind == 'path' %}

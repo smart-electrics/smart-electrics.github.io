@@ -97,27 +97,45 @@ test("projects public shading controls into distinct immutable treatment frames"
       id: "shading",
       layers: [
         {
-          id: "shading-tulle-diffusion",
-          geometry: { kind: "rect", x: 292, y: 120, width: 836, height: 668 },
+          id: "shading-tulle-left",
+          geometry: { kind: "rect", x: 292, y: 120, width: 418, height: 668 },
           visible_when: { control_id: "treatment", equals: "tulle" },
           bindings: [{
             control_id: "position",
             type: "range",
             input: { min: 0, max: 100 },
-            parameter: "diffusion",
-            output: { min: 0.08, max: 0.72 }
+            parameter: "translate_x",
+            output: { min: 0, max: -330 }
           }]
         },
         {
-          id: "shading-blinds-slats",
-          geometry: { kind: "line", x1: 292, y1: 454, x2: 1128, y2: 454 },
-          visible_when: { control_id: "treatment", equals: "blinds" },
+          id: "shading-tulle-right",
+          geometry: { kind: "rect", x: 710, y: 120, width: 418, height: 668 },
+          visible_when: { control_id: "treatment", equals: "tulle" },
           bindings: [{
             control_id: "position",
             type: "range",
             input: { min: 0, max: 100 },
+            parameter: "translate_x",
+            output: { min: 0, max: 330 }
+          }]
+        },
+        {
+          id: "shading-blinds-slats",
+          geometry: { kind: "rect", x: 292, y: 120, width: 836, height: 668 },
+          visible_when: { control_id: "treatment", equals: "blinds" },
+          bindings: [{
+            control_id: "blind_lift",
+            type: "range",
+            input: { min: 0, max: 100 },
+            parameter: "translate_y",
+            output: { min: 0, max: -520 }
+          }, {
+            control_id: "slat_angle",
+            type: "range",
+            input: { min: -45, max: 45 },
             parameter: "slat_angle",
-            output: { min: -18, max: 18 }
+            output: { min: -45, max: 45 }
           }]
         },
         {
@@ -160,9 +178,9 @@ test("projects public shading controls into distinct immutable treatment frames"
     }]
   };
   const projector = createPhysicalSceneSvgProjector(profile);
-  const frameFor = (treatment, position = 40) => projector.frameFor({
+  const frameFor = (treatment, position = 40, blindLift = 40, slatAngle = 0) => projector.frameFor({
     systemId: "shading",
-    valuesBySystem: { shading: { position, treatment } }
+    valuesBySystem: { shading: { position, treatment, blind_lift: blindLift, slat_angle: slatAngle } }
   });
   const frames = Object.fromEntries(["tulle", "blinds", "curtains", "rollers"].map((treatment) => [treatment, frameFor(treatment)]));
 
@@ -172,8 +190,8 @@ test("projects public shading controls into distinct immutable treatment frames"
     assertDeeplyFrozen(frame);
   }
   assert.equal(new Set(Object.values(frames).map((frame) => frame.signature)).size, 4);
-  assert.deepEqual(frames.tulle.layers[0].parameters, { diffusion: 0.336 });
-  assert.deepEqual(frames.blinds.layers[0].parameters, { slat_angle: -3.6 });
+  assert.deepEqual(frames.tulle.layers.map((layer) => layer.parameters.translate_x), [-132, 132]);
+  assert.deepEqual(frames.blinds.layers[0].parameters, { translate_y: -208, slat_angle: 0 });
   assert.deepEqual(frames.curtains.layers.map((layer) => [layer.id, layer.parameters.translate_x]), [
     ["shading-curtain-left", -123.2],
     ["shading-curtain-right", 123.2]
@@ -186,6 +204,18 @@ test("projects public shading controls into distinct immutable treatment frames"
   assert.deepEqual(curtainsClosed.layers.map((layer) => layer.parameters.translate_x), [0, 0]);
   assert.deepEqual(curtainsOpen.layers.map((layer) => layer.parameters.translate_x), [-308, 308]);
   assert.notDeepEqual(curtainsClosed.layers.map((layer) => layer.parameters), curtainsOpen.layers.map((layer) => layer.parameters));
+
+  const tulleClosed = frameFor("tulle", 0);
+  const tulleOpen = frameFor("tulle", 100);
+  assert.deepEqual(tulleClosed.layers.map((layer) => layer.parameters.translate_x), [0, 0]);
+  assert.deepEqual(tulleOpen.layers.map((layer) => layer.parameters.translate_x), [-330, 330]);
+  assert.notDeepEqual(tulleClosed.layers.map((layer) => layer.parameters), tulleOpen.layers.map((layer) => layer.parameters));
+
+  const blindsRaised = frameFor("blinds", 40, 100, 0);
+  const blindsAngled = frameFor("blinds", 40, 40, 45);
+  assert.equal(blindsRaised.layers[0].parameters.translate_y, -520);
+  assert.equal(blindsAngled.layers[0].parameters.slat_angle, 45);
+  assert.notEqual(blindsRaised.layers[0].parameters.slat_angle, blindsAngled.layers[0].parameters.slat_angle);
 
   for (const frame of Object.values(frames)) {
     for (const layer of frame.layers) {

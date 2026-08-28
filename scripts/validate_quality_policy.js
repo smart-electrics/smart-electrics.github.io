@@ -11,14 +11,14 @@ import {
 const failures = [];
 const AUDITED_PLAYWRIGHT_CONFIG_SHA256 =
   "de1f2bf0cc7c97df5093b47d05bd9b2438260345211c71109d5f96fb4e116203";
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 683;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 695;
 const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
-  "721a1af568ceb8fbe726e94d4520c0c6d8b3e55ee332d0e51ce3077aa07614ea";
+  "0c1388452ee052ec6e504e811cac34c3543f419a6aef3e0de35d33a713d6ef32";
 const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
-  ["run_node_tests.js", "52ea1f3ace01f16ea93a95f405bd7a7d38ad737e9a623b51c3dbff9edf4f2523"],
-  ["run_ruby_test.rb", "329fda2a997bc4eb24c07fc5fb4d7f567de5a8a72e8840c658b3f991bc83cef5"],
+  ["run_node_tests.js", "26cce1ae64c0e25ab03c165ee6fdc5584bb57a49d579dc7fefdc04c9ccbf04c2"],
+  ["run_ruby_test.rb", "63ccb0c392cc27fb761764d30c0b58df2cfcbcdc722cccf0ecf33c61f2baaba1"],
   ["verify_agent_skills.rb", "37095cc3690e974f688b79d427ceadc4f69554acac5d666514c37affaad440fc"],
   ["validate_integrations.rb", "4d61fda2e1a474a0f3aaef69c1f033f7d018e87374a286fc25fc6881eaf4d531"],
   ["validate_production_assets.rb", "e89bfee3f0cd2d53776a79309703067086815ed7f233ce36572415e72e043686"],
@@ -28,9 +28,9 @@ const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
   ["validate_service_studios.rb", "e61b4550e4e7f18a11c8b3725e0626846b19ac36f512894e51adf857189ab1e5"],
   ["validate_solutions.rb", "73477f110ed266c9d93a2d9e783c0977195ba8a64ace5b43e04f7476ef7c7004"],
   ["validate_cinematic_solutions.rb", "08e5c597a27cd704eef4934bbd03e717d746a7dd7ebacb338ca82d375cffc072"],
-  ["validate_smart_home.rb", "5fb4bc32d5352aa7ef21cc393e3a462d4eaac414d4decfa5998a4a75daf7d877"],
+  ["validate_smart_home.rb", "903ce91e47cbd65aa94273acee631a8eff602a551c62c3c5154877899b322c20"],
   ["validate_cinematic_system.rb", "3995adcb2aad9ecb195e4f41a91b87652236b1637f79420bd1e02ee9ee7404dd"],
-  ["validate_physical_scene_states.rb", "1a1e642bb7c734869125c9a7ae682a3447c6542fb1076ba48754b903071a112d"],
+  ["validate_physical_scene_states.rb", "40f44d148b0883ed0b12ed2dc114db362002bb0d0c25d3329824482ba74630dd"],
   ["validate_cinematic_route_transitions.rb", "e8a0baa78be0bccf4f35c3724c897a932446df4ed8a701ec0ae9ddd686a0997d"]
 ]);
 const AUDITED_CODEQL_WORKFLOW_SHA256 =
@@ -89,7 +89,7 @@ if (
   EXPECTED_PLAYWRIGHT_CONFIG_SHA256 !== AUDITED_PLAYWRIGHT_CONFIG_SHA256 ||
   EXPECTED_PLAYWRIGHT_TEST_COUNT !== AUDITED_PLAYWRIGHT_TEST_COUNT
 ) {
-  failures.push("Playwright digest and 683-test contract must match the independent policy literal.");
+  failures.push("Playwright digest and 695-test contract must match the independent policy literal.");
 }
 const playwrightRunnerDigest = createHash("sha256")
   .update(playwrightRunnerSource)

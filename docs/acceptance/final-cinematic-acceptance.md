@@ -54,8 +54,9 @@ artifacts/final-evidence/. Перед кожним capture звичайної к
 детерміновано повертається до scene/control anchor; перевіряються межі
 composition, scene, panel і control, а також їхня змістовна видима частина.
 Smart-home frame окремо ставиться на початок simulator route section і
-перевіряється за window scroll, simulator top та внутрішнім phone scroll;
-interaction scroll не визначає жоден evidence-кадр. Кожен PNG декодується,
+перевіряється за window scroll та simulator top. Вкладеного phone scroll
+немає: активні контролі досяжні у природному document flow, а interaction
+scroll не визначає жоден evidence-кадр. Кожен PNG декодується,
 звіряється з точним viewport (зокрема 1980×1200) і повторюється у тому самому
 settled стані; різний SHA-256 між двома capture є помилкою.
 
@@ -101,7 +102,7 @@ runtime червоним при будь-якому фактичному `skippe
 результаті. Package scripts і Make recipes зафіксовані без `grep`, `project`,
 `shard` чи інших selection arguments; Node wrapper відхиляє всі CLI options,
 успадковані `NODE_OPTIONS`/`NODE_TEST_CONTEXT`, неповний TAP summary і нуль
-виконаних тестів; повний Node suite додатково має повернути всі 71 зафіксовані
+виконаних тестів; повний Node suite додатково має повернути всі 72 зафіксовані
 unit-тестів.
 Кожен Ruby unit-файл проходить через окремий Minitest wrapper: ненульовий exit,
 відсутній або дубльований summary, нуль запусків чи будь-який `skip` лишають gate
@@ -109,7 +110,7 @@ unit-тестів.
 відхиляє preload-контроли до старту Ruby. npm install виконується з
 `--ignore-scripts`, а package lifecycle hooks заборонені.
 Playwright config має audited source digest, кожен project дозволяє лише свій
-`viewport`, а runtime reporter вимагає рівно 683 discovered tests. Кожен Make
+`viewport`, а runtime reporter вимагає рівно 695 discovered tests. Кожен Make
 target має одне визначення; pattern/special rules, альтернативні default
 makefiles, `.npmrc` і зовнішні includes заборонені.
 Remote Quality workflow заборонений. Make відхиляє успадковані execution

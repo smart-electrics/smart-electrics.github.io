@@ -11,6 +11,27 @@ const only = (root, selector) => {
 };
 const text = (element) => element?.textContent?.trim() || "";
 
+function readOutputSuffix(output) {
+  if (!output) return null;
+  if (typeof output.dataset.controlOutputSuffix === "string") return output.dataset.controlOutputSuffix;
+  const value = output.querySelector("span");
+  if (!value) return null;
+  return [...output.childNodes]
+    .filter((node) => node !== value)
+    .map((node) => node.textContent || "")
+    .join("")
+    .replace(/^.*?:\s*/, "");
+}
+
+function readVisibleWhen(control) {
+  const rawValues = control.dataset.controlVisibleValues;
+  if (rawValues === undefined) return null;
+  const [controlId, rawExpectedValues, ...rest] = rawValues.split(":");
+  const expectedValues = rawExpectedValues?.split(",") || [];
+  if (!isNonEmpty(controlId) || rest.length !== 0 || expectedValues.length === 0 || !uniqueIds(expectedValues)) return undefined;
+  return Object.freeze({ controlId, expectedValues: Object.freeze(expectedValues) });
+}
+
 function controlDefinition(panel, systemId) {
   const controls = [...panel.querySelectorAll("[data-phone-control]")];
   if (controls.length === 0) return null;
@@ -23,11 +44,15 @@ function controlDefinition(panel, systemId) {
 
     const output = only(control, `[data-control-output="${CSS.escape(systemId)}:${CSS.escape(controlId)}"]`);
     if (!output || !text(output)) return null;
+    const visibleWhen = readVisibleWhen(control);
+    if (visibleWhen === undefined) return null;
 
     if (type === "range") {
       const input = only(control, `input[type="range"][data-phone-range][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"]`);
       if (!input || !input.min || !input.max || !input.step || Number(input.min) >= Number(input.max) || Number.isNaN(Number(input.value))) return null;
-      definitions.push({ id: controlId, type, min: Number(input.min), max: Number(input.max), step: Number(input.step), defaultValue: Number(input.value) });
+      const outputSuffix = readOutputSuffix(output);
+      if (outputSuffix === null) return null;
+      definitions.push({ id: controlId, type, min: Number(input.min), max: Number(input.max), step: Number(input.step), defaultValue: Number(input.value), outputSuffix, visibleWhen });
       continue;
     }
 
@@ -35,7 +60,7 @@ function controlDefinition(panel, systemId) {
       const options = [...control.querySelectorAll(`button[data-phone-segment][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"][data-control-value]`)];
       const ids = options.map((option) => option.dataset.controlValue);
       if (!uniqueIds(ids) || options.some((option) => !text(option))) return null;
-      definitions.push({ id: controlId, type, options: ids, defaultValue: options.find((option) => option.getAttribute("aria-pressed") === "true")?.dataset.controlValue });
+      definitions.push({ id: controlId, type, options: ids, defaultValue: options.find((option) => option.getAttribute("aria-pressed") === "true")?.dataset.controlValue, visibleWhen });
       continue;
     }
 
@@ -43,9 +68,18 @@ function controlDefinition(panel, systemId) {
     const onLabel = toggle?.dataset.controlOnLabel;
     const offLabel = toggle?.dataset.controlOffLabel;
     if (!toggle || !text(toggle) || !isNonEmpty(onLabel) || !isNonEmpty(offLabel) || !["true", "false"].includes(toggle.getAttribute("aria-pressed"))) return null;
-    definitions.push({ id: controlId, type, onLabel, offLabel, defaultValue: toggle.getAttribute("aria-pressed") === "true" });
+    definitions.push({ id: controlId, type, onLabel, offLabel, defaultValue: toggle.getAttribute("aria-pressed") === "true", visibleWhen });
   }
   return uniqueIds(definitions.map((control) => control.id)) ? definitions : null;
+}
+
+function hasValidControlVisibility(controls) {
+  const controlsById = new Map(controls.map((control) => [control.id, control]));
+  return controls.some((control) => !control.visibleWhen) && controls.every((control) => {
+    if (!control.visibleWhen) return true;
+    const condition = controlsById.get(control.visibleWhen.controlId);
+    return condition && condition.type === "segment" && control.visibleWhen.expectedValues.every((value) => condition.options.includes(value));
+  });
 }
 
 function readPresetValues(panel, systemIds, controlsBySystem) {
@@ -111,7 +145,9 @@ function validateMarkup(root) {
   const visualIds = picture.map((candidate) => candidate.dataset.scenePicture);
   const visiblePicture = picture.filter((candidate) => !candidate.hidden);
   const pictureImages = picture.map((candidate) => only(candidate, "img"));
-  const initialVisualId = systemButtons[0]?.dataset.systemVisual;
+  const initialPresetId = checked[0]?.value;
+  const initialSystemId = panels.find((panel) => panel.dataset.presetPanel === initialPresetId)?.dataset.primarySystem;
+  const initialVisualId = systemButtons.find((button) => button.dataset.phoneSystem === initialSystemId)?.dataset.systemVisual;
   const initialPicture = picture[visualIds.indexOf(initialVisualId)];
   const initialImage = pictureImages[visualIds.indexOf(initialVisualId)];
   const initialSources = initialPicture ? [...initialPicture.querySelectorAll("source")] : [];
@@ -138,33 +174,34 @@ function validateMarkup(root) {
     !sameIds(controlPanelIds, systemIds) || !uniqueIds(visualIds) || !sameIds(visualIds, systemButtons.map((button) => button.dataset.systemVisual)) ||
     !validInitialSources || picture.filter((candidate) => candidate !== initialPicture).some((candidate) => candidate.querySelector("source")) ||
     pictureImages.some((image) => !image || !isNonEmpty(image.dataset.sceneMobile) || !isNonEmpty(image.dataset.sceneDesktop) || image.hasAttribute("srcset")) ||
-    visiblePicture.length !== 1 || visiblePicture[0]?.dataset.scenePicture !== systemButtons[0]?.dataset.systemVisual ||
+    visiblePicture.length !== 1 || visiblePicture[0]?.dataset.scenePicture !== initialVisualId ||
     systemButtons.some((button) => !isNonEmpty(text(button)) || !isNonEmpty(button.dataset.systemSummary) || !isNonEmpty(button.dataset.topologyLabel) || !isNonEmpty(button.dataset.topologyDetail) || hasInvalidDiagnostics(button))
   ) return null;
 
   for (const systemId of systemIds) {
     const definition = controlDefinition(controlPanelById.get(systemId), systemId);
-    if (!definition) return null;
+    if (!definition || !hasValidControlVisibility(definition)) return null;
     controlsBySystem[systemId] = definition;
   }
 
   const presets = {};
+  const presetSystemIds = {};
   for (const panel of panels) {
     const detailItems = [...panel.querySelectorAll("[data-system-detail]")];
+    const primarySystemId = panel.dataset.primarySystem;
     if (
-      !isNonEmpty(panel.dataset.liveSummary) || !isNonEmpty(panel.dataset.sceneLabel) ||
+      !isNonEmpty(panel.dataset.liveSummary) || !isNonEmpty(panel.dataset.sceneLabel) || !systemIds.includes(primarySystemId) ||
       !sameIds(detailItems.map((detail) => detail.dataset.systemDetail), systemIds) ||
       detailItems.some((detail) => !isNonEmpty(detail.dataset.zoneId) || !isNonEmpty(detail.dataset.summary) || !visualIds.includes(detail.dataset.visualId))
     ) return null;
     const values = readPresetValues(panel, systemIds, controlsBySystem);
     if (!values) return null;
     presets[panel.dataset.presetPanel] = values;
+    presetSystemIds[panel.dataset.presetPanel] = primarySystemId;
   }
 
-  const initialPresetId = checked[0].value;
-  const initialSystemId = systemIds[0];
-  if (!panelById.has(initialPresetId) || !presets[initialPresetId]) return null;
-  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, pictureByVisualId: new Map(picture.map((candidate) => [candidate.dataset.scenePicture, candidate])), imageByVisualId: new Map(picture.map((candidate, index) => [candidate.dataset.scenePicture, pictureImages[index]])), controlPanels, controlPanelById, controlsBySystem, presets, initialPresetId, initialSystemId };
+  if (!panelById.has(initialPresetId) || !presets[initialPresetId] || presetSystemIds[initialPresetId] !== initialSystemId) return null;
+  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, pictureByVisualId: new Map(picture.map((candidate) => [candidate.dataset.scenePicture, candidate])), imageByVisualId: new Map(picture.map((candidate, index) => [candidate.dataset.scenePicture, pictureImages[index]])), controlPanels, controlPanelById, controlsBySystem, presets, presetSystemIds, initialPresetId, initialSystemId };
 }
 
 function enhanceSimulator(root) {
@@ -177,6 +214,7 @@ function enhanceSimulator(root) {
       presetIds: markup.presetIds,
       initialPresetId: markup.initialPresetId,
       initialSystemId: markup.initialSystemId,
+      presetSystemIds: markup.presetSystemIds,
       controlsBySystem: markup.controlsBySystem,
       presets: markup.presets
     });
@@ -278,14 +316,16 @@ function enhanceSimulator(root) {
     const resolvedSource = new URL(source, document.baseURI).href;
     if (image.src !== resolvedSource) image.src = source;
     image.removeAttribute("srcset");
-    picture.querySelectorAll("source").forEach((candidate) => candidate.remove());
-    markup.pictures.forEach((candidate) => { candidate.hidden = candidate !== picture; });
+    markup.pictures.forEach((candidate) => {
+      candidate.querySelectorAll("source").forEach((sourceCandidate) => sourceCandidate.remove());
+      candidate.hidden = candidate !== picture;
+    });
   };
 
   const controlValueLabel = (systemId, controlId, value) => {
     const control = markup.controlsBySystem[systemId].find((candidate) => candidate.id === controlId);
     if (control.type === "toggle") return value ? control.onLabel : control.offLabel;
-    if (control.type === "range") return `${value}${root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] output`)?.textContent?.includes("%") ? "%" : ""}`;
+    if (control.type === "range") return `${value}${control.outputSuffix}`;
     return text(root.querySelector(`[data-phone-segment][data-control-system="${CSS.escape(systemId)}"][data-control-id="${CSS.escape(controlId)}"][data-control-value="${CSS.escape(value)}"]`));
   };
   const controlLabel = (systemId, controlId) => text(root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] label, [data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] .smart-home__phone-control-label`));
@@ -296,6 +336,11 @@ function enhanceSimulator(root) {
       for (const control of markup.controlsBySystem[systemId]) {
         const value = state.valuesBySystem[systemId][control.id];
         const controlRoot = root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(control.id)}"]`);
+        const isVisible = !control.visibleWhen || control.visibleWhen.expectedValues.includes(state.valuesBySystem[systemId][control.visibleWhen.controlId]);
+        controlRoot.hidden = !isVisible;
+        if (!isVisible && controlRoot.contains(document.activeElement)) {
+          markup.phone.focus({ preventScroll: true });
+        }
         const output = controlRoot.querySelector("[data-control-output] span");
         if (control.type === "range") controlRoot.querySelector("input").value = String(value);
         if (control.type === "segment") controlRoot.querySelectorAll("[data-phone-segment]").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.controlValue === value)));
@@ -316,9 +361,10 @@ function enhanceSimulator(root) {
     const button = markup.systemButtonById.get(state.systemId);
     const detail = detailFor(state.systemId);
     const controls = markup.controlsBySystem[state.systemId];
+    const visibleControls = controls.filter((control) => !control.visibleWhen || control.visibleWhen.expectedValues.includes(state.valuesBySystem[state.systemId][control.visibleWhen.controlId]));
     const selectedSceneContext = detail.dataset.summary || button.dataset.systemSummary;
     const selectedSystemLabel = text(button);
-    const changedControl = controls.find((control) => control.id === changedControlId) || controls[0];
+    const changedControl = visibleControls.find((control) => control.id === changedControlId) || visibleControls[0];
     const changedValue = state.valuesBySystem[state.systemId][changedControl.id];
     if (initial) motionPhase = "idle";
     root.dataset.enhanced = "true";

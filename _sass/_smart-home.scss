@@ -125,8 +125,8 @@
 }
 
 .smart-home__simulator[data-system="low-voltage"] {
-  --physical-main-crop-x: 0.52;
-  --scene-position-x: 52%;
+  --physical-main-crop-x: 0.45;
+  --scene-position-x: 45%;
 }
 
 .smart-home__simulator[data-system="backup-power"] {
@@ -397,10 +397,6 @@
   line-height: 1.2;
   margin: 0;
   text-align: end;
-}
-
-.smart-home__phone-scroll-hint {
-  display: none;
 }
 
 .smart-home__preset-picker {
@@ -927,21 +923,9 @@
 
   .smart-home__phone {
     align-self: start;
-    block-size: 19rem;
-    overflow: auto;
-    overscroll-behavior: contain;
-    scrollbar-color: rgba(242, 166, 95, 0.68) transparent;
-    scrollbar-width: thin;
-  }
-
-  .smart-home__phone-scroll-hint {
-    border-block: 1px solid var(--phone-line);
-    color: var(--phone-muted);
-    display: block;
-    font-size: 0.67rem;
-    line-height: 1.4;
-    margin: 0;
-    padding-block: 0.5rem;
+    block-size: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
   }
 
   .smart-home__scene-copy {

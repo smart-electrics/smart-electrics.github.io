@@ -15,12 +15,12 @@ class SmartHomeContractTest < Minitest::Test
     "lighting" => %w[brightness layer],
     "climate" => %w[comfort operation],
     "access" => %w[arrival_route entry_zone],
-    "security" => %w[coverage event_path],
+    "security" => %w[coverage event_path view_angle],
     "panel" => %w[layer priority_groups],
     "low-voltage" => %w[route topology_focus],
     "backup-power" => %w[priority_groups restore_intent],
-    "audio" => %w[source zone group muted],
-    "shading" => %w[position treatment]
+    "audio" => %w[source zone group volume muted],
+    "shading" => %w[position treatment blind_lift slat_angle]
   }.freeze
   REQUIRED_SCALAR_FIELDS = %w[id label eyebrow title event scene_label project_note live_summary].freeze
 
@@ -295,15 +295,37 @@ class SmartHomeContractTest < Minitest::Test
 
     contract = valid_contract
     contract.dig("spatial", "systems").find { |system| system.fetch("id") == "audio" }.fetch("controls")[2]["id"] = "input"
-    assert_rejected(contract, "audio: controls must contain exactly source, zone, group, muted in order")
+    assert_rejected(contract, "audio: controls must contain exactly source, zone, group, volume, muted in order")
 
     contract = valid_contract
     contract.dig("spatial", "systems").find { |system| system.fetch("id") == "audio" }.fetch("controls").last.delete("off_label")
-    assert_rejected(contract, "audio: control 4 toggle must define non-empty on_label and off_label")
+    assert_rejected(contract, "audio: control 5 toggle must define non-empty on_label and off_label")
 
     contract = valid_contract
     contract.dig("spatial", "systems").find { |system| system.fetch("id") == "panel" }.fetch("diagnostics").delete("next_step")
     assert_rejected(contract, "panel: diagnostics must contain exactly observation, isolation, next_step in order")
+  end
+
+  def test_rejects_invalid_conditional_control_visibility
+    contract = valid_contract
+    shading = contract.dig("spatial", "systems").find { |system| system.fetch("id") == "shading" }
+    shading.fetch("controls").first["visible_when"] = { "control_id" => "treatment", "equals" => "tulle" }
+    assert_rejected(contract, "shading: control 1 visible_when must be an exact control_id plus unique non-empty in values mapping")
+
+    contract = valid_contract
+    shading = contract.dig("spatial", "systems").find { |system| system.fetch("id") == "shading" }
+    shading.fetch("controls").first["visible_when"] = { "control_id" => "position", "in" => ["tulle"] }
+    assert_rejected(contract, "shading: control 1 visible_when control_id must reference a declared segment control")
+
+    contract = valid_contract
+    shading = contract.dig("spatial", "systems").find { |system| system.fetch("id") == "shading" }
+    shading.fetch("controls").first["visible_when"] = { "control_id" => "treatment", "in" => ["unknown"] }
+    assert_rejected(contract, "shading: control 1 visible_when in values must reference declared segment options")
+
+    contract = valid_contract
+    audio = contract.dig("spatial", "systems").find { |system| system.fetch("id") == "audio" }
+    audio.fetch("controls").first["visible_when"] = { "control_id" => "source", "in" => ["local"] }
+    assert_rejected(contract, "audio: control 1 visible_when is only supported by shading")
   end
 
   def test_rejects_missing_or_invalid_preset_control_values

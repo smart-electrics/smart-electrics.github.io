@@ -83,6 +83,7 @@ spatial:
           output_label: Обраний контур
           options: [{ id: entry, label: Вхід }, { id: perimeter, label: Периметр }, { id: quiet, label: Тихий контур }]
         - { id: event_path, type: segment, label: Технічний шлях, output_label: Обраний шлях, options: [{ id: video, label: Відео }, { id: sensors, label: Сигнали }, { id: quiet, label: Тихий контур }] }
+        - { id: view_angle, type: range, label: Кут огляду, output_label: Кут огляду, output_suffix: "°", min: 35, max: 110, step: 1 }
     - id: panel
       label: Щит і захист
       x: 4
@@ -150,6 +151,7 @@ spatial:
         - { id: source, type: segment, label: Джерело сигналу, output_label: Обране джерело, options: [{ id: local, label: Локальний вхід }, { id: media, label: Медіацентр }, { id: scenario, label: Сценарій }] }
         - { id: zone, type: segment, label: Зона аудіо, output_label: Обрана зона, options: [{ id: living, label: Вітальня }, { id: terrace, label: Тераса }, { id: private, label: Приватна зона }] }
         - { id: group, type: segment, label: Група аудіо, output_label: Обрана група, options: [{ id: single, label: Одна зона }, { id: shared, label: Суміжні зони }, { id: floor, label: Увесь поверх }] }
+        - { id: volume, type: range, label: Гучність, output_label: Гучність, output_suffix: "%", min: 0, max: 100, step: 1 }
         - { id: muted, type: toggle, label: Приглушити або відновити звук, output_label: Стан аудіо, on_label: Звук приглушено, off_label: Звук відновлено }
     - id: shading
       label: Сонцезахист
@@ -160,8 +162,10 @@ spatial:
       summary: Штори, тюль і ролети пов’язують зі світлом, приватністю й сонячним навантаженням.
       topology: { label: Логіка сонцезахисту, detail: "Для кожної зони визначають положення, яке можна скоригувати вручну." }
       controls:
-        - { id: position, type: range, label: Положення сонцезахисту, output_label: Відкриття, output_suffix: "%", min: 0, max: 100, step: 1 }
+        - { id: position, type: range, label: Положення сонцезахисту, output_label: Відкриття, output_suffix: "%", min: 0, max: 100, step: 1, visible_when: { control_id: treatment, in: [tulle, curtains, rollers] } }
         - { id: treatment, type: segment, label: Тип сонцезахисту, output_label: Обраний тип, options: [{ id: tulle, label: Тюль }, { id: blinds, label: Жалюзі }, { id: curtains, label: Штори }, { id: rollers, label: Ролети }] }
+        - { id: blind_lift, type: range, label: Підняття жалюзі, output_label: Підняття, output_suffix: "%", min: 0, max: 100, step: 1, visible_when: { control_id: treatment, in: [blinds] } }
+        - { id: slat_angle, type: range, label: Кут ламелей, output_label: Кут ламелей, output_suffix: "°", min: -45, max: 45, step: 1, visible_when: { control_id: treatment, in: [blinds] } }
   visuals:
     - { id: lighting, desktop: /assets/images/home/control-room-1536.webp, mobile: /assets/images/home/control-room-768.webp, alt: Тепло освітлена сучасна вітальня з природними матеріалами ввечері }
     - { id: climate, desktop: /assets/images/smart-home/climate-1536.webp, mobile: /assets/images/smart-home/climate-768.webp, alt: Житлова зона з інтегрованими системами клімату у вечірньому світлі }
@@ -171,7 +175,7 @@ spatial:
     - { id: low-voltage, desktop: /assets/images/smart-home/electrical-installation-1536.webp, mobile: /assets/images/smart-home/electrical-installation-768.webp, alt: Підготовлені електричні та слабкострумні траси в технічній зоні об’єкта }
     - { id: backup-power, desktop: /assets/images/smart-home/backup-1536.webp, mobile: /assets/images/smart-home/backup-768.webp, alt: Технічна зона з місцем для резервного живлення й пріоритетних груп }
     - { id: audio, desktop: /assets/images/smart-home/audio-1536.webp, mobile: /assets/images/smart-home/audio-768.webp, alt: Житлова зона з інтегрованими аудіоточками та теплим вечірнім світлом }
-    - { id: shading, desktop: /assets/images/smart-home/shading-1536.webp, mobile: /assets/images/smart-home/shading-768.webp, alt: Сучасна вітальня з опущеними шторами та м’яким вечірнім світлом }
+    - { id: shading, desktop: /assets/images/smart-home/shading-1536.webp, mobile: /assets/images/smart-home/shading-768.webp, alt: Сучасна вітальня з відкритим склінням і м’яким вечірнім світлом }
 configuration:
   title: Поточна конфігурація
   event_label: Подія
@@ -231,12 +235,12 @@ presets:
       lighting: { brightness: 35, layer: route }
       climate: { comfort: balanced, operation: auto }
       access: { arrival_route: true, entry_zone: entry }
-      security: { coverage: entry, event_path: sensors }
+      security: { coverage: entry, event_path: sensors, view_angle: 62 }
       panel: { layer: groups, priority_groups: false }
       low-voltage: { route: network, topology_focus: points }
       backup-power: { priority_groups: false, restore_intent: manual }
-      audio: { source: scenario, zone: living, group: single, muted: false }
-      shading: { position: 85, treatment: tulle }
+      audio: { source: scenario, zone: living, group: single, volume: 24, muted: false }
+      shading: { position: 85, treatment: tulle, blind_lift: 100, slat_angle: 0 }
     logic:
       route: [private, passage, living]
       primary_system: shading
@@ -268,19 +272,19 @@ presets:
       lighting: { brightness: 70, layer: route }
       climate: { comfort: balanced, operation: auto }
       access: { arrival_route: true, entry_zone: entry }
-      security: { coverage: entry, event_path: video }
+      security: { coverage: entry, event_path: video, view_angle: 74 }
       panel: { layer: groups, priority_groups: false }
       low-voltage: { route: signals, topology_focus: points }
       backup-power: { priority_groups: false, restore_intent: manual }
-      audio: { source: scenario, zone: living, group: single, muted: false }
-      shading: { position: 45, treatment: curtains }
+      audio: { source: scenario, zone: living, group: single, volume: 32, muted: false }
+      shading: { position: 45, treatment: curtains, blind_lift: 100, slat_angle: 0 }
     logic:
       route: [exterior, entry, passage, living]
-      primary_system: lighting
+      primary_system: access
       systems:
-        - { id: lighting, zone: exterior, role: focus, summary: Зовнішнє й маршрутне світло веде від двору до вітальні., visual: lighting }
+        - { id: lighting, zone: exterior, role: support, summary: Зовнішнє й маршрутне світло веде від двору до вітальні., visual: lighting }
         - { id: climate, zone: living, role: support, summary: Комфорт у вітальні переходить у підготовлений стан., visual: climate }
-        - { id: access, zone: entry, role: support, summary: Подія входу запускає сценарій., visual: access }
+        - { id: access, zone: entry, role: focus, summary: Подія входу запускає сценарій., visual: access }
         - { id: security, zone: entry, role: quiet, summary: Для відеоконтролю входу зберігають правила, задані для повернення., visual: security }
         - { id: panel, zone: technical, role: quiet, summary: У проєкті щита виділяють групи для сценарію входу., visual: panel }
         - { id: low-voltage, zone: entry, role: support, summary: Сигнали доступу доходять до потрібної точки., visual: low-voltage }
@@ -305,24 +309,24 @@ presets:
       lighting: { brightness: 55, layer: evening }
       climate: { comfort: warm, operation: heating }
       access: { arrival_route: false, entry_zone: entry }
-      security: { coverage: perimeter, event_path: video }
+      security: { coverage: perimeter, event_path: video, view_angle: 88 }
       panel: { layer: protection, priority_groups: false }
       low-voltage: { route: network, topology_focus: interfaces }
       backup-power: { priority_groups: false, restore_intent: staged }
-      audio: { source: media, zone: living, group: shared, muted: false }
-      shading: { position: 25, treatment: curtains }
+      audio: { source: media, zone: living, group: shared, volume: 48, muted: false }
+      shading: { position: 25, treatment: curtains, blind_lift: 100, slat_angle: 0 }
     logic:
       route: [passage, living]
-      primary_system: lighting
+      primary_system: audio
       systems:
-        - { id: lighting, zone: living, role: focus, summary: Світло збирає вітальню в один вечірній стан., visual: lighting }
+        - { id: lighting, zone: living, role: support, summary: Світло збирає вітальню в один вечірній стан., visual: lighting }
         - { id: climate, zone: living, role: support, summary: Комфорт у вітальні відповідає часу перебування., visual: climate }
         - { id: access, zone: entry, role: quiet, summary: Доступ працює за звичними правилами., visual: access }
         - { id: security, zone: entry, role: quiet, summary: Відеоконтроль входу й технічні сигнали зберігають визначені правила., visual: security }
         - { id: panel, zone: technical, role: quiet, summary: Щит живить задіяні групи світла., visual: panel }
         - { id: low-voltage, zone: living, role: support, summary: Точки керування передають одну команду., visual: low-voltage }
         - { id: backup-power, zone: technical, role: quiet, summary: Резерв не бере участі у вечірньому сценарії., visual: backup-power }
-        - { id: audio, zone: living, role: support, summary: До вечірнього сценарію можна додати аудіо., visual: audio }
+        - { id: audio, zone: living, role: focus, summary: До вечірнього сценарію можна додати аудіо., visual: audio }
         - { id: shading, zone: living, role: support, summary: Штори або ролети підтримують приватність вечірньої зони., visual: shading }
     related_services: [electrical-design, lighting, smart-home-integration]
     related_solution: architectural-lighting
@@ -342,12 +346,12 @@ presets:
       lighting: { brightness: 10, layer: route }
       climate: { comfort: balanced, operation: auto }
       access: { arrival_route: false, entry_zone: gate }
-      security: { coverage: perimeter, event_path: video }
+      security: { coverage: perimeter, event_path: video, view_angle: 96 }
       panel: { layer: protection, priority_groups: true }
       low-voltage: { route: video, topology_focus: routes }
       backup-power: { priority_groups: true, restore_intent: essential }
-      audio: { source: scenario, zone: living, group: single, muted: true }
-      shading: { position: 0, treatment: rollers }
+      audio: { source: scenario, zone: living, group: single, volume: 0, muted: true }
+      shading: { position: 0, treatment: rollers, blind_lift: 0, slat_angle: 0 }
     logic:
       route: [private, living, passage, entry]
       primary_system: security
@@ -379,12 +383,12 @@ presets:
       lighting: { brightness: 15, layer: route }
       climate: { comfort: cool, operation: cooling }
       access: { arrival_route: false, entry_zone: entry }
-      security: { coverage: quiet, event_path: quiet }
+      security: { coverage: quiet, event_path: quiet, view_angle: 48 }
       panel: { layer: protection, priority_groups: true }
       low-voltage: { route: signals, topology_focus: points }
       backup-power: { priority_groups: true, restore_intent: essential }
-      audio: { source: scenario, zone: private, group: single, muted: true }
-      shading: { position: 0, treatment: rollers }
+      audio: { source: scenario, zone: private, group: single, volume: 0, muted: true }
+      shading: { position: 0, treatment: rollers, blind_lift: 0, slat_angle: 0 }
     logic:
       route: [private, stairs, passage, living]
       primary_system: lighting
@@ -416,12 +420,12 @@ presets:
       lighting: { brightness: 30, layer: full }
       climate: { comfort: cool, operation: cooling }
       access: { arrival_route: false, entry_zone: garage }
-      security: { coverage: perimeter, event_path: sensors }
+      security: { coverage: perimeter, event_path: sensors, view_angle: 82 }
       panel: { layer: groups, priority_groups: false }
       low-voltage: { route: network, topology_focus: interfaces }
       backup-power: { priority_groups: false, restore_intent: staged }
-      audio: { source: media, zone: living, group: single, muted: false }
-      shading: { position: 15, treatment: blinds }
+      audio: { source: media, zone: living, group: single, volume: 36, muted: false }
+      shading: { position: 15, treatment: blinds, blind_lift: 18, slat_angle: 18 }
     logic:
       route: [exterior, living, private]
       primary_system: climate
@@ -453,12 +457,12 @@ presets:
       lighting: { brightness: 35, layer: route }
       climate: { comfort: balanced, operation: auto }
       access: { arrival_route: true, entry_zone: entry }
-      security: { coverage: entry, event_path: sensors }
+      security: { coverage: entry, event_path: sensors, view_angle: 54 }
       panel: { layer: priorities, priority_groups: true }
       low-voltage: { route: signals, topology_focus: routes }
       backup-power: { priority_groups: true, restore_intent: essential }
-      audio: { source: local, zone: living, group: single, muted: true }
-      shading: { position: 0, treatment: rollers }
+      audio: { source: local, zone: living, group: single, volume: 0, muted: true }
+      shading: { position: 0, treatment: rollers, blind_lift: 0, slat_angle: 0 }
     logic:
       route: [technical, living]
       primary_system: backup-power

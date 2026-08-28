@@ -23,14 +23,14 @@ module PhysicalSceneStatesContract
     { "id" => "lighting", "controls" => { "brightness" => { "type" => "range", "min" => 0, "max" => 100 }, "layer" => { "type" => "segment", "values" => %w[route evening full] } } },
     { "id" => "climate", "controls" => { "comfort" => { "type" => "segment", "values" => %w[warm balanced cool] }, "operation" => { "type" => "segment", "values" => %w[auto heating cooling] } } },
     { "id" => "access", "controls" => { "arrival_route" => { "type" => "toggle" }, "entry_zone" => { "type" => "segment", "values" => %w[gate entry garage] } } },
-    { "id" => "security", "controls" => { "coverage" => { "type" => "segment", "values" => %w[entry perimeter quiet] }, "event_path" => { "type" => "segment", "values" => %w[video sensors quiet] } } },
+    { "id" => "security", "controls" => { "coverage" => { "type" => "segment", "values" => %w[entry perimeter quiet] }, "event_path" => { "type" => "segment", "values" => %w[video sensors quiet] }, "view_angle" => { "type" => "range", "min" => 35, "max" => 110 } } },
     { "id" => "panel", "controls" => { "layer" => { "type" => "segment", "values" => %w[protection groups priorities] }, "priority_groups" => { "type" => "toggle" } } },
     { "id" => "low-voltage", "controls" => { "route" => { "type" => "segment", "values" => %w[network video signals] }, "topology_focus" => { "type" => "segment", "values" => %w[routes points interfaces] } } },
     { "id" => "backup-power", "controls" => { "priority_groups" => { "type" => "toggle" }, "restore_intent" => { "type" => "segment", "values" => %w[essential staged manual] } } },
-    { "id" => "audio", "controls" => { "source" => { "type" => "segment", "values" => %w[local media scenario] }, "zone" => { "type" => "segment", "values" => %w[living terrace private] }, "group" => { "type" => "segment", "values" => %w[single shared floor] }, "muted" => { "type" => "toggle" } } },
-    { "id" => "shading", "controls" => { "position" => { "type" => "range", "min" => 0, "max" => 100 }, "treatment" => { "type" => "segment", "values" => %w[tulle blinds curtains rollers] } } }
+    { "id" => "audio", "controls" => { "source" => { "type" => "segment", "values" => %w[local media scenario] }, "zone" => { "type" => "segment", "values" => %w[living terrace private] }, "group" => { "type" => "segment", "values" => %w[single shared floor] }, "volume" => { "type" => "range", "min" => 0, "max" => 100 }, "muted" => { "type" => "toggle" } } },
+    { "id" => "shading", "controls" => { "position" => { "type" => "range", "min" => 0, "max" => 100 }, "treatment" => { "type" => "segment", "values" => %w[tulle blinds curtains rollers] }, "blind_lift" => { "type" => "range", "min" => 0, "max" => 100 }, "slat_angle" => { "type" => "range", "min" => -45, "max" => 45 } } }
   ].freeze
-  SVG_EFFECTS = %w[glow zone tulle blind curtain roller route node thermal topology coverage audio].freeze
+  SVG_EFFECTS = %w[glow zone tulle blind curtain roller route node thermal topology coverage audio climate-comfort-field climate-heating-floor climate-cooling-air security-camera-body security-camera-view equipment-panel equipment-low-voltage equipment-backup audio-source audio-zone-field audio-speaker].freeze
   SVG_GEOMETRIES = %w[ellipse circle rect line path polygon].freeze
   SVG_PARAMETER = /\A[a-z][a-z0-9_]*\z/.freeze
 
@@ -165,6 +165,46 @@ module PhysicalSceneStatesContract
         validate_svg_layer(errors, layer, expected, coverage, seen_layers, "#{prefix} layer #{layer_index + 1}")
       end
       validate_svg_coverage(errors, coverage, expected, prefix)
+      validate_semantic_layers(errors, expected.fetch("id"), layers, prefix)
+    end
+  end
+
+  # The engineering overlays are physical annotations registered to equipment,
+  # not abstract control-room diagrams. Keep this policy in data validation so
+  # later visual changes cannot quietly reintroduce decorative wires or nodes.
+  def validate_semantic_layers(errors, system_id, layers, prefix)
+    ids = layers.filter_map { |layer| layer["id"] if layer.is_a?(Hash) }
+    kinds = layers.filter_map { |layer| layer.dig("geometry", "kind") if layer.is_a?(Hash) }
+
+    if %w[panel low-voltage backup-power climate].include?(system_id) && kinds.any? { |kind| %w[line path circle].include?(kind) }
+      errors << "#{prefix}: physical equipment fields must not use line, path, or circle geometry"
+    end
+    if %w[panel low-voltage backup-power].include?(system_id) && ids.any? { |id| id.match?(/(?:topology|node)/) }
+      errors << "#{prefix}: physical equipment layers must not use topology or node IDs"
+    end
+
+    required = case system_id
+               when "climate" then %w[climate-heating-floor-field climate-cooling-air-field]
+               when "security" then %w[security-camera-body security-camera-view]
+               when "audio" then %w[audio-source-field audio-zone-field]
+               when "shading" then %w[shading-tulle-left shading-tulle-right shading-blind-slats]
+               else []
+               end
+    missing = required.reject { |id| ids.include?(id) }
+    errors << "#{prefix}: missing required physical layers #{missing.join(', ')}" if missing.any?
+    if system_id == "audio" && ids.count { |id| id.start_with?("audio-speaker-") } < 2
+      errors << "#{prefix}: audio requires at least two registered speaker layers"
+    end
+    if system_id == "security" && (!kinds.include?("rect") || !kinds.include?("polygon") || kinds.include?("ellipse"))
+      errors << "#{prefix}: security requires a rectangular camera body and polygonal view, not ellipse-only HUD geometry"
+    end
+    if system_id == "audio"
+      invalid_ellipses = layers.select do |layer|
+        layer.dig("geometry", "kind") == "ellipse" && !layer.fetch("id", "").start_with?("audio-speaker-")
+      end
+      if invalid_ellipses.any? || !kinds.include?("rect") || !kinds.include?("polygon")
+        errors << "#{prefix}: audio allows ellipses only for registered speaker points and requires rect source plus polygon zones"
+      end
     end
   end
 
