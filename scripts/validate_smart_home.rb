@@ -22,12 +22,12 @@ module SmartHomeContract
     "lighting" => %w[brightness layer].freeze,
     "climate" => %w[comfort operation].freeze,
     "access" => %w[arrival_route entry_zone].freeze,
-    "security" => %w[coverage event_path].freeze,
+    "security" => %w[coverage event_path view_angle].freeze,
     "panel" => %w[layer priority_groups].freeze,
     "low-voltage" => %w[route topology_focus].freeze,
     "backup-power" => %w[priority_groups restore_intent].freeze,
-    "audio" => %w[source zone group muted].freeze,
-    "shading" => %w[position treatment].freeze
+    "audio" => %w[source zone group volume muted].freeze,
+    "shading" => %w[position treatment blind_lift slat_angle].freeze
   }.freeze
   REQUIRED_SCALARS = %w[
     id label eyebrow title event scene_label project_note live_summary
@@ -143,8 +143,8 @@ module SmartHomeContract
   end
 
   def validate_controls(errors, prefix, controls, canonical_ids)
-    unless controls.is_a?(Array) && (1..4).cover?(controls.length)
-      errors << "#{prefix}: controls must contain 1 to 4 mappings"
+    unless controls.is_a?(Array) && (1..5).cover?(controls.length)
+      errors << "#{prefix}: controls must contain 1 to 5 mappings"
       return
     end
 
@@ -164,6 +164,7 @@ module SmartHomeContract
       if control.key?("output_suffix")
         validate_required_copy(errors, prefix, "control #{index + 1} output_suffix", control["output_suffix"])
       end
+      validate_control_visibility(errors, prefix, control, controls, control_prefix)
 
       case control["type"]
       when "range"
@@ -176,6 +177,24 @@ module SmartHomeContract
         errors << "#{control_prefix} type must be #{CONTROL_TYPES.join(', ')}"
       end
     end
+  end
+
+  def validate_control_visibility(errors, system_id, control, controls, prefix)
+    return unless control.key?("visible_when")
+
+    visible_when = control["visible_when"]
+    unless visible_when.is_a?(Hash) && visible_when.keys.sort == %w[control_id in] && non_empty_string?(visible_when["control_id"]) && visible_when["in"].is_a?(Array) && !visible_when["in"].empty? && visible_when["in"].all? { |value| non_empty_string?(value) } && visible_when["in"].uniq.length == visible_when["in"].length
+      errors << "#{prefix} visible_when must be an exact control_id plus unique non-empty in values mapping"
+      return
+    end
+    controller = controls.find { |candidate| candidate.is_a?(Hash) && candidate["id"] == visible_when["control_id"] }
+    unless controller.is_a?(Hash) && controller["type"] == "segment"
+      errors << "#{prefix} visible_when control_id must reference a declared segment control"
+      return
+    end
+    option_ids = Array(controller["options"]).filter_map { |option| option["id"] if option.is_a?(Hash) }
+    errors << "#{prefix} visible_when in values must reference declared segment options" unless (visible_when["in"] - option_ids).empty?
+    errors << "#{prefix} visible_when is only supported by shading" unless system_id == "shading"
   end
 
   def validate_range_control(errors, prefix, control)

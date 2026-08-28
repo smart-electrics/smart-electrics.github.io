@@ -131,13 +131,13 @@ test("the nine public systems project their selected context into one visible SV
         input.dispatchEvent(new Event("input", { bubbles: true }));
       })
     },
-    { id: "climate", effect: "thermal", change: () => chooseAlternateSegment(root, "climate", "comfort") },
+    { id: "climate", effect: "climate-comfort-field", change: () => chooseAlternateSegment(root, "climate", "comfort") },
     { id: "access", effect: "coverage", change: () => root.locator('[data-phone-toggle][data-control-system="access"][data-control-id="arrival_route"]').click() },
-    { id: "security", effect: "coverage", change: () => chooseAlternateSegment(root, "security", "coverage") },
-    { id: "panel", effect: "topology", change: () => chooseAlternateSegment(root, "panel", "layer") },
-    { id: "low-voltage", effect: "topology", change: () => chooseAlternateSegment(root, "low-voltage", "route") },
-    { id: "backup-power", effect: "topology", change: () => chooseAlternateSegment(root, "backup-power", "restore_intent") },
-    { id: "audio", effect: "audio", change: () => root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]').click() },
+    { id: "security", effect: "security-camera-body", change: () => chooseAlternateSegment(root, "security", "coverage") },
+    { id: "panel", effect: "equipment-panel", change: () => chooseAlternateSegment(root, "panel", "layer") },
+    { id: "low-voltage", effect: "equipment-low-voltage", change: () => chooseAlternateSegment(root, "low-voltage", "route") },
+    { id: "backup-power", effect: "equipment-backup", change: () => chooseAlternateSegment(root, "backup-power", "restore_intent") },
+    { id: "audio", effect: "audio-source", change: () => root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]').click() },
     {
       id: "shading", effect: "tulle",
       change: () => root.locator('[data-phone-range][data-control-system="shading"][data-control-id="position"]').evaluate((input) => {
@@ -228,6 +228,8 @@ test("lighting intensity grows from registered lamps across one clean scene with
   const slider = root.locator('[data-phone-range][data-control-system="lighting"][data-control-id="brightness"]');
   const overlay = scene.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
   const lighting = overlay.locator('[data-physical-scene-svg-system="lighting"]');
+  await root.locator('[data-phone-system="lighting"]').click();
+  await expect(root).toHaveAttribute("data-system", "lighting");
 
   const cleanScene = await scene.evaluate((surface) => ({
     decorativeBackgroundSize: getComputedStyle(surface, "::before").backgroundSize,
@@ -296,12 +298,13 @@ test("access security and audio use soft object-registered fields instead of HUD
       dash: getComputedStyle(layer).strokeDasharray
     })));
     expect(geometry.length, `${systemId} needs a visible registered field`).toBeGreaterThan(0);
-    expect(geometry.some(({ effect }) => ["coverage", "zone", "node"].includes(effect)), `${systemId} uses a physical field or device marker`).toBe(true);
+    const physicalEffects = systemId === "security" ? ["security-camera-body", "security-camera-view"] : ["coverage", "zone"];
+    expect(geometry.some(({ effect }) => physicalEffects.includes(effect)), `${systemId} uses a physical field or device marker`).toBe(true);
     expect(geometry.every(({ kind }) => !["line", "path"].includes(kind)), `${systemId} must not draw a floating guide line`).toBe(true);
   }
 
   await root.locator('[data-phone-system="audio"]').click();
-  const audio = overlay.locator('[data-physical-scene-svg-system="audio"] [data-physical-scene-svg-effect="audio"]:not([hidden])');
+  const audio = overlay.locator('[data-physical-scene-svg-system="audio"] [data-physical-scene-svg-effect="audio-zone-field"]:not([hidden])').first();
   const audioStyle = await audio.evaluate((layer) => ({
     fill: getComputedStyle(layer).fill,
     stroke: getComputedStyle(layer).stroke,
@@ -329,12 +332,12 @@ test("upgrades the complete nine-system, seven-preset configuration into one int
     const button = root.locator(`button[data-phone-system="${id}"]`);
     await expect(button).toHaveAccessibleName(label);
   }
-  await expect(root.locator("[data-phone-control]")).toHaveCount(20);
-  await expect(root.locator("[data-phone-range]")).toHaveCount(2);
+  await expect(root.locator("[data-phone-control]")).toHaveCount(24);
+  await expect(root.locator("[data-phone-range]")).toHaveCount(6);
   await expect(root.locator("[data-phone-segment]")).toHaveCount(43);
   await expect(root.locator("[data-phone-toggle]")).toHaveCount(4);
   const audioControlIds = await root.locator('[data-phone-control-panel="audio"] [data-phone-control]').evaluateAll((controls) => controls.map((control) => control.dataset.phoneControl));
-  expect(audioControlIds).toEqual(["audio:source", "audio:zone", "audio:group", "audio:muted"]);
+  expect(audioControlIds).toEqual(["audio:source", "audio:zone", "audio:group", "audio:volume", "audio:muted"]);
   await expect(root.locator("[data-phone-live]")).toContainText("Ранок");
   expect(await page.getByRole("main").innerText()).not.toMatch(forbiddenCopy);
 });
@@ -426,29 +429,43 @@ test("malformed subordinate physical picker, control, or initial media fails clo
 });
 
 test("every preset atomically changes the configuration and returns from manual mode", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const root = await simulator(page);
+  const scene = root.locator("[data-scenario-scene]");
 
   for (const { id, label, brightness } of presetExpectations) {
-    const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
-    await slider.evaluate((input) => {
-      input.value = input.value === input.max ? input.min : input.max;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    const radio = root.getByRole("radio", { name: label });
+    await radio.click();
+    await expect(root).toHaveAttribute("data-preset", id);
+    const primarySystem = await root.locator(`[data-preset-panel="${id}"]`).getAttribute("data-primary-system");
+    await expect(root).toHaveAttribute("data-system", primarySystem || "");
+    const control = root.locator("[data-phone-control-panel]:visible [data-phone-control]:visible").first();
+    const controlType = await control.getAttribute("data-control-type");
+    if (controlType === "range") {
+      await control.locator("input").evaluate((input) => {
+        const current = Number(input.value);
+        const minimum = Number(input.min);
+        const maximum = Number(input.max);
+        input.value = current - minimum >= maximum - current ? input.min : input.max;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    } else if (controlType === "segment") {
+      await control.locator('[data-phone-segment]:not([aria-pressed="true"])').first().click();
+    } else {
+      await control.locator("[data-phone-toggle]").click();
+    }
     await expect(root).toHaveAttribute("data-manual", "true");
     const manualPreview = await readPresetPreview(root);
-    await root.getByRole("radio", { name: label }).click();
+    const manualPixels = await renderedPixelSignature(page, scene);
+    await radio.click();
     await expect(root).toHaveAttribute("data-preset", id);
     await expect(root).toHaveAttribute("data-manual", "false");
     await expect(root.locator("[data-phone-live]")).toContainText(label);
     await expect(root.locator(`[data-preset-panel="${id}"]`)).toBeVisible();
     await expect(root.locator('[data-control-output="lighting:brightness"]')).toHaveText(`Яскравість: ${brightness}%`);
-    // Computed image filters can settle one frame after the synchronous preset state.
-    await expect.poll(
-      async () => (await readPresetPreview(root)).exposure,
-      { message: `${label} computed scene exposure` }
-    ).not.toBe(manualPreview.exposure);
     const presetPreview = await readPresetPreview(root);
+    expect(await renderedPixelSignature(page, scene), `${label} rendered physical state`).not.toBe(manualPixels);
     expect(presetPreview.pixels, `${label} computed scene pixels`).not.toBe(manualPreview.pixels);
     expect(presetPreview.svgSignature, `${label} physical scene state`).not.toBe(manualPreview.svgSignature);
     expect(presetPreview.signature, `${label} preview signature`).not.toBe(manualPreview.signature);
@@ -503,8 +520,11 @@ test("panel and low-voltage controls expose observation, isolation, and the next
 });
 
 test("range controls update one continuous scene without cinematic replacement and presets still restore all values", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const root = await simulator(page);
+  await root.locator('[data-phone-system="lighting"]').click();
+  await expect(root).toHaveAttribute("data-system", "lighting");
   const slider = root.locator('[data-phone-range][data-control-system="lighting"]');
   const overlay = root.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
   const firstInput = await slider.evaluate((input) => {
@@ -574,6 +594,8 @@ test("range controls update one continuous scene without cinematic replacement a
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const reducedRoot = await simulator(page);
+  await reducedRoot.locator('[data-phone-system="lighting"]').click();
+  await expect(reducedRoot).toHaveAttribute("data-system", "lighting");
   const reducedSlider = reducedRoot.locator('[data-phone-range][data-control-system="lighting"]');
   await reducedSlider.evaluate((input) => {
     input.value = "55";
@@ -616,7 +638,7 @@ test("audio follows source to zone to group and mute or restore changes visible 
   const mute = root.locator('[data-phone-toggle][data-control-system="audio"][data-control-id="muted"]');
   const scene = root.locator("[data-scenario-scene]");
   const overlay = scene.locator("[data-physical-scene-svg-overlay]");
-  const audioLayer = overlay.locator('[data-physical-scene-svg-system="audio"] [data-physical-scene-svg-effect="audio"]');
+  const audioLayer = overlay.locator('[data-physical-scene-svg-system="audio"] [data-physical-scene-svg-effect="audio-zone-field"]:not([hidden])').first();
   const before = {
     parameters: await audioLayer.getAttribute("data-physical-scene-svg-parameters"),
     pixels: await renderedPixelSignature(page, scene)
@@ -632,7 +654,7 @@ test("audio follows source to zone to group and mute or restore changes visible 
   await expect(root.locator('[data-control-output="audio:muted"]')).toContainText("Звук відновлено");
 });
 
-test("every one of the twenty manual controls changes its active scene preview signature and causal result", async ({ page }) => {
+test("every one of the twenty-four manual controls changes its active scene preview signature and causal result", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
   const root = await simulator(page);
@@ -652,7 +674,10 @@ test("every one of the twenty manual controls changes its active scene preview s
       const type = await control.getAttribute("data-control-type");
       if (type === "range") {
         await control.locator("input").evaluate((input) => {
-          input.value = input.value === input.max ? input.min : input.max;
+          const current = Number(input.value);
+          const minimum = Number(input.min);
+          const maximum = Number(input.max);
+          input.value = current - minimum >= maximum - current ? input.min : input.max;
           input.dispatchEvent(new Event("input", { bubbles: true }));
         });
       } else if (type === "segment") {
@@ -672,7 +697,7 @@ test("every one of the twenty manual controls changes its active scene preview s
       mutated += 1;
     }
   }
-  expect(mutated).toBe(20);
+  expect(mutated).toBe(24);
 });
 
 test("system switching applies the new context immediately behind one calm decoded-image crossfade", async ({ page }) => {
@@ -795,7 +820,7 @@ test("keeps rapid scene replacement bounded and supplies inert responsive metada
   await expect.poll(() => root.evaluate(() => window.__slowSmartHomeDecodePending)).toBe(true);
   await page.waitForTimeout(330);
   await expect(root).toHaveAttribute("data-system", "security");
-  await expect(root).toHaveAttribute("data-motion-phase", "idle");
+  await expect(root).toHaveAttribute("data-motion-phase", "prepare");
   await expect(root.locator("[data-outgoing-snapshot]"), "the previous generation must not clear the newest cold-image snapshot").toHaveCount(1);
   await root.evaluate(() => window.__releaseSlowSmartHomeDecode());
   await expect(root).toHaveAttribute("data-motion-phase", "disassemble");
@@ -809,7 +834,7 @@ test("keeps rapid scene replacement bounded and supplies inert responsive metada
   await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
   await expect(root).toHaveAttribute("data-motion-phase", "idle");
   await expect(root).toHaveAttribute("data-system", "shading");
-  await expect(root).toHaveAttribute("data-physical-scene-svg-signature", /shading:position=37(?:\||$)/u);
+  await expect(root).toHaveAttribute("data-physical-scene-svg-signature", /(?:^|\|)position=37(?:\||$)/u);
   await expect(root.locator("[data-scene-title]")).toHaveText("Сонцезахист");
   const overlay = root.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-main']");
   await expect(overlay).toHaveAttribute("data-physical-scene-svg-active-system", "shading");
@@ -838,10 +863,10 @@ test("compact navigation never starts the desktop smart-home scene candidate", a
   const requested = [];
   const failures = [];
   page.on("request", (request) => {
-    if (request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
+    if (request.url().includes("/assets/images/smart-home/shading-") || request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
   });
   page.on("requestfailed", (request) => {
-    if (request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
+    if (request.url().includes("/assets/images/smart-home/shading-") || request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
   });
 
   try {
@@ -853,11 +878,12 @@ test("compact navigation never starts the desktop smart-home scene candidate", a
       failures.length = 0;
 
       await page.goto(route);
-      const image = page.locator('[data-scene-picture="lighting"] img');
+      const image = page.locator('[data-scene-picture="shading"] img');
       await image.evaluate((element) => element.decode());
 
-      expect(await image.evaluate((element) => new URL(element.currentSrc).pathname), `${width}px selected scene candidate`).toMatch(/control-room-768\.webp$/u);
-      expect(requested.filter((url) => url.endsWith("control-room-1536.webp")), `${width}px must not start the desktop scene candidate`).toEqual([]);
+      expect(await image.evaluate((element) => new URL(element.currentSrc).pathname), `${width}px selected scene candidate`).toMatch(/shading-768\.webp$/u);
+      expect(requested.filter((url) => url.endsWith("shading-1536.webp")), `${width}px must not start the desktop scene candidate`).toEqual([]);
+      expect(requested.filter((url) => url.includes("control-room-")), `${width}px must not start an unselected lighting scene`).toEqual([]);
       expect(failures, `${width}px scene candidate requests`).toEqual([]);
     }
   } finally {
@@ -872,10 +898,10 @@ test("viewport boundary starts only the selected smart-home scene candidate", as
   const requested = [];
   const failures = [];
   page.on("request", (request) => {
-    if (request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
+    if (request.url().includes("/assets/images/smart-home/shading-") || request.url().includes("/assets/images/home/control-room-")) requested.push(request.url());
   });
   page.on("requestfailed", (request) => {
-    if (request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
+    if (request.url().includes("/assets/images/smart-home/shading-") || request.url().includes("/assets/images/home/control-room-")) failures.push({ url: request.url(), error: request.failure()?.errorText });
   });
 
   try {
@@ -887,13 +913,14 @@ test("viewport boundary starts only the selected smart-home scene candidate", as
       failures.length = 0;
 
       await page.goto(route);
-      const image = page.locator('[data-scene-picture="lighting"] img');
+      const image = page.locator('[data-scene-picture="shading"] img');
       await image.evaluate((element) => element.decode());
 
-      const expectedSuffix = width <= 767 ? "control-room-768.webp" : "control-room-1536.webp";
-      const unexpectedSuffix = width <= 767 ? "control-room-1536.webp" : "control-room-768.webp";
+      const expectedSuffix = width <= 767 ? "shading-768.webp" : "shading-1536.webp";
+      const unexpectedSuffix = width <= 767 ? "shading-1536.webp" : "shading-768.webp";
       expect(await image.evaluate((element) => new URL(element.currentSrc).pathname), `${width}px selected scene candidate`).toMatch(new RegExp(`${expectedSuffix}$`, "u"));
       expect(requested.filter((url) => url.endsWith(unexpectedSuffix)), `${width}px must not start an unselected scene candidate`).toEqual([]);
+      expect(requested.filter((url) => url.includes("control-room-")), `${width}px must not start an unselected lighting scene`).toEqual([]);
       expect(failures, `${width}px scene candidate requests`).toEqual([]);
     }
   } finally {
@@ -911,7 +938,9 @@ test("keeps a complete static explanation when JavaScript is unavailable or enha
     await expect(noJsRoot.locator("[data-smart-home-phone]")).toBeHidden();
     await expect(noJsRoot.locator("[data-static-explainer] li")).toHaveCount(systems.length);
     await expect(noJsRoot.locator("[data-preset-panel]:visible")).toHaveCount(presets.length);
-    const noJsScene = noJsRoot.locator('[data-scene-picture="lighting"] img');
+    const noJsPicture = noJsRoot.locator("picture[data-scene-picture]:not([hidden])");
+    await expect(noJsPicture).toHaveAttribute("data-scene-picture", "shading");
+    const noJsScene = noJsPicture.locator("img");
     await noJsScene.evaluate((image) => image.decode());
     const expectedNoJsVariant = noJsPage.viewportSize().width <= 767 ? "-768.webp" : "-1536.webp";
     await expect.poll(() => noJsScene.evaluate((image, suffix) => new URL(image.currentSrc).pathname.endsWith(suffix), expectedNoJsVariant)).toBe(true);
@@ -1021,4 +1050,108 @@ test("does not create a portal, media player, network runtime, canvas, or storag
   await root.locator('[data-phone-system="audio"]').click();
   await expect(page.locator("canvas, video, audio, [autoplay], [data-autoplay], main form, main textarea, main select")).toHaveCount(0);
   expect(await page.evaluate(() => window.__smartHomeRuntime)).toEqual({ fetches: 0, storage: 0, canvas: 0 });
+});
+
+test("physical scenario controls use registered geometry instead of opacity-only or HUD substitutions", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(route);
+  const root = await simulator(page);
+  const scene = root.locator("[data-scenario-scene]");
+  const overlay = scene.locator("[data-physical-scene-svg-overlay]");
+
+  await root.locator('[data-phone-system="shading"]').click();
+  await root.locator('[data-phone-segment][data-control-system="shading"][data-control-id="treatment"][data-control-value="tulle"]').click();
+  const shadingSystem = overlay.locator('[data-physical-scene-svg-system="shading"]');
+  await expect(shadingSystem).toHaveAttribute("clip-path", /shading-clip-path/u);
+  const shadingClip = overlay.locator('clipPath[id$="-shading-clip-path"] rect');
+  await expect(shadingClip).toHaveAttribute("x", "527");
+  await expect(shadingClip).toHaveAttribute("y", "176");
+  await expect(shadingClip).toHaveAttribute("width", "965");
+  await expect(shadingClip).toHaveAttribute("height", "496");
+  const tulle = overlay.locator('[data-physical-scene-svg-layer^="shading-tulle-"]:not([hidden])');
+  await expect(tulle).toHaveCount(2);
+  const tulleAt = async (value) => {
+    const range = root.locator('input[data-phone-range][data-control-system="shading"][data-control-id="position"]');
+    await range.evaluate((input, next) => { input.value = String(next); input.dispatchEvent(new Event("input", { bubbles: true })); }, value);
+    return tulle.evaluateAll((layers) => layers.map((layer) => ({ transform: getComputedStyle(layer).transform, opacity: getComputedStyle(layer).opacity, parameters: layer.getAttribute("data-physical-scene-svg-parameters") })));
+  };
+  const tulleClosed = await tulleAt(0);
+  const tulleOpen = await tulleAt(100);
+  expect(tulleOpen.map(({ transform, parameters }) => [transform, parameters])).not.toEqual(tulleClosed.map(({ transform, parameters }) => [transform, parameters]));
+  expect(tulleOpen.map(({ opacity }) => opacity)).toEqual(tulleClosed.map(({ opacity }) => opacity));
+  await expect(root.locator("[data-outgoing-snapshot]")).toHaveCount(0);
+
+  await root.locator('[data-phone-segment][data-control-system="shading"][data-control-id="treatment"][data-control-value="blinds"]').click();
+  const lift = root.locator('input[data-phone-range][data-control-system="shading"][data-control-id="blind_lift"]');
+  const angle = root.locator('input[data-phone-range][data-control-system="shading"][data-control-id="slat_angle"]');
+  await expect(lift).toHaveCount(1);
+  await expect(angle).toHaveCount(1);
+  const blind = overlay.locator('[data-physical-scene-svg-layer="shading-blind-slats"]');
+  await lift.evaluate((input) => { input.value = input.min; input.dispatchEvent(new Event("input", { bubbles: true })); });
+  const beforeBlind = await blind.getAttribute("data-physical-scene-svg-parameters");
+  await lift.evaluate((input) => { input.value = input.max; input.dispatchEvent(new Event("input", { bubbles: true })); });
+  const raised = await blind.getAttribute("data-physical-scene-svg-parameters");
+  const openFace = await blind.evaluate((layer) => getComputedStyle(layer).getPropertyValue("--physical-slat-face").trim());
+  await angle.evaluate((input) => { input.value = input.max; input.dispatchEvent(new Event("input", { bubbles: true })); });
+  const angled = await blind.getAttribute("data-physical-scene-svg-parameters");
+  expect(raised).not.toBe(beforeBlind);
+  expect(angled).not.toBe(raised);
+  expect(openFace).toBe("0.16");
+  await expect.poll(() => blind.evaluate((layer) => getComputedStyle(layer).getPropertyValue("--physical-slat-angle").trim())).toMatch(/deg$/u);
+  const slatProjection = await blind.locator("[data-physical-blind-slat]").first().evaluate((slat) => {
+    const matrix = new DOMMatrixReadOnly(getComputedStyle(slat).transform);
+    return { b: matrix.b, c: matrix.c, face: getComputedStyle(slat).getPropertyValue("--physical-slat-face").trim() };
+  });
+  expect(Math.abs(slatProjection.b), "slats must stay horizontal instead of rotating diagonally in screen space").toBeLessThan(0.001);
+  expect(Math.abs(slatProjection.c), "slats must stay horizontal instead of rotating diagonally in screen space").toBeLessThan(0.001);
+  expect(slatProjection.face).toBe("1");
+
+  for (const id of ["panel", "low-voltage", "backup-power", "climate"]) {
+    await root.locator(`[data-phone-system="${id}"]`).click();
+    const primitives = await overlay.locator(`[data-physical-scene-svg-system="${id}"] [data-physical-scene-svg-shape]`).evaluateAll((shapes) => shapes.map((shape) => ({ kind: shape.dataset.physicalSceneSvgShape, fill: getComputedStyle(shape).fill, stroke: getComputedStyle(shape).stroke, dash: getComputedStyle(shape).strokeDasharray })));
+    expect(primitives.length, `${id} physical primitives`).toBeGreaterThan(0);
+    expect(primitives.every(({ kind, fill, stroke, dash }) => !["line", "path", "circle"].includes(kind) && fill !== "none" && stroke === "none" && dash === "none"), `${id} must stay a fill-only registered field`).toBe(true);
+  }
+  await root.locator('[data-phone-system="climate"]').click();
+  await expect(overlay.locator('[data-physical-scene-svg-layer="climate-heating-floor-field"]')).toHaveCount(1);
+  await expect(overlay.locator('[data-physical-scene-svg-layer="climate-cooling-air-field"]')).toHaveCount(1);
+
+  await root.locator('[data-phone-system="audio"]').click();
+  await expect(root.locator('[data-phone-control-panel="audio"] [data-phone-control]')).toHaveCount(5);
+  await expect(overlay.locator('[data-physical-scene-svg-layer="audio-source-field"]')).toHaveCount(1);
+  expect(await overlay.locator('[data-physical-scene-svg-layer^="audio-speaker-"]').count()).toBeGreaterThanOrEqual(2);
+  await expect(overlay.locator('[data-physical-scene-svg-layer="audio-zone-field"]')).toHaveCount(1);
+  const volume = root.locator('input[data-phone-range][data-control-system="audio"][data-control-id="volume"]');
+  const audioSignature = await overlay.getAttribute("data-physical-scene-svg-signature");
+  await volume.evaluate((input) => { input.value = input.max; input.dispatchEvent(new Event("input", { bubbles: true })); });
+  await expect(overlay).not.toHaveAttribute("data-physical-scene-svg-signature", audioSignature || "");
+
+  await root.locator('[data-phone-system="security"]').click();
+  await expect(root.locator('[data-phone-control-panel="security"] [data-phone-control]')).toHaveCount(3);
+  await expect(overlay.locator('[data-physical-scene-svg-layer="security-camera-body"]')).toHaveCount(1);
+  await expect(overlay.locator('[data-physical-scene-svg-layer="security-camera-view"]')).toHaveCount(1);
+  const viewAngle = root.locator('input[data-phone-range][data-control-system="security"][data-control-id="view_angle"]');
+  const securitySignature = await overlay.getAttribute("data-physical-scene-svg-signature");
+  await viewAngle.evaluate((input) => { input.value = input.min; input.dispatchEvent(new Event("input", { bubbles: true })); });
+  await expect(overlay).not.toHaveAttribute("data-physical-scene-svg-signature", securitySignature || "");
+});
+
+test("seven presets select seven primary physical contexts and distinct raster sources", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(route);
+  const root = await simulator(page);
+  const primarySystems = [];
+  const sources = [];
+  for (const { id, label } of presetExpectations) {
+    await root.getByRole("radio", { name: label }).check();
+    const panel = root.locator(`[data-preset-panel="${id}"]`);
+    const primary = await panel.getAttribute("data-primary-system");
+    await expect(root).toHaveAttribute("data-system", primary || "");
+    const image = root.locator("picture[data-scene-picture]:not([hidden]) img");
+    await image.evaluate((element) => element.decode());
+    primarySystems.push(primary);
+    sources.push(await image.evaluate((element) => new URL(element.currentSrc).pathname));
+  }
+  expect(new Set(primarySystems).size, "each preset needs its own selected primary context").toBe(7);
+  expect(new Set(sources).size, "each preset needs its own raster context").toBe(7);
 });

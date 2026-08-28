@@ -5,6 +5,15 @@ import { createSmartHomeMachine } from "../../assets/js/smart-home-simulator-sta
 
 const systemIds = ["lighting", "climate", "shading", "access", "security", "panel", "low-voltage", "backup-power", "audio"];
 const presetIds = ["morning", "arrival", "evening", "away", "night", "heat", "backup"];
+const presetSystemIds = {
+  morning: "shading",
+  arrival: "access",
+  evening: "audio",
+  away: "security",
+  night: "lighting",
+  heat: "climate",
+  backup: "backup-power"
+};
 const controlsBySystem = {
   lighting: [{ id: "intensity", type: "range", min: 0, max: 100, step: 5, defaultValue: 40 }],
   climate: [{ id: "target", type: "range", min: 16, max: 28, step: 1, defaultValue: 21 }],
@@ -23,12 +32,12 @@ const canonicalValues = (offset) => ({
 });
 const presets = Object.fromEntries(presetIds.map((presetId, index) => [presetId, canonicalValues(index * 5)]));
 function makeMachine(overrides = {}) {
-  return createSmartHomeMachine({ systemIds, presetIds, initialPresetId: "morning", initialSystemId: "lighting", controlsBySystem, presets, ...overrides });
+  return createSmartHomeMachine({ systemIds, presetIds, initialPresetId: "morning", initialSystemId: "shading", presetSystemIds, controlsBySystem, presets, ...overrides });
 }
 
 test("creates an immutable canonical state for all nine systems and seven presets", () => {
   const machine = makeMachine();
-  assert.deepEqual(machine.initialState, { systemId: "lighting", presetId: "morning", valuesBySystem: canonicalValues(0), manual: false });
+  assert.deepEqual(machine.initialState, { systemId: "shading", presetId: "morning", valuesBySystem: canonicalValues(0), manual: false });
   assert.equal(Object.isFrozen(machine.initialState), true);
   assert.equal(Object.isFrozen(machine.initialState.valuesBySystem), true);
   assert.equal(Object.isFrozen(machine.initialState.valuesBySystem.lighting), true);
@@ -57,6 +66,7 @@ test("selects every declared system and atomically restores every declared prese
     const manual = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 65 });
     const selected = machine.transition(manual, { type: "select-preset", presetId });
     assert.equal(selected.presetId, presetId);
+    assert.equal(selected.systemId, presetSystemIds[presetId]);
     assert.equal(selected.manual, false);
     assert.deepEqual(selected.valuesBySystem, canonicalValues(index * 5));
   }
@@ -67,7 +77,7 @@ test("select-preset atomically restores canonical values for all systems and exi
   const changedLighting = machine.transition(machine.initialState, { type: "set-control", systemId: "lighting", controlId: "intensity", value: 70 });
   const changedClimate = machine.transition(changedLighting, { type: "set-control", systemId: "climate", controlId: "target", value: 25 });
   const restored = machine.transition(changedClimate, { type: "select-preset", presetId: "evening" });
-  assert.deepEqual(restored, { systemId: "lighting", presetId: "evening", valuesBySystem: canonicalValues(10), manual: false });
+  assert.deepEqual(restored, { systemId: "audio", presetId: "evening", valuesBySystem: canonicalValues(10), manual: false });
   assert.notStrictEqual(restored.valuesBySystem, changedClimate.valuesBySystem);
 });
 
@@ -103,7 +113,8 @@ test("remains deterministic after the caller mutates the source configuration", 
     systemIds: [...systemIds],
     presetIds: [...presetIds],
     initialPresetId: "morning",
-    initialSystemId: "lighting",
+    initialSystemId: "shading",
+    presetSystemIds: structuredClone(presetSystemIds),
     controlsBySystem: structuredClone(controlsBySystem),
     presets: structuredClone(presets)
   };
@@ -111,6 +122,7 @@ test("remains deterministic after the caller mutates the source configuration", 
 
   mutableConfig.systemIds.splice(0);
   mutableConfig.presetIds.splice(0);
+  mutableConfig.presetSystemIds.evening = "lighting";
   mutableConfig.controlsBySystem.security[0].options.splice(0);
   mutableConfig.presets.evening.lighting.intensity = 100;
 
@@ -120,11 +132,13 @@ test("remains deterministic after the caller mutates the source configuration", 
   assert.equal(selected.systemId, "audio");
   assert.equal(adjusted.valuesBySystem.security.coverage, "all");
   assert.deepEqual(restored.valuesBySystem, canonicalValues(10));
+  assert.equal(restored.systemId, "audio");
 });
 
 test("rejects incomplete or invalid factory configuration before state can be created", () => {
   const invalidConfigurations = [
-    { systemIds: systemIds.slice(1) }, { systemIds: [...systemIds, "lighting"] }, { presetIds: presetIds.slice(1) }, { initialPresetId: "unknown" }, { initialSystemId: "unknown" },
+    { systemIds: systemIds.slice(1) }, { systemIds: [...systemIds, "lighting"] }, { presetIds: presetIds.slice(1) }, { initialPresetId: "unknown" }, { initialSystemId: "unknown" }, { initialSystemId: "lighting" },
+    { presetSystemIds: { ...presetSystemIds, morning: "unknown" } }, { presetSystemIds: { morning: "shading" } }, { presetSystemIds: { ...presetSystemIds, extra: "lighting" } },
     { controlsBySystem: { ...controlsBySystem, lighting: [{ id: "intensity", type: "range", min: 0, max: 100, step: 5, defaultValue: 63 }] } },
     { controlsBySystem: { ...controlsBySystem, audio: [{ id: "enabled", type: "toggle", defaultValue: "false" }] } },
     { presets: { ...presets, morning: { ...canonicalValues(0), audio: { enabled: "false" } } } }, { presets: { morning: canonicalValues(0) } }

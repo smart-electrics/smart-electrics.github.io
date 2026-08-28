@@ -782,8 +782,8 @@ assets:
   provenance: docs/media/generated-assets.md#electrical-core-three-state-scenes
   qa: docs/media/electrical-core-three-state-visual-qa.md
 - path: assets/images/smart-home/shading-1536.webp
-  sha256: f1c024bcc5bbb8c3e4e53262c82bce88dc7e98526da7451131eadf45778b1661
-  bytes: 95642
+  sha256: 197d4a091ecb3954d6d0022d6cba172f7c23f790ab5d8783e81a20339b08e426
+  bytes: 106636
   width: 1536
   height: 1024
   responsive_pair: smart-home-shading
@@ -792,8 +792,8 @@ assets:
   provenance: docs/media/generated-assets.md#smart-home-scenario-set
   qa: docs/media/smart-home-scenes-visual-qa.md
 - path: assets/images/smart-home/shading-768.webp
-  sha256: ad998c83e10f7101bab501d45a20ab114db14cd8513042502a5155c3bba6757c
-  bytes: 27402
+  sha256: 63e6bb75b58cc843a39756fcd7bbdd4e3a260486567f7227a2520a668962c3bf
+  bytes: 31248
   width: 768
   height: 512
   responsive_pair: smart-home-shading

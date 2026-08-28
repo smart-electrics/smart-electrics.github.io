@@ -168,9 +168,8 @@ Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers,
 - exterior: `fd10554c0093ccde83c50055b1bd8af619c0348586f6a1ab3dc85a234d277d6f`
   (768), `2e10c613fa1522b5d964e85957ef72979811336fdfc443fce20ec98ab7c2dbdc`
   (1536)
-- shading: `ad998c83e10f7101bab501d45a20ab114db14cd8513042502a5155c3bba6757c`
-  (768), `f1c024bcc5bbb8c3e4e53262c82bce88dc7e98526da7451131eadf45778b1661`
-  (1536)
+- shading: замінено 2026-08-28; чинні контрольні суми наведено в
+  [`shading-open-glazing-base`](#shading-open-glazing-base).
 - stairs: `6eb9cabca2e823246667be5198b0794e1f5f1c6b76aba5c60a5d15f257b70d07`
   (768), `2e22c9ae3c4e4eec2e3ad9b6a2f030f19f55bc8005764a41ec695de9d461392d`
   (1536)
@@ -183,6 +182,39 @@ Constraints: no people, faces, silhouettes, hands, pets, text, letters, numbers,
 входу; приховані дифузори та підлоговий конвектор. Заборонені люди, текст,
 логотипи, UI, vendor-specific products, warped geometry, duplicated fixtures,
 random cables, exaggerated bloom і fantasy technology.
+
+## shading-open-glazing-base
+
+- Дата: 2026-08-28
+- Інструмент: вбудований OpenAI image generation tool
+- Операція: `precise-object edit` попередньої канонічної shading-сцени.
+- Вхідне зображення: існуюча shading-сцена використана лише як ціль редагування;
+  фінальний source PNG:
+  `/Users/mykhailomykhailenko/.codex/generated_images/01a02af5-e764-7902-b1aa-05e2f0918ca0/exec-9d322987-bc03-475a-a388-b2ecb590da3c.png`
+  (1536×1024 px, 1,870,452 B,
+  `f8f11baf61c939b6a9bbf9628fbcd7578721cd6109cf8f5f3fc3af401b0d5c23`).
+- Призначення: чиста базова сцена скління для DOM/SVG-шарів фізичного
+  сонцезахисту. Це візуальна концепція готової до адаптації конфігурації, не
+  підтверджений клієнтський кейс.
+- Файли: `assets/images/smart-home/shading-1536.webp`,
+  `assets/images/smart-home/shading-768.webp`.
+- Перетворення: desktop — `cwebp -m 6 -q 88 -metadata none`; mobile —
+  `cwebp -m 6 -q 86 -resize 768 512 -metadata none`.
+- Технічна перевірка: `dwebp` успішно декодував обидва файли; `webpmux -info`
+  для кожного повернув `No features present.`
+- SHA-256: `197d4a091ecb3954d6d0022d6cba172f7c23f790ab5d8783e81a20339b08e426`
+  (1536×1024, 106,636 B),
+  `63e6bb75b58cc843a39756fcd7bbdd4e3a260486567f7227a2520a668962c3bf`
+  (768×512, 31,248 B).
+- Незалежний visual QA: [`smart-home-scenes-visual-qa.md`](smart-home-scenes-visual-qa.md).
+
+### Prompt summary
+
+У наявній shading-сцені видалити тільки вбудовані тюль, ролети й бокові штори.
+Зберегти 1536×1024 кадр, camera/lens language, архітектуру, меблі, матеріали,
+blue hour та 2700K amber/copper. Заборонені люди, бренди, написи, UI,
+watermark; геометрія, прямі лінії й відбиття мають залишитись фізично
+правдоподібними. Інших предметів або змін композиції не додавати.
 
 ## electrical-core-three-state-scenes
 

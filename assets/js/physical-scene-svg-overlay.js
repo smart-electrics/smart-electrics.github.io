@@ -69,7 +69,9 @@ function cloneRegistry(registry) {
 function cssValue(parameter, value) {
   if (!safeParameter(parameter) || !finiteNumber(value)) return null;
   const stable = stableNumber(value);
-  return parameter === "translate_x" ? `${stable}px` : String(stable);
+  if (parameter === "translate_x" || parameter === "translate_y") return `${stable}px`;
+  if (parameter === "angle" || parameter === "slat_angle" || parameter === "view_angle") return `${stable}deg`;
+  return String(stable);
 }
 
 function validFrame(frame) {
@@ -109,6 +111,7 @@ export function createPhysicalSceneSvgPresenter(registry) {
           const css = cssValue(parameter, value);
           if (css === null) return null;
           cssProperties[`--physical-${parameter.replaceAll("_", "-")}`] = css;
+          if (parameter === "slat_angle") cssProperties["--physical-slat-face"] = String(stableNumber(0.16 + (Math.min(Math.abs(value), 45) / 45) * 0.84));
         }
         activeLayerIds.push(layerId);
         layers.push(deepFreeze({ id: layerId, cssProperties: deepFreeze(cssProperties) }));
@@ -235,6 +238,7 @@ export function createPhysicalSceneSvgOverlay(host, options = {}) {
     properties.forEach((property) => layerElement.style.removeProperty(property));
     appliedProperties.delete(layerElement);
     layerElement.removeAttribute("data-physical-scene-svg-parameters");
+    layerElement.removeAttribute("data-physical-blind-tilt");
     layerElement.setAttribute("hidden", "");
   };
   const clear = () => {
@@ -310,6 +314,12 @@ export function createPhysicalSceneSvgOverlay(host, options = {}) {
           return;
         }
         layerElement.setAttribute("data-physical-scene-svg-parameters", JSON.stringify(sourceLayer.parameters));
+        if (Object.hasOwn(sourceLayer.parameters, "slat_angle")) {
+          const slatAngle = sourceLayer.parameters.slat_angle;
+          layerElement.dataset.physicalBlindTilt = slatAngle > 1 ? "toward" : slatAngle < -1 ? "away" : "open";
+        } else {
+          layerElement.removeAttribute("data-physical-blind-tilt");
+        }
         layerElement.removeAttribute("hidden");
       });
       svg.dataset.physicalSceneSvgEnhanced = "true";

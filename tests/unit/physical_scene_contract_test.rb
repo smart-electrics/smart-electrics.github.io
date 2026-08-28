@@ -175,7 +175,7 @@ class PhysicalSceneContractTest < Minitest::Test
       layers.each do |layer|
         allowed = %w[binding bindings effect geometry id visible_when]
         assert (layer.keys - allowed).empty?, "#{id}: #{layer.fetch('id')} has unsupported SVG layer fields"
-        assert_includes %w[glow zone tulle blind curtain roller route node thermal topology coverage audio], layer.fetch("effect"), "#{id}: #{layer.fetch('id')} needs one contextual visual effect"
+        assert_includes %w[glow zone tulle blind curtain roller route node thermal topology coverage audio climate-comfort-field climate-heating-floor climate-cooling-air security-camera-body security-camera-view equipment-panel equipment-low-voltage equipment-backup audio-source audio-zone-field audio-speaker], layer.fetch("effect"), "#{id}: #{layer.fetch('id')} needs one contextual visual effect"
         assert_equal 1, [layer.key?("binding"), layer.key?("bindings")].count(true), "#{id}: #{layer.fetch('id')} needs exactly one binding or bindings"
         bindings = layer.key?("binding") ? [layer.fetch("binding")] : layer.fetch("bindings")
         refute_empty bindings, "#{id}: #{layer.fetch('id')} bindings cannot be empty"
@@ -249,5 +249,47 @@ class PhysicalSceneContractTest < Minitest::Test
     assert_equal all_layer_ids.uniq, all_layer_ids, "SVG layer IDs must be unique across the shared profile"
     blind_layers = svg_systems.flat_map { |system| system.fetch("layers") }.select { |layer| layer.fetch("effect") == "blind" }
     assert blind_layers.all? { |layer| layer.fetch("geometry").fetch("kind") == "rect" }, "blind systems must use a window-area pattern, not a single decorative line"
+
+    by_system = svg_systems.to_h { |system| [system.fetch("id"), system.fetch("layers")] }
+    %w[panel low-voltage backup-power climate].each do |id|
+      layers = by_system.fetch(id)
+      refute layers.any? { |layer| %w[line path circle].include?(layer.fetch("geometry").fetch("kind")) }, "#{id}: physical scene must not regress to abstract wires, paths, or circles"
+    end
+    %w[panel low-voltage backup-power].each do |id|
+      refute by_system.fetch(id).any? { |layer| layer.fetch("id").match?(/(?:topology|node)/) }, "#{id}: equipment layers must not use topology/node HUD vocabulary"
+    end
+
+    climate_ids = by_system.fetch("climate").map { |layer| layer.fetch("id") }
+    assert_includes climate_ids, "climate-heating-floor-field"
+    assert_includes climate_ids, "climate-cooling-air-field"
+    security_ids = by_system.fetch("security").map { |layer| layer.fetch("id") }
+    assert_includes security_ids, "security-camera-body"
+    assert_includes security_ids, "security-camera-view"
+    security_kinds = by_system.fetch("security").map { |layer| layer.fetch("geometry").fetch("kind") }
+    assert_includes security_kinds, "rect"
+    assert_includes security_kinds, "polygon"
+    refute_includes security_kinds, "ellipse", "security must not fall back to an ellipse-only HUD"
+    audio_ids = by_system.fetch("audio").map { |layer| layer.fetch("id") }
+    assert_includes audio_ids, "audio-source-field"
+    assert_includes audio_ids, "audio-zone-field"
+    assert_operator audio_ids.count { |layer_id| layer_id.start_with?("audio-speaker-") }, :>=, 2
+    audio_layers = by_system.fetch("audio")
+    audio_kinds = audio_layers.map { |layer| layer.fetch("geometry").fetch("kind") }
+    assert_includes audio_kinds, "rect"
+    assert_includes audio_kinds, "polygon"
+    assert audio_layers.select { |layer| layer.fetch("geometry").fetch("kind") == "ellipse" }
+      .all? { |layer| layer.fetch("id").start_with?("audio-speaker-") }, "audio ellipses must be exact physical speaker points"
+
+    shading = by_system.fetch("shading")
+    shading_ids = shading.map { |layer| layer.fetch("id") }
+    %w[shading-tulle-left shading-tulle-right shading-blind-slats].each { |id| assert_includes shading_ids, id }
+    tulle = shading.select { |layer| layer.fetch("id").start_with?("shading-tulle-") }
+    assert_equal 2, tulle.length, "tulle must be a pair of laterally moving panels"
+    tulle.each do |layer|
+      bindings = layer.key?("bindings") ? layer.fetch("bindings") : [layer.fetch("binding")]
+      assert_includes bindings.map { |binding| binding.fetch("parameter") }, "translate_x", "#{layer.fetch('id')}: tulle must bind translation rather than only opacity"
+    end
+    blind = shading.find { |layer| layer.fetch("id") == "shading-blind-slats" }
+    assert_equal %w[blind_lift slat_angle], blind.fetch("bindings").map { |binding| binding.fetch("control_id") }.sort, "blinds need independent lift and slat-angle controls"
   end
 end
