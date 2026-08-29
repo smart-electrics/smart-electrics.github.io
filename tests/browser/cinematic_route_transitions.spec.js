@@ -768,11 +768,15 @@ test("all rendered public routes remove inert CTA and availability chrome", asyn
 
 test("back and forward stay native and preserve the current section marker", async ({ page }) => {
   await page.goto("/services/");
-  await holdSnapshot(page);
   const navigation = await visiblePrimaryNavigation(page);
-  await navigation.getByRole("link", { name: "Готові рішення", exact: true }).click();
-  await page.locator("[data-cinematic-route-snapshot]").dispatchEvent("animationend");
+  const solutionsLink = navigation.getByRole("link", { name: "Готові рішення", exact: true });
+  await expect(solutionsLink).not.toHaveAttribute("data-cinematic-route", "");
+  await Promise.all([
+    page.waitForURL("**/solutions/"),
+    solutionsLink.click()
+  ]);
   await expect(page).toHaveURL(/\/solutions\/$/);
+  await expect(page.locator("[data-cinematic-route-snapshot]")).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(/\/services\/$/);
   const backNavigation = await visiblePrimaryNavigation(page);

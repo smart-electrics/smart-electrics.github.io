@@ -1,16 +1,16 @@
 <header class="site-header">
   <div class="site-header__inner shell">
-    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics, головна" data-cinematic-route data-cinematic-route-source="header-brand" data-cinematic-route-source-ref="header-brand">
+    <a class="brand" href="{{ '/' | relative_url }}" aria-label="Smart Electrics, головна">
       {% include brand-logo.html %}
     </a>
 
-    <nav class="desktop-nav" aria-label="Основна навігація" data-cinematic-route-source="desktop-navigation">
+    <nav class="desktop-nav" aria-label="Основна навігація">
       {% for item in site.data.navigation %}
         {% assign current_item = false %}
         {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
         {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
         {% if item.url == '/solutions/' and page.collection == 'solutions' %}{% assign current_item = true %}{% endif %}
-        <a href="{{ item.url | relative_url }}"{% if item.url != '/contact/' %} data-cinematic-route data-cinematic-route-source-ref="desktop-navigation"{% endif %}{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
+        <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
       {% endfor %}
     </nav>
 
@@ -19,13 +19,13 @@
         <span aria-hidden="true"></span>
         <span aria-hidden="true"></span>
       </summary>
-      <nav aria-label="Мобільна навігація" data-cinematic-route-source="mobile-navigation">
+      <nav aria-label="Мобільна навігація">
         {% for item in site.data.navigation %}
           {% assign current_item = false %}
           {% if page.url == item.url %}{% assign current_item = true %}{% endif %}
           {% if item.url == '/services/' and page.collection == 'services' %}{% assign current_item = true %}{% endif %}
           {% if item.url == '/solutions/' and page.collection == 'solutions' %}{% assign current_item = true %}{% endif %}
-          <a href="{{ item.url | relative_url }}"{% if item.url != '/contact/' %} data-cinematic-route data-cinematic-route-source-ref="mobile-navigation"{% endif %}{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
+          <a href="{{ item.url | relative_url }}"{% if current_item %} aria-current="page"{% endif %}>{{ item.label }}</a>
         {% endfor %}
       </nav>
     </details>

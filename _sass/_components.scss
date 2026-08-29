@@ -22,16 +22,8 @@
   display: inline-flex;
   min-height: 2.75rem;
   text-decoration: none;
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.brand:hover {
-  opacity: 0.86;
-}
-
-.brand:active {
-  opacity: 0.78;
-  transform: translateY(1px);
+  transition: filter 160ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .brand-lockup {
@@ -87,6 +79,7 @@
   letter-spacing: 0.045em;
   position: relative;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .desktop-nav a::after {
@@ -100,20 +93,6 @@
   transform-origin: left;
   transition: transform 180ms ease;
   width: 100%;
-}
-
-.desktop-nav a:hover,
-.desktop-nav a[aria-current="page"] {
-  color: var(--text);
-}
-
-.desktop-nav a:hover::after,
-.desktop-nav a[aria-current="page"]::after {
-  transform: scaleX(1);
-}
-
-.desktop-nav a:active {
-  color: var(--amber-light);
 }
 
 .mobile-nav {
@@ -133,16 +112,7 @@
   justify-content: center;
   list-style: none;
   width: 2.9rem;
-}
-
-.mobile-nav summary:hover {
-  background: var(--surface-raised);
-  border-color: var(--copper);
-}
-
-.mobile-nav summary:active {
-  background: var(--surface-raised);
-  border-color: var(--amber);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav summary::-webkit-details-marker {
@@ -183,17 +153,31 @@
   color: var(--text-soft);
   padding: 0.75rem 0.85rem;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-nav nav a:hover,
-.mobile-nav nav a[aria-current="page"] {
-  background: var(--surface-raised);
-  color: var(--text);
-}
+@media (hover: hover) {
+  .brand:hover {
+    filter: brightness(1.1);
+  }
 
-.mobile-nav nav a:active {
-  background: rgba(182, 109, 71, 0.22);
-  color: var(--amber-light);
+  .desktop-nav a:hover {
+    color: var(--text);
+  }
+
+  .desktop-nav a:hover::after {
+    transform: scaleX(1);
+  }
+
+  .mobile-nav summary:hover {
+    background: var(--surface-raised);
+    border-color: var(--copper);
+  }
+
+  .mobile-nav nav a:hover {
+    background: var(--surface-raised);
+    color: var(--text);
+  }
 }
 
 .hero {
