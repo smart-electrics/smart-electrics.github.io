@@ -374,13 +374,16 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
     const bounds = await page.locator("[data-cinematic-composition]").evaluate((composition) => {
       const panel = composition.querySelector("[data-cinematic-panel]:not([hidden])");
       const view = composition.querySelector("[data-cinematic-view]");
-      if (!panel || !view) return null;
+      const media = composition.querySelector("[data-cinematic-media]");
+      if (!panel || !view || !media) return null;
       const within = (inner, outer) =>
         inner.left >= outer.left - 0.5 && inner.right <= outer.right + 0.5 &&
         inner.top >= outer.top - 0.5 && inner.bottom <= outer.bottom + 0.5;
       const panelBounds = panel.getBoundingClientRect();
       const viewBounds = view.getBoundingClientRect();
+      const mediaBounds = media.getBoundingClientRect();
       const physicalControls = [...panel.querySelectorAll("button[data-cinematic-physical-action]")];
+      const railControls = [...composition.querySelectorAll("[data-cinematic-direction-control]")];
       const intersects = (first, second) => first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
       const wordLineCountsFor = (controls) => controls.flatMap((control) => {
         const node = [...control.childNodes].find((candidate) => candidate.nodeType === Node.TEXT_NODE);
@@ -393,8 +396,9 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
         });
       });
       const wordLineCounts = wordLineCountsFor(physicalControls);
-      const railWordLineCounts = wordLineCountsFor([...composition.querySelectorAll("[data-cinematic-direction-control]")]);
+      const railWordLineCounts = wordLineCountsFor(railControls);
       const controlBounds = physicalControls.map((control) => control.getBoundingClientRect());
+      const railBounds = railControls.map((control) => control.getBoundingClientRect());
       const inactivePanelsExcluded = [...composition.querySelectorAll("[data-cinematic-panel][hidden]")].every((inactivePanel) =>
         inactivePanel.inert && inactivePanel.getAttribute("aria-hidden") === "true"
       );
@@ -416,7 +420,10 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
         physicalWordsStayWhole: wordLineCounts.every((count) => count === 1),
         railWordsStayWhole: railWordLineCounts.every((count) => count === 1),
         inactivePanelsExcluded,
-        railControlsDoNotOverlap: [...composition.querySelectorAll("[data-cinematic-direction-control]")].map((control) => control.getBoundingClientRect()).every((bounds, index, controls) => controls.slice(index + 1).every((other) => !intersects(bounds, other)))
+        railControlsDoNotOverlap: railBounds.every((bounds, index) => railBounds.slice(index + 1).every((other) => !intersects(bounds, other))),
+        railControlsAvoidVisualization: railBounds.every((bounds) =>
+          [viewBounds, mediaBounds, panelBounds].every((visualBounds) => !intersects(bounds, visualBounds))
+        )
       };
     });
     expect(bounds?.panelInView).toBe(true);
@@ -428,6 +435,7 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
     expect(bounds?.railWordsStayWhole, bounds?.state).toBe(true);
     expect(bounds?.inactivePanelsExcluded, bounds?.state).toBe(true);
     expect(bounds?.railControlsDoNotOverlap, bounds?.state).toBe(true);
+    expect(bounds?.railControlsAvoidVisualization, bounds?.state).toBe(true);
   };
 
   for (const width of [375, 768, 900, 1024, 1153, 1180, 1200, 1240, 1280, 1300, 1440, 1980]) {

@@ -85,6 +85,22 @@ async function expectContextualPhysicalSvg(host, systemId, effect) {
   expect(hiddenContexts, `${systemId} must be the only visualized physical context`).toBe(true);
 }
 
+async function expectFixtureLocalLightFields(host, systemId) {
+  const activeSystem = host.locator(`[data-physical-scene-svg-system="${systemId}"]:not([hidden])`);
+  const visibleFields = activeSystem.locator("[data-physical-scene-svg-layer]:not([hidden])");
+  await expect(visibleFields).not.toHaveCount(0);
+  expect(await visibleFields.evaluateAll((layers) => layers.every((layer) => {
+    const shape = layer.querySelector("[data-physical-scene-svg-shape]");
+    return layer.dataset.physicalSceneSvgEffect === "glow"
+      && ["circle", "ellipse"].includes(shape?.dataset.physicalSceneSvgShape);
+  }))).toBe(true);
+  await expect(activeSystem.locator([
+    '[data-physical-scene-svg-shape="path"]',
+    '[data-physical-scene-svg-shape="line"]',
+    '[data-physical-scene-svg-shape="polyline"]'
+  ].join(", "))).toHaveCount(0);
+}
+
 async function focusSceneSignature(stage) {
   return stage.locator("[data-cinematic-focus-scene]:visible img").evaluate(async (image) => {
     await image.decode();
@@ -245,7 +261,8 @@ test("stair and exterior relations use the same physical layer to swap their own
     await stairControls.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "stairs:stair_lighting=route");
     await expect(stage.locator("[data-cinematic-live]")).toHaveText("Підсвітка сходів: Маршрут сходами.");
-    await expectContextualPhysicalSvg(layer, "stairs", "route");
+    await expectContextualPhysicalSvg(layer, "stairs", "glow");
+    await expectFixtureLocalLightFields(layer, "stairs");
     const stairsRoute = await physicalSignature(stage);
     await expectPhysicalSceneMirror(stage);
     expect(stairsRoute.src).toMatch(/stairs-route-(768|1536)\.webp$/);
@@ -265,7 +282,8 @@ test("stair and exterior relations use the same physical layer to swap their own
     await exteriorControls.getByRole("button", { name: "Нічне зниження", exact: true }).click();
     await expect(stage.locator("[data-cinematic-physical-picture]")).toHaveAttribute("data-cinematic-physical-picture", "exterior:exterior_lighting=reduced-night");
     await expect(stage.locator("[data-cinematic-live]")).toHaveText("Зовнішнє освітлення: Нічне зниження.");
-    await expectContextualPhysicalSvg(layer, "exterior", "route");
+    await expectContextualPhysicalSvg(layer, "exterior", "glow");
+    await expectFixtureLocalLightFields(layer, "exterior");
     const exteriorReduced = await physicalSignature(stage);
     await expectPhysicalSceneMirror(stage);
     expect(exteriorReduced.src).toMatch(/exterior-reduced-night-(768|1536)\.webp$/);
