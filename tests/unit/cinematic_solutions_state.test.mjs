@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createCinematicSolutionsState } from "../../assets/js/cinematic-solutions-state.js";
+import {
+  createCinematicSolutionsHandoff,
+  createCinematicSolutionsState
+} from "../../assets/js/cinematic-solutions-state.js";
 
 const graph = {
   directions: [
@@ -37,8 +40,25 @@ const mapping = {
   }
 };
 
+const scenes = {
+  apartment: { focus_direction_id: "smart-home-integration" },
+  autonomy: { focus_direction_id: "backup-power" }
+};
+
+test("latest decode handoff owns the eventual physical scene", () => {
+  const handoff = createCinematicSolutionsHandoff();
+  const first = handoff.begin();
+  assert.equal(handoff.isCurrent(first), true);
+
+  const second = handoff.begin();
+  assert.equal(handoff.isCurrent(first), false);
+  assert.equal(handoff.isCurrent(second), true);
+  assert.equal(handoff.isCurrent(0), false);
+  assert.equal(handoff.isCurrent("2"), false);
+});
+
 test("keeps an immutable selected solution through assembled, focus, and reassembled states", () => {
-  const atlas = createCinematicSolutionsState(graph, mapping);
+  const atlas = createCinematicSolutionsState(graph, mapping, scenes);
 
   assert.deepEqual(atlas.initialState, {
     state: "assembled",
@@ -55,7 +75,7 @@ test("keeps an immutable selected solution through assembled, focus, and reassem
     state: "focus",
     selectedSolutionId: "apartment",
     selectedDirectionIds: ["electrical-design", "lighting", "smart-home-integration"],
-    selectedDirectionId: "electrical-design",
+    selectedDirectionId: "smart-home-integration",
     selectedRelationId: null
   });
 
@@ -70,18 +90,21 @@ test("keeps an immutable selected solution through assembled, focus, and reassem
   assert.deepEqual(atlas.reduce(focused, { type: "select-assembled" }), atlas.initialState);
 });
 
-test("selecting a solution deterministically focuses that solution and its canonical relation", () => {
-  const atlas = createCinematicSolutionsState(graph, mapping);
+test("selecting a solution returns to its assembled spatial overview", () => {
+  const atlas = createCinematicSolutionsState(graph, mapping, scenes);
   const selected = atlas.reduce(atlas.initialState, { type: "select-solution", solutionId: "autonomy" });
 
   assert.deepEqual(selected, {
-    state: "focus",
+    state: "assembled",
     selectedSolutionId: "autonomy",
     selectedDirectionIds: ["backup-power", "electrical-design"],
-    selectedDirectionId: "backup-power",
+    selectedDirectionId: null,
     selectedRelationId: null
   });
-  assert.deepEqual(atlas.reduce(selected, { type: "select-reassembled" }), {
+  assert.strictEqual(atlas.reduce(selected, { type: "select-solution", solutionId: "autonomy" }), selected);
+  const focused = atlas.reduce(selected, { type: "select-focus" });
+  assert.equal(focused.selectedDirectionId, "backup-power");
+  assert.deepEqual(atlas.reduce(focused, { type: "select-reassembled" }), {
     state: "reassembled",
     selectedSolutionId: "autonomy",
     selectedDirectionIds: ["backup-power", "electrical-design"],
@@ -102,12 +125,14 @@ test("rejects malformed topology, unknown relations, and a relation outside the 
   ];
 
   for (const invalidMapping of invalidMappings) {
-    assert.throws(() => createCinematicSolutionsState(graph, invalidMapping), TypeError);
+    assert.throws(() => createCinematicSolutionsState(graph, invalidMapping, scenes), TypeError);
   }
+  assert.throws(() => createCinematicSolutionsState(graph, mapping, { apartment: { focus_direction_id: "smart-home-integration" } }), TypeError);
+  assert.throws(() => createCinematicSolutionsState(graph, mapping, { ...scenes, apartment: { focus_direction_id: "backup-power" } }), TypeError);
 });
 
 test("fails closed for malformed prior state and leaves unknown actions inert", () => {
-  const atlas = createCinematicSolutionsState(graph, mapping);
+  const atlas = createCinematicSolutionsState(graph, mapping, scenes);
   const focused = atlas.reduce(atlas.initialState, { type: "select-focus" });
 
   for (const malformedState of [null, {}, { state: "focus" }, { ...focused, selectedSolutionId: "unknown" }]) {
@@ -120,9 +145,11 @@ test("fails closed for malformed prior state and leaves unknown actions inert", 
 
 test("does not change when its source mapping is mutated after construction", () => {
   const source = structuredClone(mapping);
-  const atlas = createCinematicSolutionsState(graph, source);
+  const sceneSource = structuredClone(scenes);
+  const atlas = createCinematicSolutionsState(graph, source, sceneSource);
   source.apartment.direction_ids[0] = "backup-power";
   source.apartment.relation_id = "backup-power--backup";
+  sceneSource.apartment.focus_direction_id = "electrical-design";
 
   assert.deepEqual(atlas.reduce(atlas.initialState, { type: "select-reassembled" }), {
     state: "reassembled",

@@ -11,23 +11,23 @@ import {
 const failures = [];
 const AUDITED_PLAYWRIGHT_CONFIG_SHA256 =
   "de1f2bf0cc7c97df5093b47d05bd9b2438260345211c71109d5f96fb4e116203";
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 700;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 705;
 const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
-  "aa282605191e7e3415d621c690a46bfc93a9a89ff80ec22cbe29b23df62a05be";
+  "034ca2ebfd9622a5dfa973a2af86e0203d53bc157497f14e95c2152abbd0cc65";
 const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
-  ["run_node_tests.js", "5eeda7311ca7dd62e4f20d8b5070fb49e4d8d6bb342703a75e0865cf02027e35"],
-  ["run_ruby_test.rb", "896e42a46b013b6130bfdea6ea76679ecd0bc046c6f057f105ec32e3f1764ef4"],
+  ["run_node_tests.js", "c2dd2997b18ef0aba2cdcd4f6bd0702d1d268e8dcf14805e338c7c226bb4fc0c"],
+  ["run_ruby_test.rb", "e3d12a684e6ccb63d308bd6e3144945c103a8763baad91e9f4c1ce88ac65a72c"],
   ["verify_agent_skills.rb", "37095cc3690e974f688b79d427ceadc4f69554acac5d666514c37affaad440fc"],
   ["validate_integrations.rb", "4d61fda2e1a474a0f3aaef69c1f033f7d018e87374a286fc25fc6881eaf4d531"],
-  ["validate_production_assets.rb", "e89bfee3f0cd2d53776a79309703067086815ed7f233ce36572415e72e043686"],
+  ["validate_production_assets.rb", "6a53866b854595466e06787c3cb90d8ca01dccfe4d138d55dc181c661594a557"],
   ["validate_public_claims.rb", "cf010d16e52cd59c834e7026c49075a5322c2a7bfc71486dab22b44aeae151f7"],
   ["validate_route_content.rb", "1c72487fbf0c8c4f62003940098ce20c318662ebff48bfa515fe11d2adbb20ef"],
   ["validate_services.rb", "584e1519f206b21dd38c5d5c37f597f86e6102e0407bea5783ea93fed419eafe"],
   ["validate_service_studios.rb", "e61b4550e4e7f18a11c8b3725e0626846b19ac36f512894e51adf857189ab1e5"],
   ["validate_solutions.rb", "73477f110ed266c9d93a2d9e783c0977195ba8a64ace5b43e04f7476ef7c7004"],
-  ["validate_cinematic_solutions.rb", "08e5c597a27cd704eef4934bbd03e717d746a7dd7ebacb338ca82d375cffc072"],
+  ["validate_cinematic_solutions.rb", "3fa41b3119759068186cacb885e0a0eb0d04fb8678c951c2920f6d01a5b74593"],
   ["validate_smart_home.rb", "903ce91e47cbd65aa94273acee631a8eff602a551c62c3c5154877899b322c20"],
   ["validate_cinematic_system.rb", "3995adcb2aad9ecb195e4f41a91b87652236b1637f79420bd1e02ee9ee7404dd"],
   ["validate_physical_scene_states.rb", "40f44d148b0883ed0b12ed2dc114db362002bb0d0c25d3329824482ba74630dd"],
@@ -89,7 +89,7 @@ if (
   EXPECTED_PLAYWRIGHT_CONFIG_SHA256 !== AUDITED_PLAYWRIGHT_CONFIG_SHA256 ||
   EXPECTED_PLAYWRIGHT_TEST_COUNT !== AUDITED_PLAYWRIGHT_TEST_COUNT
 ) {
-  failures.push("Playwright digest and 700-test contract must match the independent policy literal.");
+  failures.push("Playwright digest and 705-test contract must match the independent policy literal.");
 }
 const playwrightRunnerDigest = createHash("sha256")
   .update(playwrightRunnerSource)

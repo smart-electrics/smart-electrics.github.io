@@ -1133,6 +1133,15 @@ async function transitSolution(page, route) {
   await expect(root).toHaveAttribute("data-cinematic-solutions-enhanced", "true");
   await waitForIdle(root, "data-cinematic-solutions-motion-phase");
   await expect(root).toHaveAttribute("data-cinematic-solutions-state", "assembled");
+  const stateLabels = ["Простір", "Ключова система", "Сценарій простору"];
+  for (const label of stateLabels) await expect(stage.getByRole("button", { name: label, exact: true })).toHaveCount(1);
+  await expect(stage.locator("[data-cinematic-solutions-connector], [data-cinematic-solutions-outgoing-snapshot]")).toHaveCount(0);
+  const selectedSolutionId = await root.getAttribute("data-cinematic-solutions-selected-solution-id");
+  const sceneSources = await stage.locator(`[data-cinematic-solutions-scene][data-cinematic-solutions-solution-id="${selectedSolutionId}"] img`).evaluateAll((images) =>
+    images.map((image) => image.getAttribute("src"))
+  );
+  expect(sceneSources, route + " retains a physical scene for each solution state").toHaveLength(3);
+  expect(new Set(sceneSources).size, route + " does not fake state with overlays on a shared scene").toBe(3);
   await inspectCompositionState(page, root, "[data-cinematic-solutions-scene]", "[data-cinematic-solutions-panel]", route + " assembled");
   const focus = stage.locator('button[data-cinematic-solutions-action="select-focus"]');
   await expectFocusVisible(focus);
@@ -1144,6 +1153,12 @@ async function transitSolution(page, route) {
   await expect(root).toHaveAttribute("data-cinematic-solutions-state", "reassembled");
   await waitForIdle(root, "data-cinematic-solutions-motion-phase");
   await inspectCompositionState(page, root, "[data-cinematic-solutions-scene]", "[data-cinematic-solutions-panel]", route + " reassembled");
+  if (route === "/solutions/") {
+    const alternateSolution = stage.locator("button[data-cinematic-solutions-solution-control]").nth(1);
+    await alternateSolution.click();
+    await expect(root).toHaveAttribute("data-cinematic-solutions-state", "assembled");
+    await expect(stage.getByRole("button", { name: "Простір", exact: true })).toHaveAttribute("aria-pressed", "true");
+  }
   return root;
 }
 
@@ -1685,7 +1700,7 @@ test("every stateful composition reaches assembled, focus, and reassembled with 
     }
 
     expect(completed).toHaveLength(2 + serviceStudioRoutes.length + solutionRoutes.length + 2);
-    expect(completed.every(({ state }) => state === "reassembled")).toBe(true);
+    expect(completed.every(({ route, state }) => route === "/solutions/" ? state === "assembled" : state === "reassembled")).toBe(true);
     writeEvidence("composition-states.json", completed);
   });
 });

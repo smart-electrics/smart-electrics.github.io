@@ -582,3 +582,111 @@ Make one precise architectural edit to this ultra-photorealistic luxury entrance
 ```text
 Create a new ultra-photorealistic luxury commercial interior photograph for the Smart Electrics website ready-solutions atlas. Scene: an empty premium boutique showroom and client lounge after hours, viewed in a wide three-quarter architectural composition. Show three clearly legible functional lighting zones in one continuous space: a restrained reception counter in pale limestone, a central product-display gallery with precise ceiling spotlights, and a quieter consultation lounge behind smoked-glass partitions. Materials: charcoal microcement, pale honed stone, smoked glass, dark brushed metal, muted deep-green upholstery, natural oak used sparingly. Lighting: sophisticated layered 2700K–3500K architectural lighting, realistic indirect coves, track spots, soft under-counter illumination, subtle dusk ambient light through tall glazing. The electrical automation should be implied by coordinated zonal lighting only, with no futuristic holograms and no visible interfaces. Make it feel actually built, professionally photographed with a full-frame camera, physically plausible structure, accurate reflections, realistic exposure, crisp detail, restrained color grade, no orange cast. Landscape 3:2 composition, 1536x1024, important architectural elements and visual focal point kept safely within the center 70% so both 16:10 and 4:5 crops work. No people, no silhouettes, no mannequins, no faces, no text, no letters, no numbers, no logos, no brands, no signage, no readable screens, no watermarks, no decorative fake glyphs, no surreal geometry, no duplicated fixtures, no distorted furniture, no AI-art look.
 ```
+
+## Ready solutions state scenes
+
+- Дата: 2026-08-29
+- Інструмент: вбудований OpenAI image generation tool
+- Use case: `photorealistic-natural`
+- Призначення: окремі фізичні кадри для станів «Ключова система» та
+  «Сценарій простору» на `/solutions/`; шість перевірених overview-кадрів
+  залишаються станом «Простір».
+- Публічне твердження: візуальні концепції готових до адаптації
+  конфігурацій, не підтверджені клієнтські кейси.
+- Responsive-пари: 1536×1024 px і 768×512 px; обидві версії кожного
+  кадру походять з одного selected source.
+- Перетворення: WebP без метаданих через `cwebp`; quality 84 для 1536 і
+  quality 82 для 768.
+- Visual QA: `docs/media/ready-solutions-state-scenes-visual-qa.md`.
+
+### Selected sources і reference anchors
+
+| Сцена | Generated source | Reference anchors |
+| --- | --- | --- |
+| apartment-comfort-focus | `exec-d4e7e285-7756-4e70-97e9-8baddca8a2fa.png` | `apartment-comfort-1536.webp` |
+| apartment-comfort-scenario | `exec-e621b32a-120b-4464-9f94-29fd82a4ec38.png` | overview + selected focus source |
+| private-house-focus | `exec-f5d15a36-bec2-47ad-b228-725cae6f692c.png` | `private-house-1536.webp` |
+| private-house-scenario | `exec-330aedb8-5150-4500-8cc3-6a06056249b9.png` | overview + selected focus source |
+| architectural-lighting-focus | `exec-84ed01ec-076c-494d-b986-e01c0a20f8be.png` | `architectural-lighting-1536.webp` |
+| architectural-lighting-scenario | `exec-3e35cceb-01fd-478c-8963-686441e48ce1.png` | overview + selected focus source |
+| energy-autonomy-focus | `exec-916d9f0d-96fc-4441-b000-f2a65505290e.png` | `energy-autonomy-1536.webp` |
+| energy-autonomy-scenario | `exec-905db127-abfa-4875-bb74-446530eb5123.png` | `energy-autonomy-1536.webp` |
+| security-access-focus | `exec-b0eeedf8-dfa3-4cb6-994c-1ccf8fc1a8ec.png` | `security-access-1536.webp` |
+| security-access-scenario | `exec-0c06d435-5c43-4a7a-9afd-8bdbb56956f1.png` | overview + selected focus source |
+| commercial-space-focus | `exec-83f907b7-034f-4495-94f9-28072bbb9ac8.png` | `commercial-space-1536.webp` |
+| commercial-space-scenario | `exec-841c3fc7-50f8-4b93-a55e-db82aada400f.png` | `commercial-space-1536.webp` |
+
+`exec-80c24d07-391f-45b2-a38a-5b1d5e700095.png` відхилено: внутрішня
+геометрія відкритого transfer cabinet була недостатньо переконливою. Цей
+source не використовується у production assets.
+
+### SHA-256
+
+- apartment-comfort-focus: `bd24b2a790ad95fe8716fd5b8c1fa546e33657f410bf780eff0fc52e0b3d2bff`
+  (768), `f36408c67f73410d2d7bbf793f0ce2048bbad751d4d0282c3fdb59cfd3ad7101`
+  (1536)
+- apartment-comfort-scenario: `75335a957e29a6c3f290db37e667369d632a356ffc0c20659f61e8391723c408`
+  (768), `902ab1e63364f284fd321fb4f219d7f9bd49f5dd509467acd8ee61a1628fb166`
+  (1536)
+- private-house-focus: `d60746ff9f8a55736966d556b5214c340e960da5a139a748c4191f49f189bb5a`
+  (768), `951a70845ae68f8b070de1f8a16bf0c206a269799d6978c42f4f14e04af5fb11`
+  (1536)
+- private-house-scenario: `75cec55f00d2a93122a55456fb4f224ec8c0f3e9297e8aa0bb95fa865b3fd2e0`
+  (768), `f962d286bc7ca17821835a67c940d3a8516d73165174f8d4c32d3f8e8ea6b742`
+  (1536)
+- architectural-lighting-focus: `614269be398807aac0602106b97dd471dd181fd574ada4fc64d61f69c6b863e4`
+  (768), `6f29ed45b0e3d546b353c660f6c01eb1c1dfe60f1d8196f4adccaf5fcda7dbdc`
+  (1536)
+- architectural-lighting-scenario: `de5046e59eb0631d2a8294e6273238282e7d1524a079b938b18e5546ce03dbc4`
+  (768), `4bb4dae472cd374308ab1e252d967fa3cf67861ecb9c7ef76f657a2ef6fa9519`
+  (1536)
+- energy-autonomy-focus: `c493efee4eeec33b5053c750a8c49c2380830d3d65be541438ea23f27a309a41`
+  (768), `db052806bd0114e07aebafc1d660671469e494450411e7c51a103d6304ec37d4`
+  (1536)
+- energy-autonomy-scenario: `7e8dd4935709e2e0c115ecd6cc9a27cff2632f8cc9bfc3104bb4e95f0f0ec302`
+  (768), `35eecc9e1356587fd3e7df4d29913963de089ef8e08c06cdb43acb7a37c941ba`
+  (1536)
+- security-access-focus: `3aa860f866ad64453e9c96b617cbce2d314c483641c074b21f2a2fe45a6f15e4`
+  (768), `18953f7802e19da3b9af5568f654f5e456f79fd6af171503d32ed02d2959cdb0`
+  (1536)
+- security-access-scenario: `d1e284a72f80b0ab4378e752a262619a4f006fad4675f11faa2b377a6089e7cb`
+  (768), `88face440108d22774613fa38e0c6b0ae6620617216aa6a15138a2577f3fdc85`
+  (1536)
+- commercial-space-focus: `1b679135b0dcb483f174a7526893ab896450b3337ba1c3903fd4d79d258b6fb1`
+  (768), `e3cdf3e0e4897bfd4d874aba2cde44097257b641995b7afa96359203ef9ad6bc`
+  (1536)
+- commercial-space-scenario: `3b71af27e27a90dc20e919785d02a8e78364a6759442f2e51c380aa01b187483`
+  (768), `ece2664fa9d537f63f1f4c929734c010a7c42755fc03dd540bdde1a9a781a411`
+  (1536)
+
+### Prompt set
+
+Спільний prompt contract для всіх дванадцяти генерацій:
+
+```text
+Use case: photorealistic-natural
+Asset type: /solutions/ key-system or scenario scene, 3:2 landscape
+Style/medium: ultra-realistic premium architectural or engineering photography, physically plausible built detail, restrained editorial luxury
+Composition/framing: rectilinear 24–28mm lens, eye level, center 70% crop-safe for 4:5 mobile
+Lighting/mood: blue hour where an exterior is naturally visible; restrained 2700K amber/copper practical light; balanced exposure; no orange wash
+Materials/textures: dark walnut, warm limestone/travertine, smoked glass, graphite metal and brushed bronze or steel appropriate to the scene
+Constraints: use the referenced overview as residence, material, camera and grade anchor; no people, silhouettes, pets, brands, logos, text, numbers, screens, embedded UI, floating graphics, decorative lines/circles, duplicated fixtures, impossible wiring or geometry, watermark
+Avoid: generic CGI, sci-fi automation, overbloom, warped architecture, random cables, repeated objects and visible AI artifacts
+```
+
+Варіантні `Primary request` / `Subject` рядки:
+
+| Сцена | Primary request / Subject |
+| --- | --- |
+| apartment-comfort-focus | Та сама квартира; фізична віконна автоматика, concealed tracks, тюль/штори та багаторівневе світло. |
+| apartment-comfort-scenario | Вечірній маршрут від входу до вітальні; частково закритий тюль, guide/cove/living light без UI. |
+| private-house-focus | Технічна зона того самого будинку; реалістичний DIN-rail щит, закриті automation/reserve cabinets і впорядковані траси. |
+| private-house-scenario | Єдиний arrival route через вхід, сходи, житлову зону й терасу з узгодженим 2700K світлом. |
+| architectural-lighting-focus | Деталь тих самих сходів: step lights, concealed handrail light і wall wash з фізично правильними тінями. |
+| architectural-lighting-scenario | Повний маршрут від нижнього холу до верхньої галереї з послідовністю світлових шарів. |
+| energy-autonomy-focus | Закриті reserve modules, transfer enclosure з mechanical disconnect та distribution cabinet; паралельні conduit runs. |
+| energy-autonomy-scenario | Вид із коридору в технічну зону; тільки вибрані essential guide/step groups активні. |
+| security-access-focus | Той самий вхід; один reader, одна soffit camera, concealed door contact і guide light. |
+| security-access-scenario | Нічний landscaped approach до входу з path/entrance lighting і дискретними access/CCTV points. |
+| commercial-space-focus | Три фізичні групи світла: display track, reception cove/wall wash і consultation ambient. |
+| commercial-space-scenario | After-hours state: основні групи вимкнені, лишаються entrance guide, low reception cove і security-route light. |

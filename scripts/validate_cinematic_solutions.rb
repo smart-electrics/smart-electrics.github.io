@@ -9,7 +9,7 @@ module CinematicSolutionsContract
   module_function
 
   CANONICAL_SLUGS = SolutionContract::CANONICAL_SLUGS.freeze
-  CANONICAL_MAPPING_FINGERPRINT = "6c46d53a"
+  CANONICAL_MAPPING_FINGERPRINT = "7cab69fc"
   ENTRY_FIELDS = %w[direction_ids relation_id].freeze
   TOPOLOGY_FIELDS = %w[cinematic_solution cinematic_solutions cinematic_solution_relation_id direction_ids relation_id].freeze
   COPY_FIELDS = %w[title kicker description audience focus image_alt systems inputs scenarios].freeze

@@ -1,6 +1,6 @@
 // An opaque integrity value for the data-owned #29 mapping. It intentionally
 // carries no routes, relations, or direction topology of its own.
-export const CANONICAL_CINEMATIC_SOLUTIONS_FINGERPRINT = "6c46d53a";
+export const CANONICAL_CINEMATIC_SOLUTIONS_FINGERPRINT = "7cab69fc";
 
 const isId = (value) => typeof value === "string" && value.trim().length > 0;
 

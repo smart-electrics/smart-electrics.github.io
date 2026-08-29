@@ -1,6 +1,7 @@
-import { createCinematicSolutionsState } from "./cinematic-solutions-state.js";
-import { createCinematicMotion } from "./cinematic-motion.js";
-import { positionCinematicRelationshipConnector } from "./cinematic-relationship-connector.js";
+import {
+  createCinematicSolutionsHandoff,
+  createCinematicSolutionsState
+} from "./cinematic-solutions-state.js";
 import {
   CANONICAL_CINEMATIC_SOLUTIONS_FINGERPRINT,
   cinematicSolutionsFingerprint
@@ -12,9 +13,13 @@ const STATE_ACTIONS = {
   focus: "select-focus",
   reassembled: "select-reassembled"
 };
+const STATE_FIELDS = ["alt", "image", "image_focus", "label", "summary", "title"];
 const isId = (value) => typeof value === "string" && value.trim().length > 0;
 const isServiceSlug = (value) => typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+const isImageBase = (value) => typeof value === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
+const isImageFocus = (value) => typeof value === "string" && /^(?:100|[1-9]?\d)%\s+(?:100|[1-9]?\d)%$/.test(value);
 const sameIds = (left, right) => Array.isArray(left) && left.length === right.length && left.every((id, index) => id === right[index]);
+const hasFields = (value, fields) => value !== null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).sort().join("|") === [...fields].sort().join("|");
 
 const one = (root, selector) => {
   const matches = root.querySelectorAll(selector);
@@ -33,10 +38,7 @@ function readJson(root, attribute) {
 
 function validConfig(config, mode, selectedSolutionId) {
   if (
-    config === null ||
-    typeof config !== "object" ||
-    Array.isArray(config) ||
-    Object.keys(config).sort().join("|") !== "mapping_ids|mode|selected_solution_id|solution_ids" ||
+    !hasFields(config, ["mapping_ids", "mode", "selected_solution_id", "solution_ids"]) ||
     config.mode !== mode ||
     !Array.isArray(config.mapping_ids) ||
     config.mapping_ids.length !== 6 ||
@@ -79,10 +81,7 @@ function validMapping(graph, mapping, mappingIds) {
   for (const solutionId of mappingIds) {
     const entry = mapping[solutionId];
     if (
-      entry === null ||
-      typeof entry !== "object" ||
-      Array.isArray(entry) ||
-      Object.keys(entry).sort().join("|") !== "direction_ids|relation_id" ||
+      !hasFields(entry, ["direction_ids", "relation_id"]) ||
       !Array.isArray(entry.direction_ids) ||
       entry.direction_ids.length === 0 ||
       !entry.direction_ids.every(isId) ||
@@ -95,6 +94,19 @@ function validMapping(graph, mapping, mappingIds) {
   }
   if (cinematicSolutionsFingerprint(mapping, mappingIds) !== CANONICAL_CINEMATIC_SOLUTIONS_FINGERPRINT) return null;
   return relationsById;
+}
+
+function validScenes(sceneMapping, mapping, mappingIds) {
+  if (!hasFields(sceneMapping, mappingIds)) return null;
+  for (const solutionId of mappingIds) {
+    const scene = sceneMapping[solutionId];
+    if (!hasFields(scene, ["focus_direction_id", "states"]) || !isId(scene.focus_direction_id) || !mapping[solutionId].direction_ids.includes(scene.focus_direction_id) || !hasFields(scene.states, STATE_IDS)) return null;
+    for (const stateId of STATE_IDS) {
+      const state = scene.states[stateId];
+      if (!hasFields(state, STATE_FIELDS) || ![state.alt, state.label, state.summary, state.title].every(isId) || !isImageBase(state.image) || !isImageFocus(state.image_focus)) return null;
+    }
+  }
+  return sceneMapping;
 }
 
 function exactControls(stage, solutionIds, mode) {
@@ -118,26 +130,25 @@ function exactControls(stage, solutionIds, mode) {
     : null;
 }
 
-function exactVisuals(stage, fallback, solutionIds, mapping, graph, relationsById) {
-  const scenes = [...stage.querySelectorAll("[data-cinematic-solutions-scene]")];
-  const panels = [...stage.querySelectorAll("[data-cinematic-solutions-panel]")];
+function exactVisuals(stage, fallback, solutionIds, mapping, scenes, graph, relationsById) {
+  const visuals = (attribute) => [...stage.querySelectorAll(`[data-cinematic-solutions-${attribute}]`)];
+  const sceneElements = visuals("scene");
+  const panels = visuals("panel");
   const expectedCount = solutionIds.length * STATE_IDS.length;
   const exact = (elements, stateAttribute) => elements.length === expectedCount && solutionIds.every((solutionId) =>
     STATE_IDS.every((stateId) => elements.filter((element) =>
       element.dataset[stateAttribute] === stateId &&
       element.dataset.cinematicSolutionsSolutionId === solutionId &&
       element.dataset.cinematicSolutionsRelationId === mapping[solutionId].relation_id &&
-      element.dataset.cinematicSolutionsDirectionIds === mapping[solutionId].direction_ids.join("|")
+      element.dataset.cinematicSolutionsDirectionIds === mapping[solutionId].direction_ids.join("|") &&
+      element.dataset.cinematicSolutionsFocusDirectionId === scenes[solutionId].focus_direction_id
     ).length === 1)
   );
-  const readableScene = scenes.every((scene) => scene.querySelectorAll("picture").length === 1 && scene.querySelectorAll("img").length === 1);
   const directionsById = new Map(graph.directions.map((direction) => [direction.id, direction]));
   const linkHrefs = (element) => [...element.querySelectorAll("a[href]")].map((link) => link.getAttribute("href"));
   const fallbackLinks = (solutionId, suffix) => {
-    const fallbackItems = fallback.querySelectorAll(`[id="solution-${solutionId}"]`);
-    const groups = fallbackItems.length === 1
-      ? fallbackItems[0].querySelectorAll(`[aria-labelledby="solution-${solutionId}-${suffix}"]`)
-      : [];
+    const items = fallback.querySelectorAll(`#solution-${solutionId}`);
+    const groups = items.length === 1 ? items[0].querySelectorAll(`[aria-labelledby="solution-${solutionId}-${suffix}"]`) : [];
     return groups.length === 1 ? linkHrefs(groups[0]) : null;
   };
   const fallbackSolutionLinks = new Map(solutionIds.map((solutionId) => [solutionId, fallbackLinks(solutionId, "solutions")]));
@@ -149,57 +160,60 @@ function exactVisuals(stage, fallback, solutionIds, mapping, graph, relationsByI
       return isServiceSlug(serviceSlug) ? `/services/${serviceSlug}/` : null;
     })
   ]));
-  const readablePanel = panels.every((panel) => {
-    const summary = panel.querySelectorAll("[data-cinematic-solutions-summary]");
-    const stateId = panel.dataset.cinematicSolutionsPanel;
-    const relation = relationsById.get(panel.dataset.cinematicSolutionsRelationId);
-    const related = [...panel.querySelectorAll("[data-cinematic-solutions-related] a[href]")];
-    if (summary.length !== 1 || !summary[0].textContent.trim() || related.length === 0 || related.some((link) => !link.getAttribute("href")?.startsWith("/"))) return false;
-    if (stateId !== "reassembled") {
-      const relatedLists = panel.querySelectorAll("[data-cinematic-solutions-related]");
-      const expectedLinks = stateId === "assembled"
-        ? fallbackSolutionLinks.get(panel.dataset.cinematicSolutionsSolutionId)
-        : focusServiceLinks.get(panel.dataset.cinematicSolutionsSolutionId);
-      const expectedFallbackServices = fallbackServiceLinks.get(panel.dataset.cinematicSolutionsSolutionId);
-      return panel.querySelectorAll("[data-cinematic-solutions-relation-label], [data-cinematic-solutions-service-links], [data-cinematic-solutions-solution-links]").length === 0 &&
-        relatedLists.length === 1 &&
-        Array.isArray(expectedLinks) &&
-        expectedLinks.length > 0 &&
-        expectedLinks.every(Boolean) &&
-        (stateId !== "focus" || sameIds(expectedLinks, expectedFallbackServices)) &&
-        sameIds(linkHrefs(relatedLists[0]), expectedLinks);
-    }
-
-    const label = panel.querySelectorAll("[data-cinematic-solutions-relation-label]");
-    const serviceGroups = panel.querySelectorAll("section[data-cinematic-solutions-service-links]");
-    const solutionGroups = panel.querySelectorAll("section[data-cinematic-solutions-solution-links]");
-    const expectedSolutions = fallbackSolutionLinks.get(panel.dataset.cinematicSolutionsSolutionId);
-    const expectedServices = relation && Array.isArray(relation.related_direction_ids)
-      ? [relation.direction_id, ...relation.related_direction_ids].map((directionId) => directionsById.get(directionId)?.service_slug).map((serviceSlug) => serviceSlug ? `/services/${serviceSlug}/` : null)
-      : null;
-    const readableGroup = (groups, heading, expectedLinks = null) => groups.length === 1 &&
-      groups[0].querySelectorAll("h4").length === 1 &&
-      groups[0].querySelector("h4")?.textContent.trim() === heading &&
-      groups[0].querySelectorAll("ul[data-cinematic-solutions-related]").length === 1 &&
-      linkHrefs(groups[0]).length > 0 &&
-      linkHrefs(groups[0]).every((href) => href?.startsWith("/")) &&
-      (expectedLinks === null || sameIds(linkHrefs(groups[0]), expectedLinks));
-    return relation &&
-      typeof relation.child?.label === "string" &&
-      typeof relation.child?.description === "string" &&
-      label.length === 1 &&
-      label[0].textContent.trim() === relation.child.label &&
-      summary[0].textContent.trim() === relation.child.description &&
-      expectedServices?.every(Boolean) &&
-      Array.isArray(expectedSolutions) &&
-      expectedSolutions.length > 0 &&
-      panel.querySelectorAll("[data-cinematic-solutions-related]").length === 2 &&
-      readableGroup(serviceGroups, "Пов’язані послуги", expectedServices) &&
-      readableGroup(solutionGroups, "Пов’язані готові рішення", expectedSolutions);
+  const readableScenes = sceneElements.every((scene) => {
+    const state = scenes[scene.dataset.cinematicSolutionsSolutionId]?.states[scene.dataset.cinematicSolutionsScene];
+    const picture = one(scene, "picture");
+    const sources = picture ? [...picture.querySelectorAll("source")] : [];
+    const image = picture ? one(picture, "img") : null;
+    const basePath = state ? `/assets/images/solutions/${state.image}` : null;
+    return state && picture && image && sources.length === 2 && image.alt.trim() === state.alt && image.style.objectPosition === state.image_focus &&
+      sources[0].getAttribute("srcset")?.endsWith(`${basePath}-768.webp`) && sources[1].getAttribute("srcset")?.endsWith(`${basePath}-1536.webp`) && image.getAttribute("src")?.endsWith(`${basePath}-1536.webp`);
   });
-  return exact(scenes, "cinematicSolutionsScene") && exact(panels, "cinematicSolutionsPanel") && readableScene && readablePanel
-    ? { scenes, panels }
+  const readablePanels = panels.every((panel) => {
+    const solutionId = panel.dataset.cinematicSolutionsSolutionId;
+    const stateId = panel.dataset.cinematicSolutionsPanel;
+    const state = scenes[solutionId]?.states[stateId];
+    const summary = one(panel, "[data-cinematic-solutions-summary]");
+    const kicker = one(panel, ".cinematic-solutions__panel-kicker");
+    const title = one(panel, "h2");
+    const relation = relationsById.get(panel.dataset.cinematicSolutionsRelationId);
+    if (!state || !summary || !kicker || !title || kicker.textContent.trim() !== state.label || title.textContent.trim() !== state.title || summary.textContent.trim() !== state.summary) return false;
+    if (stateId !== "reassembled") {
+      const related = panel.querySelectorAll("[data-cinematic-solutions-related]");
+      const expected = stateId === "assembled" ? fallbackSolutionLinks.get(solutionId) : focusServiceLinks.get(solutionId);
+      return related.length === 1 && Array.isArray(expected) && expected.length > 0 && expected.every(Boolean) &&
+        (stateId !== "focus" || sameIds(expected, fallbackServiceLinks.get(solutionId))) && sameIds(linkHrefs(related[0]), expected);
+    }
+    const services = panel.querySelectorAll("section[data-cinematic-solutions-service-links]");
+    const relatedSolutions = panel.querySelectorAll("section[data-cinematic-solutions-solution-links]");
+    const expectedServices = relation ? [relation.direction_id, ...relation.related_direction_ids].map((directionId) => directionsById.get(directionId)?.service_slug).map((slug) => slug ? `/services/${slug}/` : null) : null;
+    return services.length === 1 && relatedSolutions.length === 1 && expectedServices?.every(Boolean) &&
+      sameIds(linkHrefs(services[0]), expectedServices) && sameIds(linkHrefs(relatedSolutions[0]), fallbackSolutionLinks.get(solutionId));
+  });
+  return exact(sceneElements, "cinematicSolutionsScene") && exact(panels, "cinematicSolutionsPanel") && readableScenes && readablePanels
+    ? { scenes: sceneElements, panels }
     : null;
+}
+
+function decodeSceneImage(image) {
+  if (!image) return Promise.reject(new TypeError("A physical solution scene must contain an image."));
+  image.loading = "eager";
+  const decode = () => {
+    if (image.naturalWidth === 0) return Promise.reject(new TypeError("A physical solution scene did not load."));
+    if (typeof image.decode !== "function") return Promise.resolve();
+    return image.decode().catch(() => image.naturalWidth > 0 ? undefined : Promise.reject(new TypeError("A physical solution scene did not decode.")));
+  };
+  if (image.complete) return decode();
+  return new Promise((resolve, reject) => {
+    const loaded = () => { cleanup(); decode().then(resolve, reject); };
+    const failed = () => { cleanup(); reject(new TypeError("A physical solution scene did not load.")); };
+    const cleanup = () => {
+      image.removeEventListener("load", loaded);
+      image.removeEventListener("error", failed);
+    };
+    image.addEventListener("load", loaded, { once: true });
+    image.addEventListener("error", failed, { once: true });
+  });
 }
 
 function enhance(root) {
@@ -207,28 +221,27 @@ function enhance(root) {
   const selectedSolutionId = root.dataset.cinematicSolutionsSelectedSolutionId;
   const config = readJson(root, "data-cinematic-solutions-config");
   const mapping = readJson(root, "data-cinematic-solutions-mapping");
+  const sceneMapping = readJson(root, "data-cinematic-solutions-scenes");
   const graph = readJson(root, "data-cinematic-solutions-graph");
   const fallback = one(root, "[data-cinematic-solutions-fallback]");
   const stage = one(root, "[data-cinematic-solutions-stage]");
-  const composition = one(root, ".cinematic-solutions__composition");
   const live = one(root, "[data-cinematic-solutions-live]");
-  const snapshot = one(root, "[data-cinematic-solutions-outgoing-snapshot]");
-  const relationshipConnector = one(root, "svg[data-cinematic-solutions-relationship-connector]");
-  const stageTitle = mode === "atlas"
-    ? one(root, "#cinematic-solutions-stage-title")
-    : one(root, "#cinematic-solution-stage-title");
-  if (!(["atlas", "detail"].includes(mode) && isId(selectedSolutionId) && fallback && stage && composition && live && snapshot && relationshipConnector && stageTitle)) return;
+  const stageTitle = mode === "atlas" ? one(root, "#cinematic-solutions-stage-title") : one(root, "#cinematic-solution-stage-title");
+  if (!(["atlas", "detail"].includes(mode) && isId(selectedSolutionId) && fallback && stage && live && stageTitle)) return;
   if (!validConfig(config, mode, selectedSolutionId)) return;
   const relationsById = validMapping(graph, mapping, config.mapping_ids);
   if (!relationsById || config.solution_ids.some((solutionId) => !mapping[solutionId])) return;
+  const scenes = validScenes(sceneMapping, mapping, config.mapping_ids);
+  if (!scenes) return;
   const controls = exactControls(stage, config.solution_ids, mode);
-  const visuals = exactVisuals(stage, fallback, config.solution_ids, mapping, graph, relationsById);
+  const visuals = exactVisuals(stage, fallback, config.solution_ids, mapping, scenes, graph, relationsById);
   if (!controls || !visuals) return;
 
   const localMapping = Object.fromEntries(config.solution_ids.map((solutionId) => [solutionId, mapping[solutionId]]));
+  const localScenes = Object.fromEntries(config.solution_ids.map((solutionId) => [solutionId, scenes[solutionId]]));
   let atlas;
   try {
-    atlas = createCinematicSolutionsState(graph, localMapping);
+    atlas = createCinematicSolutionsState(graph, localMapping, localScenes);
   } catch (_) {
     return;
   }
@@ -241,68 +254,140 @@ function enhance(root) {
   );
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let state = atlas.initialState;
+  let desiredState = state;
+  const handoff = createCinematicSolutionsHandoff();
+  let handoffPending = false;
 
-  const clearTransition = () => {
-    snapshot.hidden = true;
-    snapshot.removeAttribute("data-cinematic-solutions-snapshot-active");
-    snapshot.style.removeProperty("--cinematic-solutions-snapshot-image");
-    root.removeAttribute("data-cinematic-solutions-transition");
+  const setAccessible = (element, active) => {
+    element.inert = !active;
+    if (active) element.removeAttribute("aria-hidden");
+    else element.setAttribute("aria-hidden", "true");
   };
-
-  const activePanel = () => panelFor(state.state, state.selectedSolutionId);
-  const synchronizePanelInertness = (inert) => {
-    const panel = activePanel();
-    if (panel) panel.inert = inert;
+  const hideScene = (scene) => {
+    scene.hidden = true;
+    scene.removeAttribute("data-cinematic-solutions-incoming");
+    scene.removeAttribute("data-cinematic-solutions-revealed");
+    setAccessible(scene, false);
   };
-  const synchronizeConnector = () => {
-    const scene = sceneFor(state.state, state.selectedSolutionId);
-    const solutionControl = controls.solutionControls.find((control) => control.dataset.cinematicSolutionsSolutionId === state.selectedSolutionId);
-    const stateControl = controls.controls.find((control) => control.dataset.cinematicSolutionsControlState === state.state);
-    const source = solutionControl || stateControl;
-    const stacked = window.matchMedia("(max-width: 47.999rem)").matches;
-    const target = scene;
-    if (state.state === "assembled" || !source || !target) {
-      relationshipConnector.setAttribute("hidden", "");
-      return;
-    }
-    positionCinematicRelationshipConnector({
-      connector: relationshipConnector,
-      container: composition,
-      source,
-      target,
-      state: state.state,
-      edgeRoute: stacked ? "right" : "perimeter",
-      sourceBias: stacked ? { x: 0.5, y: 1 } : { x: 1, y: 0.5 },
-      targetBias: { x: 0.82, y: 0.3 }
-    });
-  };
-  const motion = createCinematicMotion({
-    onPhase: (phase) => {
-      root.dataset.cinematicSolutionsMotionPhase = phase;
-      synchronizePanelInertness(phase === "hold");
-      if (phase === "hold" || phase === "idle") clearTransition();
-      if (phase === "reassemble" || phase === "idle") synchronizeConnector();
-    }
-  });
-
-  const synchronize = (announce = false) => {
+  const synchronizePanelsAndControls = (announce = false) => {
     const panel = panelFor(state.state, state.selectedSolutionId);
-    const scene = sceneFor(state.state, state.selectedSolutionId);
-    if (!panel || !scene) return false;
-    visuals.panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
-    visuals.scenes.forEach((candidate) => { candidate.hidden = candidate !== scene; });
+    if (!panel) return false;
+    visuals.panels.forEach((candidate) => {
+      const active = candidate === panel;
+      candidate.hidden = !active;
+      setAccessible(candidate, active);
+    });
     controls.controls.forEach((control) => control.setAttribute("aria-pressed", String(control.dataset.cinematicSolutionsControlState === state.state)));
     controls.solutionControls.forEach((control) => control.setAttribute("aria-pressed", String(control.dataset.cinematicSolutionsSolutionId === state.selectedSolutionId)));
     root.dataset.cinematicSolutionsState = state.state;
     root.dataset.cinematicSolutionsSolutionId = state.selectedSolutionId;
     root.dataset.cinematicSolutionsRelationId = state.selectedRelationId || "";
-    synchronizeConnector();
+    root.dataset.cinematicSolutionsMotionPhase = "idle";
     if (announce) {
       const label = panel.querySelector(".cinematic-solutions__panel-kicker")?.textContent.trim() || "";
       const summary = panel.querySelector("[data-cinematic-solutions-summary]")?.textContent.trim() || "";
       live.textContent = label && summary ? `${label}: ${summary}` : label || summary;
     }
     return true;
+  };
+
+  const synchronizeInitial = (announce = false) => {
+    const activeScene = sceneFor(state.state, state.selectedSolutionId);
+    if (!activeScene || !synchronizePanelsAndControls(announce)) return false;
+    visuals.scenes.forEach((candidate) => {
+      if (candidate === activeScene) {
+        candidate.hidden = false;
+        setAccessible(candidate, true);
+      } else hideScene(candidate);
+    });
+    return true;
+  };
+
+  const commitHandoff = (nextState, outgoingScene, incomingScene, token) => {
+    state = nextState;
+    if (!synchronizePanelsAndControls(true)) return false;
+    visuals.scenes.forEach((candidate) => {
+      if (candidate !== outgoingScene && candidate !== incomingScene) hideScene(candidate);
+    });
+    incomingScene.hidden = false;
+    setAccessible(incomingScene, true);
+    setAccessible(outgoingScene, false);
+    if (reducedMotion.matches || outgoingScene === incomingScene) {
+      if (outgoingScene !== incomingScene) hideScene(outgoingScene);
+      else setAccessible(incomingScene, true);
+      handoffPending = false;
+      root.dataset.cinematicSolutionsMotionPhase = "idle";
+      root.removeAttribute("aria-busy");
+      return true;
+    }
+    incomingScene.dataset.cinematicSolutionsIncoming = "true";
+    root.dataset.cinematicSolutionsMotionPhase = "reveal";
+    window.requestAnimationFrame(() => {
+      if (handoff.isCurrent(token)) incomingScene.dataset.cinematicSolutionsRevealed = "true";
+    });
+    const settle = () => {
+      if (!handoff.isCurrent(token)) return;
+      hideScene(outgoingScene);
+      incomingScene.removeAttribute("data-cinematic-solutions-incoming");
+      incomingScene.removeAttribute("data-cinematic-solutions-revealed");
+      handoffPending = false;
+      root.dataset.cinematicSolutionsMotionPhase = "idle";
+      root.removeAttribute("aria-busy");
+    };
+    incomingScene.addEventListener("animationend", settle, { once: true });
+    incomingScene.addEventListener("animationcancel", settle, { once: true });
+    return true;
+  };
+
+  const transition = async (nextState) => {
+    const token = handoff.begin();
+    const outgoingScene = sceneFor(state.state, state.selectedSolutionId);
+    const incomingScene = sceneFor(nextState.state, nextState.selectedSolutionId);
+    const incomingImage = incomingScene?.querySelector("img");
+    if (!outgoingScene || !incomingScene || !incomingImage) {
+      desiredState = state;
+      return;
+    }
+    handoffPending = true;
+    root.dataset.cinematicSolutionsMotionPhase = "prepare";
+    visuals.scenes.forEach((candidate) => {
+      if (candidate !== outgoingScene) hideScene(candidate);
+    });
+    outgoingScene.hidden = false;
+    outgoingScene.removeAttribute("data-cinematic-solutions-incoming");
+    outgoingScene.removeAttribute("data-cinematic-solutions-revealed");
+    setAccessible(outgoingScene, true);
+    root.setAttribute("aria-busy", "true");
+    try {
+      await decodeSceneImage(incomingImage);
+    } catch (_) {
+      if (handoff.isCurrent(token)) {
+        desiredState = state;
+        handoffPending = false;
+        root.dataset.cinematicSolutionsMotionPhase = "idle";
+        root.removeAttribute("aria-busy");
+      }
+      return;
+    }
+    if (!handoff.isCurrent(token)) return;
+    commitHandoff(nextState, outgoingScene, incomingScene, token);
+  };
+
+  const cancelPendingHandoff = () => {
+    handoff.begin();
+    desiredState = state;
+    handoffPending = false;
+    const activeScene = sceneFor(state.state, state.selectedSolutionId);
+    visuals.scenes.forEach((candidate) => {
+      if (candidate === activeScene) {
+        candidate.hidden = false;
+        candidate.removeAttribute("data-cinematic-solutions-incoming");
+        candidate.removeAttribute("data-cinematic-solutions-revealed");
+        setAccessible(candidate, true);
+      } else hideScene(candidate);
+    });
+    root.removeAttribute("aria-busy");
+    root.dataset.cinematicSolutionsMotionPhase = "idle";
   };
 
   stage.addEventListener("click", (event) => {
@@ -313,48 +398,43 @@ function enhance(root) {
     const action = solutionControl
       ? { type: "select-solution", solutionId: solutionControl.dataset.cinematicSolutionsSolutionId }
       : { type: stateControl.dataset.cinematicSolutionsAction };
-    const nextState = atlas.reduce(state, action);
-    if (nextState === state) return;
-    const outgoingScene = sceneFor(state.state, state.selectedSolutionId);
-    clearTransition();
-    if (!reducedMotion.matches) {
-      const image = outgoingScene?.querySelector("img");
-      const outgoingImage = image?.currentSrc || image?.src;
-      if (outgoingImage) {
-        snapshot.style.setProperty("--cinematic-solutions-snapshot-image", `url("${outgoingImage}")`);
-        snapshot.hidden = false;
-        snapshot.dataset.cinematicSolutionsSnapshotActive = "true";
-        root.dataset.cinematicSolutionsTransition = "true";
-      }
-    }
-    state = nextState;
-    motion.start({ reducedMotion: reducedMotion.matches });
-    if (!synchronize(true)) {
-      clearTransition();
-      motion.cancel();
+    const nextState = atlas.reduce(desiredState, action);
+    if (nextState === desiredState) {
+      if (handoffPending && nextState === state) cancelPendingHandoff();
       return;
     }
+    desiredState = nextState;
+    if (nextState === state) {
+      if (handoffPending) cancelPendingHandoff();
+      return;
+    }
+    void transition(nextState);
   });
 
-  snapshot.addEventListener("animationend", clearTransition);
-  snapshot.addEventListener("animationcancel", () => {
-    clearTransition();
-  });
   reducedMotion.addEventListener("change", (event) => {
     if (event.matches) {
-      clearTransition();
-      motion.cancel();
-      synchronizePanelInertness(false);
+      const token = handoff.begin();
+      desiredState = state;
+      handoffPending = false;
+      const activeScene = sceneFor(state.state, state.selectedSolutionId);
+      visuals.scenes.forEach((candidate) => {
+        if (candidate === activeScene) {
+          candidate.hidden = false;
+          candidate.removeAttribute("data-cinematic-solutions-incoming");
+          candidate.removeAttribute("data-cinematic-solutions-revealed");
+          setAccessible(candidate, true);
+        } else hideScene(candidate);
+      });
+      if (handoff.isCurrent(token)) root.removeAttribute("aria-busy");
+      root.dataset.cinematicSolutionsMotionPhase = "idle";
     }
   });
-  window.addEventListener("resize", () => {
-    window.requestAnimationFrame(synchronizeConnector);
-  }, { passive: true });
 
-  if (!synchronize(true)) return;
-  root.dataset.cinematicSolutionsMotionPhase = "idle";
+  if (!synchronizeInitial(true)) return;
   fallback.hidden = true;
   stage.hidden = false;
+  root.dataset.cinematicSolutionsView = "stage";
+  root.removeAttribute("aria-label");
   root.setAttribute("aria-labelledby", stageTitle.id);
   root.dataset.cinematicSolutionsEnhanced = "true";
 }

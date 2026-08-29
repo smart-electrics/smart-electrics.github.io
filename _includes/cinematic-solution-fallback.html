@@ -4,7 +4,7 @@
   <picture class="cinematic-solutions__fallback-media">
     <source media="(max-width: 767px)" srcset="{{ solution.image_768 | relative_url }}" width="768" height="512">
     <source srcset="{{ solution.image_1536 | relative_url }}" width="1536" height="1024">
-    <img src="{{ solution.image_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, min(100vw, 1536px)" alt="{{ solution.image_alt }}" loading="lazy" decoding="async"{% if solution.image_focus %} style="object-position: {{ solution.image_focus }}"{% endif %}>
+    <img src="{{ solution.image_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, min(100vw, 1536px)" alt="{{ solution.image_alt }}" loading="{% if include.priority %}eager{% else %}lazy{% endif %}"{% if include.priority %} fetchpriority="high"{% endif %} decoding="async"{% if solution.image_focus %} style="object-position: {{ solution.image_focus }}"{% endif %}>
   </picture>
   <div class="cinematic-solutions__fallback-copy">
     <p class="section-kicker">{{ solution.kicker }}</p>

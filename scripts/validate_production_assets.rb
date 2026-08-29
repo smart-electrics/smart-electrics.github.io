@@ -7,8 +7,8 @@ require "yaml"
 module ProductionAssetsContract
   module_function
 
-  EXPECTED_ASSET_COUNT = 96
-  EXPECTED_RESPONSIVE_PAIR_COUNT = 48
+  EXPECTED_ASSET_COUNT = 120
+  EXPECTED_RESPONSIVE_PAIR_COUNT = 60
   ROOT_FIELDS = %w[version assets].freeze
   ASSET_FIELDS = %w[path sha256 bytes width height responsive_pair variant family provenance qa].freeze
   VARIANT_DIMENSIONS = {
@@ -28,6 +28,9 @@ module ProductionAssetsContract
     "solutions/security-access" => "security-access",
     "solutions/commercial-space" => "commercial-space"
   }.freeze
+  SOLUTION_STATE_STEMS = SOLUTION_STEM_ANCHORS.keys.flat_map do |stem|
+    %w[focus scenario].map { |state| "#{stem}-#{state}" }
+  end.freeze
   ROOM_LIGHTING_STATES = %w[off route evening full].freeze
   ROOM_WINDOW_TREATMENTS = %w[open tulle blinds blackout curtains].freeze
   RESIDENCE_ROOM_STEMS = ROOM_LIGHTING_STATES.product(ROOM_WINDOW_TREATMENTS)
@@ -133,6 +136,9 @@ module ProductionAssetsContract
       canonical_documentation("control-room", "control-room-visual-qa.md", "control-room")
     elsif (anchor = SOLUTION_STEM_ANCHORS[stem])
       canonical_documentation(anchor, "ready-solutions-visual-qa.md", "solution-#{File.basename(stem)}")
+    elsif SOLUTION_STATE_STEMS.include?(stem)
+      family = File.basename(stem).sub(/-(?:focus|scenario)\z/, "")
+      canonical_documentation("ready-solutions-state-scenes", "ready-solutions-state-scenes-visual-qa.md", "solution-#{family}")
     elsif RESIDENCE_ROOM_STEMS.include?(stem)
       canonical_documentation("residence-physical-controls", "residence-controls-visual-qa.md", "room")
     elsif RESIDENCE_STAIRS_STEMS.include?(stem)
@@ -151,6 +157,7 @@ module ProductionAssetsContract
   def canonical_responsive_pair(stem)
     return "control-room" if stem == "home/control-room"
     return "solution-#{File.basename(stem)}" if SOLUTION_STEM_ANCHORS.key?(stem)
+    return "solution-#{File.basename(stem)}" if SOLUTION_STATE_STEMS.include?(stem)
     return "smart-home-#{File.basename(stem)}" if SMART_HOME_SCENARIO_STEMS.include?(stem) || SMART_HOME_ENGINEERING_STEMS.include?(stem) || ELECTRICAL_CORE_THREE_STATE_STEMS.include?(stem)
 
     "residence-#{File.basename(stem)}"

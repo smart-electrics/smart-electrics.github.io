@@ -16,6 +16,16 @@ class CinematicSolutionsContractTest < Minitest::Test
     security-and-access-control
     commercial-space
   ].freeze
+  STATE_IDS = %w[assembled focus reassembled].freeze
+  STATE_FIELDS = %w[alt image image_focus label summary title].freeze
+  FOCUS_DIRECTION_IDS = {
+    "apartment-comfort-and-control" => "smart-home-integration",
+    "private-house-full-automation" => "panels-and-protection",
+    "architectural-lighting" => "lighting",
+    "energy-autonomy" => "backup-power",
+    "security-and-access-control" => "low-voltage",
+    "commercial-space" => "lighting"
+  }.freeze
 
   def validate(data_path = File.join(ROOT, "_data", "cinematic_solutions.yml"), solutions = File.join(ROOT, "_solutions"))
     Open3.capture3(
@@ -27,6 +37,10 @@ class CinematicSolutionsContractTest < Minitest::Test
 
   def canonical_mapping
     YAML.safe_load(File.read(File.join(ROOT, "_data", "cinematic_solutions.yml")), permitted_classes: [], aliases: false)
+  end
+
+  def canonical_scenes
+    YAML.safe_load(File.read(File.join(ROOT, "_data", "solution_scenes.yml")), permitted_classes: [], aliases: false)
   end
 
   def with_mapping(mapping)
@@ -81,6 +95,35 @@ class CinematicSolutionsContractTest < Minitest::Test
     _stdout, stderr, status = validate
 
     assert_predicate status, :success?, stderr
+  end
+
+  def test_owns_three_complete_physical_scene_descriptions_for_every_solution
+    mapping = canonical_mapping
+    scenes = canonical_scenes
+
+    assert_equal EXPECTED_SLUGS, scenes.keys
+    EXPECTED_SLUGS.each do |slug|
+      scene = scenes.fetch(slug)
+      assert_equal %w[focus_direction_id states], scene.keys.sort
+      assert_equal FOCUS_DIRECTION_IDS.fetch(slug), scene.fetch("focus_direction_id")
+      assert_includes mapping.fetch(slug).fetch("direction_ids"), scene.fetch("focus_direction_id")
+      assert_equal STATE_IDS, scene.fetch("states").keys
+
+      STATE_IDS.each do |state_id|
+        state = scene.fetch("states").fetch(state_id)
+        assert_equal STATE_FIELDS, state.keys.sort
+        %w[alt label summary title].each do |field|
+          assert_instance_of String, state.fetch(field)
+          refute_empty state.fetch(field).strip, "#{slug} #{state_id} #{field} must be text"
+        end
+        assert_match(/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/, state.fetch("image"))
+        assert_match(/\A(?:100|[1-9]?\d)%\s+(?:100|[1-9]?\d)%\z/, state.fetch("image_focus"))
+        %w[768 1536].each do |width|
+          assert File.file?(File.join(ROOT, "assets", "images", "solutions", "#{state.fetch('image')}-#{width}.webp")), "#{slug} #{state_id} must own its #{width}px physical scene"
+        end
+      end
+      assert_equal 3, scene.fetch("states").values.map { |state| state.fetch("image") }.uniq.length, "#{slug} states must not reuse one physical scene"
+    end
   end
 
   def test_rejects_an_extra_or_misordered_solution_mapping

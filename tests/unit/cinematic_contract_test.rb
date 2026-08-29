@@ -238,7 +238,7 @@ class CinematicContractTest < Minitest::Test
     assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
 
-  def test_keeps_connectors_only_where_they_express_a_real_cinematic_relationship
+  def test_keeps_solutions_as_a_quiet_physical_scene_surface
     cinematic_stage = File.read(File.join(project_root, "_includes/cinematic-stage.html"))
     cinematic_solutions = File.read(File.join(project_root, "_includes/cinematic-solutions.html"))
     stage_adapter = File.read(File.join(project_root, "assets/js/cinematic-stage.js"))
@@ -247,20 +247,26 @@ class CinematicContractTest < Minitest::Test
     refute_includes cinematic_stage, "data-cinematic-connector-lane", "the residence stage must not render a decorative lane"
     refute_includes stage_adapter, "createCinematicMotion", "the residence adapter must apply selections synchronously"
     refute_includes stage_adapter, "positionCinematicRelationshipConnector", "the residence adapter must not position a removed connector"
-    assert_includes cinematic_solutions, "data-cinematic-solutions-relationship-connector", "the solutions composition retains its distinct relationship connector"
-    assert_includes cinematic_solutions, "pathLength=\"1\"", "the solutions connector must remain drawable"
+    solutions_adapter = File.read(File.join(project_root, "assets/js/cinematic-solutions.js"))
+    solutions_styles = File.read(File.join(project_root, "_sass/_cinematic-solutions.scss"))
+    refute_includes cinematic_solutions, "data-cinematic-solutions-relationship-connector", "solutions must not render a detached relationship line"
+    refute_includes cinematic_solutions, "data-cinematic-solutions-outgoing-snapshot", "solutions must not render a stale outgoing image"
+    assert_includes cinematic_solutions, "data-cinematic-solutions-scenes", "state-owned physical scenes must be available to the adapter"
+    refute_includes solutions_adapter, "positionCinematicRelationshipConnector", "solutions must not position a removed connector"
+    refute_includes solutions_adapter, "createCinematicMotion", "solutions must not enter a blank assemble/disassemble lifecycle"
+    refute_match(/cinematic-solutions__(?:relationship-connector|outgoing-snapshot)|cinematic-solutions-panel-(?:exit|reveal|type-reveal)/, solutions_styles)
+    assert_match(/@keyframes cinematic-solutions-incoming\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?opacity:\s*1;/, solutions_styles)
 
     service_studio = File.read(File.join(project_root, "_includes/service-studio.html"))
     refute_includes service_studio, "data-service-studio-relationship-connector", "service studios must not render a decorative relationship line"
 
-    %w[service-studio cinematic-solutions route-journey].each do |adapter|
+    %w[service-studio route-journey].each do |adapter|
       source = File.read(File.join(project_root, "assets/js/#{adapter}.js"))
       assert_includes source, "createCinematicMotion", "#{adapter} must run the shared bounded motion lifecycle"
     end
 
-    styles = File.read(File.join(project_root, "_sass/_cinematic-solutions.scss"))
-    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?display:\s*grid;/, styles)
-    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?overflow:\s*visible;/, styles)
+    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?display:\s*grid;/, solutions_styles)
+    assert_match(/@media \(max-width: 47\.999rem\)[\s\S]*?\.cinematic-solutions__selector\s*\{[\s\S]*?overflow:\s*visible;/, solutions_styles)
   end
 
   def test_residence_physical_picture_exposes_one_preload_safe_responsive_candidate_list
@@ -292,9 +298,8 @@ class CinematicContractTest < Minitest::Test
     assert_includes adapter, 'return `${scene.src768} 768w, ${scene.src1536} 1536w`'
   end
 
-  def test_keeps_masked_panel_choreography_only_outside_the_synchronous_residence_stage
+  def test_keeps_masked_panel_choreography_outside_the_quiet_solutions_surface
     keyframes = {
-      "_sass/_cinematic-solutions.scss" => %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal],
       "_sass/_route-journey.scss" => %w[route-journey-panel-exit route-journey-panel-reveal route-journey-type-reveal]
     }
     keyframes.each do |path, names|
@@ -304,6 +309,11 @@ class CinematicContractTest < Minitest::Test
         refute_nil keyframe, "#{path} must retain #{name}"
         refute_match(/(?:opacity|filter)\s*:/, keyframe, "#{name} must use masked clip-path/transform choreography only")
       end
+    end
+
+    solutions = File.read(File.join(project_root, "_sass/_cinematic-solutions.scss"))
+    %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal cinematic-solutions-outgoing cinematic-solutions-relationship-draw].each do |name|
+      refute_match(/@keyframes #{Regexp.escape(name)}\b/, solutions, "solutions must not restore long blank-state choreography")
     end
 
     residence = File.read(File.join(project_root, "_sass/_cinematic.scss"))
