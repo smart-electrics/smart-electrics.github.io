@@ -7,6 +7,22 @@
 - Результат: 6/6 станів PASS, 12/12 production WebP PASS. Немає людей,
   тексту, брендів, UI, watermark, warped geometry або style drift.
 
+## Повторна перевірка SVG overlay — 2026-08-29
+
+- Перевірена реалізація: `6071216` (`fix(#68): replace decorative routes with
+  fixture glows`). Raster-файли й camera crop не змінювалися.
+- Незалежний Chromium-перегляд виконано на 375, 1440 і 1980 px у normal та
+  reduced motion. У кожному режимі послідовно перевірено всі шість станів:
+  `stairs` off/route/full і `exterior` approach/evening/reduced-night.
+- На сходах локальні поля збігаються з правими вбудованими світильниками й не
+  утворюють окремих плям посередині проступів. У exterior поля залишаються біля
+  bollard, step-wash і entry-canopy джерел. Декоративних маршрутів, HUD-ліній,
+  `path`, `line` або `polyline` немає. Видимих AI-артефактів чи розриву стилю не
+  виявлено.
+- Детермінований browser loop: 36/36 state/viewport/motion комбінацій PASS;
+  runtime errors `0`, horizontal overflow `0`, transition residue `0`. Активні
+  WebP і SVG signatures збігалися після кожної взаємодії.
+
 | Family | Стани | Continuity / finding |
 | --- | --- | --- |
 | stairs | off → route → full | Та сама camera, treads, rail і landing; тільки route/циркуляційне світло змінює фізичну сигнатуру. PASS. |

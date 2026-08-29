@@ -238,21 +238,22 @@ class CinematicContractTest < Minitest::Test
     assert_rejected(graph, "service_studio_relation_ids: panel-assembly fallback must resolve to exactly one relation")
   end
 
-  def test_keeps_relationship_connectors_on_cinematic_compositions_but_not_service_studios
-    templates = {
-      "_includes/cinematic-stage.html" => "data-cinematic-relationship-connector",
-      "_includes/cinematic-solutions.html" => "data-cinematic-solutions-relationship-connector"
-    }
-    templates.each do |path, connector|
-      source = File.read(File.join(project_root, path))
-      assert_includes source, connector, "#{path} must expose an aria-hidden SVG relationship connector"
-      assert_includes source, "pathLength=\"1\"", "#{path} connector must be drawable"
-    end
+  def test_keeps_connectors_only_where_they_express_a_real_cinematic_relationship
+    cinematic_stage = File.read(File.join(project_root, "_includes/cinematic-stage.html"))
+    cinematic_solutions = File.read(File.join(project_root, "_includes/cinematic-solutions.html"))
+    stage_adapter = File.read(File.join(project_root, "assets/js/cinematic-stage.js"))
+
+    refute_includes cinematic_stage, "data-cinematic-relationship-connector", "the residence stage must not render a detached relationship line"
+    refute_includes cinematic_stage, "data-cinematic-connector-lane", "the residence stage must not render a decorative lane"
+    refute_includes stage_adapter, "createCinematicMotion", "the residence adapter must apply selections synchronously"
+    refute_includes stage_adapter, "positionCinematicRelationshipConnector", "the residence adapter must not position a removed connector"
+    assert_includes cinematic_solutions, "data-cinematic-solutions-relationship-connector", "the solutions composition retains its distinct relationship connector"
+    assert_includes cinematic_solutions, "pathLength=\"1\"", "the solutions connector must remain drawable"
 
     service_studio = File.read(File.join(project_root, "_includes/service-studio.html"))
     refute_includes service_studio, "data-service-studio-relationship-connector", "service studios must not render a decorative relationship line"
 
-    %w[cinematic-stage service-studio cinematic-solutions route-journey].each do |adapter|
+    %w[service-studio cinematic-solutions route-journey].each do |adapter|
       source = File.read(File.join(project_root, "assets/js/#{adapter}.js"))
       assert_includes source, "createCinematicMotion", "#{adapter} must run the shared bounded motion lifecycle"
     end
@@ -291,9 +292,8 @@ class CinematicContractTest < Minitest::Test
     assert_includes adapter, 'return `${scene.src768} 768w, ${scene.src1536} 1536w`'
   end
 
-  def test_keeps_masked_panel_choreography_without_blank_service_studio_copy
+  def test_keeps_masked_panel_choreography_only_outside_the_synchronous_residence_stage
     keyframes = {
-      "_sass/_cinematic.scss" => %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal],
       "_sass/_cinematic-solutions.scss" => %w[cinematic-solutions-panel-exit cinematic-solutions-panel-reveal cinematic-solutions-type-reveal],
       "_sass/_route-journey.scss" => %w[route-journey-panel-exit route-journey-panel-reveal route-journey-type-reveal]
     }
@@ -304,6 +304,11 @@ class CinematicContractTest < Minitest::Test
         refute_nil keyframe, "#{path} must retain #{name}"
         refute_match(/(?:opacity|filter)\s*:/, keyframe, "#{name} must use masked clip-path/transform choreography only")
       end
+    end
+
+    residence = File.read(File.join(project_root, "_sass/_cinematic.scss"))
+    %w[residence-spine-panel-exit residence-spine-panel-reveal residence-spine-type-reveal residence-spine-outgoing residence-spine-scene-in].each do |name|
+      refute_match(/@keyframes #{Regexp.escape(name)}\b/, residence, "#{name} must not return to the synchronous residence stage")
     end
 
     service_studio = File.read(File.join(project_root, "_sass/_service-studio.scss"))

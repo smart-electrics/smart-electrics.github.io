@@ -1,6 +1,4 @@
 import { createCinematicState } from "./cinematic-state.js";
-import { createCinematicMotion } from "./cinematic-motion.js";
-import { positionCinematicRelationshipConnector } from "./cinematic-relationship-connector.js";
 
 const text = (value) => typeof value === "string" ? value.trim() : "";
 
@@ -51,18 +49,14 @@ function enhanceValidated(root) {
   const fallback = one(root, "[data-cinematic-fallback]");
   const stage = one(root, "[data-cinematic-stage]");
   const composition = one(root, "[data-cinematic-composition]");
-  const connectorLane = one(root, "[data-cinematic-connector-lane]");
-  const relationshipConnector = one(root, "svg[data-cinematic-relationship-connector]");
-  const snapshot = one(root, "[data-cinematic-outgoing-snapshot]");
   const live = one(root, "[data-cinematic-live]");
   const returnControl = one(root, "button[data-cinematic-return]");
-  if (!source || !fallback || !stage || !composition || !connectorLane || !relationshipConnector || !snapshot || !live || !returnControl) return false;
+  if (!source || !fallback || !stage || !composition || !live || !returnControl) return false;
 
   const { graph, machine } = source;
   const directionIds = graph.directions.map((direction) => direction.id);
   const relationIds = graph.relations.map((relation) => relation.id);
   const relationById = new Map(graph.relations.map((relation) => [relation.id, relation]));
-  const directionIndex = new Map(directionIds.map((id, index) => [id, index + 1]));
 
   const fallbackDirections = [...fallback.querySelectorAll("[data-cinematic-fallback-direction]")];
   const fallbackRelations = [...fallback.querySelectorAll("[data-cinematic-fallback-relation]")];
@@ -101,15 +95,7 @@ function enhanceValidated(root) {
   ]);
   if (sceneByKey.size !== scenes.length || panelByKey.size !== panels.length) return false;
 
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let state = machine.initialState;
-
-  const clearTransition = () => {
-    snapshot.hidden = true;
-    snapshot.removeAttribute("data-cinematic-snapshot-active");
-    snapshot.style.removeProperty("--cinematic-snapshot-image");
-    root.removeAttribute("data-cinematic-transition");
-  };
 
   const stateKey = (nextState) => {
     if (nextState.state === "assembled") return "assembled";
@@ -117,43 +103,6 @@ function enhanceValidated(root) {
     return `relation:${nextState.selectedRelationId}`;
   };
 
-  const activePanel = () => panelByKey.get(stateKey(state));
-  const synchronizePanelInertness = (inert) => {
-    const panel = activePanel();
-    if (panel) panel.inert = inert;
-  };
-  const synchronizeConnector = () => {
-    const scene = sceneByKey.get(stateKey(state));
-    const sourceControl = directionControls.find((control) => control.dataset.directionId === state.selectedDirectionId);
-    const stacked = window.matchMedia("(max-width: 54rem)").matches;
-    const target = scene;
-    if (state.state === "assembled" || !sourceControl || !target) {
-      relationshipConnector.setAttribute("hidden", "");
-      return;
-    }
-    positionCinematicRelationshipConnector({
-      connector: relationshipConnector,
-      container: composition,
-      source: sourceControl,
-      target,
-      state: state.state,
-      edgeRoute: stacked ? "right" : "perimeter",
-      sourceBias: stacked ? { x: 0.5, y: 1 } : { x: 1, y: 0.5 },
-      targetBias: { x: 0.82, y: 0.3 }
-    });
-  };
-  const motion = createCinematicMotion({
-    onPhase: (phase) => {
-      try {
-        root.dataset.cinematicMotionPhase = phase;
-        synchronizePanelInertness(phase === "hold");
-        if (phase === "hold" || phase === "idle") clearTransition();
-        if (phase === "reassemble" || phase === "idle") synchronizeConnector();
-      } catch (_) {
-        failClosed(root);
-      }
-    }
-  });
 
   const synchronize = (announce) => {
     const key = stateKey(state);
@@ -162,7 +111,13 @@ function enhanceValidated(root) {
     if (!activeScene || !activePanel) return false;
 
     scenes.forEach((scene) => { scene.hidden = scene !== activeScene; });
-    panels.forEach((panel) => { panel.hidden = panel !== activePanel; });
+    panels.forEach((panel) => {
+      const inactive = panel !== activePanel;
+      panel.hidden = inactive;
+      panel.inert = inactive;
+      if (inactive) panel.setAttribute("aria-hidden", "true");
+      else panel.removeAttribute("aria-hidden");
+    });
     directionControls.forEach((control) => {
       control.setAttribute("aria-pressed", String(control.dataset.directionId === state.selectedDirectionId));
     });
@@ -170,8 +125,6 @@ function enhanceValidated(root) {
     root.dataset.cinematicState = state.state;
     root.dataset.cinematicDirection = state.selectedDirectionId || "";
     root.dataset.cinematicRelation = state.selectedRelationId || "";
-    root.style.setProperty("--cinematic-rail-index", String(directionIndex.get(state.selectedDirectionId) || 1));
-    synchronizeConnector();
     if (announce) live.textContent = text(activePanel.querySelector("[data-cinematic-summary]")?.textContent);
 
     root.dispatchEvent(new CustomEvent("cinematic:state-change", {
@@ -185,27 +138,11 @@ function enhanceValidated(root) {
     return true;
   };
 
-  const beginTransition = (outgoingScene) => {
-    clearTransition();
-    if (reducedMotion.matches) return;
-    const image = text(outgoingScene?.dataset.cinematicSceneImage);
-    if (!image) return;
-    snapshot.style.setProperty("--cinematic-snapshot-image", image);
-    snapshot.hidden = false;
-    snapshot.dataset.cinematicSnapshotActive = "true";
-    root.dataset.cinematicTransition = "true";
-  };
-
   const transition = (action) => {
     const nextState = machine.reduce(state, action);
     if (nextState === state) return;
-    const outgoingScene = sceneByKey.get(stateKey(state));
-    beginTransition(outgoingScene);
     state = nextState;
-    motion.start({ reducedMotion: reducedMotion.matches });
     if (!synchronize(true)) {
-      clearTransition();
-      motion.cancel();
       failClosed(root);
     }
   };
@@ -217,23 +154,6 @@ function enhanceValidated(root) {
       failClosed(root);
     }
   };
-
-  snapshot.addEventListener("animationend", protect((event) => {
-    if (event.animationName === "residence-spine-outgoing") clearTransition();
-  }));
-  snapshot.addEventListener("animationcancel", protect(() => {
-    clearTransition();
-  }));
-  reducedMotion.addEventListener("change", protect((event) => {
-    if (event.matches) {
-      clearTransition();
-      motion.cancel();
-      synchronizePanelInertness(false);
-    }
-  }));
-  window.addEventListener("resize", protect(() => {
-    window.requestAnimationFrame(protect(synchronizeConnector));
-  }), { passive: true });
 
   root.addEventListener("click", protect((event) => {
     const control = event.target instanceof Element ? event.target.closest("button[data-cinematic-action]") : null;
@@ -248,8 +168,8 @@ function enhanceValidated(root) {
     }
   }));
 
-  if (!synchronize(false)) return false;
   root.dataset.cinematicMotionPhase = "idle";
+  if (!synchronize(false)) return false;
   fallback.hidden = true;
   fallback.setAttribute("aria-hidden", "true");
   stage.hidden = false;

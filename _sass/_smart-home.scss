@@ -190,12 +190,21 @@
   z-index: 4;
 }
 
+@media (scripting: enabled) {
+  [data-smart-home-simulator]:not([data-enhanced]) .smart-home__scene-copy,
+  [data-smart-home-simulator]:not([data-enhanced]) .smart-home__scene-topology,
+  [data-smart-home-simulator]:not([data-enhanced]) .smart-home__phone-active {
+    visibility: hidden;
+  }
+}
+
 .smart-home__scene-copy > span:first-child {
   color: var(--amber-light);
   font-size: clamp(0.62rem, 0.74vw, 0.76rem);
   font-weight: 800;
   letter-spacing: 0.13em;
   text-transform: uppercase;
+  min-block-size: var(--smart-home-scene-eyebrow-height, auto);
 }
 
 .smart-home__scene-copy > strong {
@@ -204,6 +213,7 @@
   font-weight: 300;
   letter-spacing: -0.065em;
   line-height: 0.97;
+  min-block-size: var(--smart-home-scene-title-height, auto);
 }
 
 .smart-home__scene-copy > span:last-child {
@@ -213,6 +223,7 @@
   line-height: 1.45;
   margin-top: 0.25rem;
   padding-inline-start: 0.7rem;
+  min-block-size: var(--smart-home-scene-label-height, auto);
 }
 
 .smart-home__scene figcaption {
@@ -229,7 +240,7 @@
 }
 
 .smart-home__scene:has(.smart-home__scene-topology) figcaption {
-  bottom: clamp(5rem, 5.5vw, 5.5rem);
+  bottom: var(--smart-home-scene-topology-height, clamp(5rem, 5.5vw, 5.5rem));
 }
 
 .smart-home__scene-topology {
@@ -256,6 +267,18 @@
   min-width: 0;
   overflow-wrap: anywhere;
   text-shadow: 0 1px 10px #000;
+}
+
+.smart-home__scene-topology [data-topology-source] {
+  min-block-size: var(--smart-home-topology-source-height, auto);
+}
+
+.smart-home__scene-topology [data-topology-logic] {
+  min-block-size: var(--smart-home-topology-logic-height, auto);
+}
+
+.smart-home__scene-topology [data-topology-result] {
+  min-block-size: var(--smart-home-topology-result-height, auto);
 }
 
 .smart-home__scene-topology [data-topology-logic] {
@@ -537,6 +560,7 @@
   border-inline-start: 1px solid var(--phone-copper);
   display: grid;
   gap: 0.28rem;
+  min-block-size: var(--smart-home-phone-active-height, auto);
   padding-inline-start: 0.75rem;
 }
 
@@ -548,6 +572,7 @@
   line-height: 1.25;
   margin: 0;
   text-transform: uppercase;
+  min-block-size: var(--smart-home-phone-kicker-height, auto);
 }
 
 .smart-home__phone-active h4 {
@@ -556,6 +581,7 @@
   letter-spacing: -0.045em;
   line-height: 1.05;
   margin: 0;
+  min-block-size: var(--smart-home-phone-label-height, auto);
 }
 
 .smart-home__phone-active p:not(.smart-home__phone-active-kicker) {
@@ -565,8 +591,13 @@
   margin: 0;
 }
 
+.smart-home__phone-active [data-phone-system-summary] {
+  min-block-size: var(--smart-home-phone-summary-height, auto);
+}
+
 .smart-home__phone-topology {
   color: #dbc4ac !important;
+  min-block-size: var(--smart-home-phone-topology-height, auto);
 }
 
 .smart-home__phone-controls {
@@ -574,9 +605,28 @@
   padding-top: 0.8rem;
 }
 
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-controls {
+  display: grid;
+  grid-template-areas: "controls";
+}
+
 .smart-home__phone-control-panel {
   display: grid;
   gap: 0.75rem;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-control-panel {
+  grid-area: controls;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-control-panel[hidden] {
+  display: grid !important;
+  visibility: hidden;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-control-panel [data-phone-control][hidden] {
+  display: grid !important;
+  visibility: hidden;
 }
 
 .smart-home__phone-control-panel > h4 {
@@ -709,6 +759,10 @@
   padding: 0.75rem 0.25rem 0.1rem;
 }
 
+.smart-home__phone-signature {
+  min-block-size: var(--smart-home-phone-signature-height, auto);
+}
+
 .smart-home__phone-live {
   border: 0;
   clip: rect(0 0 0 0);
@@ -731,6 +785,14 @@
   padding-top: clamp(2rem, 4vw, 4.5rem);
 }
 
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-explanations {
+  grid-template-areas: "heading panel";
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__configuration-heading {
+  grid-area: heading;
+}
+
 .smart-home__configuration-heading h2 {
   font-size: clamp(2.05rem, 4vw, 4.6rem);
 }
@@ -744,6 +806,15 @@
   gap: 1rem clamp(1rem, 2.4vw, 3rem);
   grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.25fr);
   padding: 1.25rem 0 0;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-panel {
+  grid-area: panel;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-panel[hidden] {
+  display: grid !important;
+  visibility: hidden;
 }
 
 .smart-home__preset-panel > div:first-child h3 {
@@ -934,6 +1005,12 @@
 
   .smart-home__preset-panel {
     grid-template-columns: 1fr;
+  }
+
+  [data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-explanations {
+    grid-template-areas:
+      "heading"
+      "panel";
   }
 }
 

@@ -97,40 +97,15 @@ test("bypasses timers for reduced motion and can cancel a running lifecycle", ()
   assert.equal(clock.pending().length, 0);
 });
 
-test("keeps every residence phase animation inside the shared lifecycle", () => {
-  const clock = createClock();
-  const motion = createCinematicMotion({ timers: clock });
-
-  motion.start();
-  const disassembleDuration = clock.pending()[0]?.delay;
+test("keeps the residence stage synchronous while the shared lifecycle remains available elsewhere", () => {
   const styles = readFileSync(new URL("../../_sass/_cinematic.scss", import.meta.url), "utf8");
-  const outgoing = styles.match(/\.residence-spine__outgoing-snapshot\[data-cinematic-snapshot-active="true"\] \{\s*animation: residence-spine-outgoing (\d+)ms(?: (\d+)ms)?/u);
-  assert.ok(outgoing, "residence outgoing animation must remain declared");
-  const renderMargin = 32;
-  assert.ok(Number(outgoing[1]) + Number(outgoing[2] || 0) + renderMargin <= disassembleDuration, "residence outgoing animation plus two render frames must settle before clean hold");
-  const physicalOutgoing = styles.match(/\.residence-spine__physical-snapshot\[data-cinematic-physical-snapshot-active="true"\] \{\s*animation: residence-spine-physical-outgoing (\d+)ms(?: (\d+)ms)?/u);
-  assert.ok(physicalOutgoing, "residence physical snapshot animation must remain declared");
-  assert.ok(Number(physicalOutgoing[1]) + Number(physicalOutgoing[2] || 0) + renderMargin <= disassembleDuration, "residence physical snapshot must settle before clean hold");
+  const stage = readFileSync(new URL("../../assets/js/cinematic-stage.js", import.meta.url), "utf8");
+  const physical = readFileSync(new URL("../../assets/js/physical-scene-controls.js", import.meta.url), "utf8");
 
-  clock.runNext();
-  clock.runNext();
-  const reassembleDuration = clock.pending()[0]?.delay;
-  assert.equal(motion.phase, "reassemble");
-
-  const animations = [
-    ["scene", /\.residence-spine\[data-cinematic-motion-phase="reassemble"\] \.residence-spine__scene:not\(\[hidden\]\) \{\s*animation: residence-spine-scene-in (\d+)ms(?: (\d+)ms)?/u],
-    ["physical picture", /\.residence-spine\[data-cinematic-physical-motion-phase="reassemble"\] \.residence-spine__physical-picture:not\(\[hidden\]\) \{\s*animation: residence-spine-physical-incoming (\d+)ms(?: (\d+)ms)?/u],
-    ["panel", /\.residence-spine\[data-cinematic-motion-phase="reassemble"\] \.residence-spine__panel:not\(\[hidden\]\) \{\s*animation: residence-spine-panel-reveal (\d+)ms(?: (\d+)ms)?/u],
-    ["type", /\.residence-spine\[data-cinematic-motion-phase="reassemble"\] \.residence-spine__panel:not\(\[hidden\]\) > :is\(p, h3, a, div, ul\) \{\s*animation: residence-spine-type-reveal (\d+)ms(?: (\d+)ms)?/u]
-  ];
-
-  for (const [name, pattern] of animations) {
-    const match = styles.match(pattern);
-    assert.ok(match, `${name} residence reassemble animation must remain declared`);
-    const duration = Number(match[1]);
-    const delay = Number(match[2] || 0);
-    assert.ok(duration + delay + renderMargin <= reassembleDuration, `${name} animation plus two render frames must settle before lifecycle idle`);
-  }
+  assert.doesNotMatch(stage, /createCinematicMotion|dataCinematicTransition|cinematicSnapshotActive/u);
+  assert.doesNotMatch(physical, /cinematicPhysicalSnapshotActive|cinematicPhysicalTransition/u);
+  assert.doesNotMatch(styles, /residence-spine-(?:outgoing|scene-in|panel-exit|panel-reveal|type-reveal|physical-outgoing|physical-incoming|lane-draw|relationship-draw)/u);
+  assert.match(styles, /\.residence-spine__physical-layer \[data-physical-scene-svg-effect\] \{\s*transition: none;/u);
 });
 
 test("keeps smart-home system switches calm while manual controls remain continuously available", () => {

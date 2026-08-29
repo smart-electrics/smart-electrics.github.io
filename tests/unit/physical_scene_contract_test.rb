@@ -111,6 +111,34 @@ class PhysicalSceneContractTest < Minitest::Test
     assert_rejected(data, "segment output values must be canonical, finite, and visibly distinct")
   end
 
+  def test_stair_and_exterior_svg_models_use_only_local_fixture_glows
+    by_system = canonical_data.fetch("svg").fetch("systems").to_h { |system| [system.fetch("id"), system.fetch("layers")] }
+    {
+      "stairs" => { control: "stair_lighting", states: %w[off route full], source: /\Astairs-step-/ },
+      "exterior" => { control: "exterior_lighting", states: %w[approach evening reduced-night], source: /\Aexterior-(?:bollard|step|entry)-/ }
+    }.each do |id, contract|
+      layers = by_system.fetch(id)
+      assert_operator layers.length, :>=, 3, "#{id}: several light fields prevent a synthetic route line"
+      layers.each do |layer|
+        geometry = layer.fetch("geometry")
+        assert_equal "glow", layer.fetch("effect"), "#{id}: only fixture-local glow fields are allowed"
+        assert_includes %w[circle ellipse], geometry.fetch("kind"), "#{id}: no decorative path, line, or polyline is allowed"
+        assert_match contract.fetch(:source), layer.fetch("id"), "#{id}: each field must name its physical source"
+        extent = geometry.fetch("kind") == "circle" ? geometry.fetch("r") * 2 : [geometry.fetch("rx") * 2, geometry.fetch("ry") * 2].max
+        assert_operator extent, :<=, 180, "#{id}: each glow must remain local to its fixture"
+      end
+
+      parameter_signatures = contract.fetch(:states).map do |state|
+        layers.map do |layer|
+          binding = layer.fetch("binding")
+          "#{layer.fetch('id')}:#{binding.fetch('parameter')}=#{binding.fetch('output').fetch(state)}"
+        end.join("|")
+      end
+      assert_equal contract.fetch(:states).length, parameter_signatures.uniq.length, "#{id}: every public state needs distinct glow parameters"
+      assert layers.all? { |layer| layer.fetch("binding").fetch("control_id") == contract.fetch(:control) }, "#{id}: every field must follow its public control"
+    end
+  end
+
   def test_requires_one_canonical_svg_model_for_every_public_physical_control
     data = canonical_data
     smart_home = YAML.safe_load(

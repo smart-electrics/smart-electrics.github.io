@@ -746,7 +746,7 @@ async function expectSmartHomeScenePriority(page, simulator, width, state) {
   await expect(phone, "smart-home phone must remain available for " + state).toBeVisible();
   await expect(activeControl, "smart-home active control must remain available for " + state).toBeVisible();
   await phone.scrollIntoViewIfNeeded();
-  await activeControl.evaluate((element) => element.scrollIntoView({ block: "nearest", inline: "nearest" }));
+  await activeControl.evaluate((element) => element.scrollIntoView({ behavior: "instant", block: "nearest", inline: "nearest" }));
 
   const geometry = await simulator.evaluate((root) => {
     const boundsFor = (selector) => {
