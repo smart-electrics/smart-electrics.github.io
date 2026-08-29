@@ -240,7 +240,7 @@
 }
 
 .smart-home__scene:has(.smart-home__scene-topology) figcaption {
-  bottom: clamp(5rem, 5.5vw, 5.5rem);
+  bottom: var(--smart-home-scene-topology-height, clamp(5rem, 5.5vw, 5.5rem));
 }
 
 .smart-home__scene-topology {

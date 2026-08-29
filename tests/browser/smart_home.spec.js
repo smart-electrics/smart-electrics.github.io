@@ -70,6 +70,9 @@ function expectStableLayout(baseline, current, label) {
       ).toBeLessThanOrEqual(1);
     }
   }
+  if (current.captionTopologyGap !== null) {
+    expect(current.captionTopologyGap, `${label}: scene caption must end before topology begins`).toBeGreaterThanOrEqual(-0.5);
+  }
 }
 
 async function readStableSmartHomeLayout(root) {
@@ -90,6 +93,11 @@ async function readStableSmartHomeLayout(root) {
       inert: panel.inert,
       ariaHidden: panel.getAttribute("aria-hidden")
     }));
+    const caption = simulatorRoot.querySelector("[data-scenario-scene] figcaption");
+    const topology = simulatorRoot.querySelector("[data-scene-topology]");
+    const captionTopologyGap = !caption || !topology || getComputedStyle(caption).display === "none"
+      ? null
+      : topology.getBoundingClientRect().top - caption.getBoundingClientRect().bottom;
     return {
       experience: relativeRect("[data-smart-home-experience]"),
       scene: relativeRect("[data-scenario-scene]"),
@@ -101,6 +109,7 @@ async function readStableSmartHomeLayout(root) {
       belowPhysical: relativeRect(".smart-home__formation", document),
       controls: panelState("[data-phone-control-panel]", "phoneControlPanel"),
       presets: panelState("[data-preset-panel]", "presetPanel"),
+      captionTopologyGap,
       scroll: { x: scrollX, y: scrollY }
     };
   });
@@ -141,6 +150,9 @@ test("keeps the smart-home experience stable while presets, systems, and manual 
     });
     const root = await simulator(page);
     const baseline = await readStableSmartHomeLayout(root);
+    if (baseline.captionTopologyGap !== null) {
+      expect(baseline.captionTopologyGap, `${width}px initial scene caption must end before topology begins`).toBeGreaterThanOrEqual(-0.5);
+    }
     expect(baseline.scroll, `${width}px initial layout must not scroll the document`).toEqual({ x: 0, y: 0 });
     expectOneAccessiblePanel(baseline.controls, `${width}px initial phone controls`);
     expectOneAccessiblePanel(baseline.presets, `${width}px initial preset output`);
@@ -372,9 +384,9 @@ test("the nine public systems project their selected context into one visible SV
       .filter((group) => group.getAttribute("data-physical-scene-svg-system") !== activeId)
       .every((group) => group.hasAttribute("hidden")), system.id);
     expect(nonSelectedSystemsAreHidden, system.id + " must hide every non-selected SVG system").toBe(true);
-    const relevantLayer = activeSystem.locator(`[data-physical-scene-svg-effect="${system.effect}"]:not([hidden])`).first();
-    await expect(relevantLayer, `${system.id} needs its context-specific SVG effect`).toHaveCount(1);
-    const geometry = await relevantLayer.locator("[data-physical-scene-svg-shape]").first().evaluate((shape) => {
+    const relevantLayers = activeSystem.locator(`[data-physical-scene-svg-effect="${system.effect}"]:not([hidden])`);
+    await expect(relevantLayers, `${system.id} needs its context-specific SVG effect`).not.toHaveCount(0);
+    const geometries = await relevantLayers.locator("[data-physical-scene-svg-shape]").evaluateAll((shapes) => shapes.map((shape) => {
       const box = shape.getBBox();
       const svg = shape.ownerSVGElement;
       const viewBox = svg?.viewBox.baseVal;
@@ -384,8 +396,10 @@ test("the nine public systems project their selected context into one visible SV
         withinSource: box.x >= 0 && box.y >= 0 && box.x + box.width <= 1536 && box.y + box.height <= 1024,
         intersectsCrop: Boolean(viewBox) && box.x + box.width > viewBox.x && box.y + box.height > viewBox.y && box.x < viewBox.x + viewBox.width && box.y < viewBox.y + viewBox.height
       };
-    });
-    expect(geometry, `${system.id} physical shape geometry`).toEqual({ finite: true, hasExtent: true, withinSource: true, intersectsCrop: true });
+    }));
+    expect(geometries.length, `${system.id} physical effect needs rendered geometry`).toBeGreaterThan(0);
+    expect(geometries.every(({ finite, hasExtent, withinSource }) => finite && hasExtent && withinSource), `${system.id} physical shapes must stay finite and source-bound`).toBe(true);
+    expect(geometries.some(({ intersectsCrop }) => intersectsCrop), `${system.id} needs at least one context-specific shape inside the active crop`).toBe(true);
 
     const before = {
       rootSignature,

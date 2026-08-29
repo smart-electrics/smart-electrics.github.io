@@ -424,6 +424,7 @@ function enhanceSimulator(root) {
       const [element, property] = entries[index];
       element.style.setProperty(property, `${measureLongestTextCandidateHeight(element, candidates)}px`);
     });
+    markup.scene.style.setProperty("--smart-home-scene-topology-height", `${markup.sceneTopology.getBoundingClientRect().height}px`);
     entries.forEach(([element], index) => { element.textContent = current[index]; });
     markup.sceneTopology.style.visibility = visibility;
   };
