@@ -11,11 +11,11 @@ import {
 const failures = [];
 const AUDITED_PLAYWRIGHT_CONFIG_SHA256 =
   "de1f2bf0cc7c97df5093b47d05bd9b2438260345211c71109d5f96fb4e116203";
-const AUDITED_PLAYWRIGHT_TEST_COUNT = 695;
+const AUDITED_PLAYWRIGHT_TEST_COUNT = 700;
 const AUDITED_PLAYWRIGHT_RUNNER_SHA256 =
   "c89cf5ea38a172d3cdfd626e724fa58eb095965d71a1f6a01ff699ba82bbc78c";
 const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
-  "0c1388452ee052ec6e504e811cac34c3543f419a6aef3e0de35d33a713d6ef32";
+  "aa282605191e7e3415d621c690a46bfc93a9a89ff80ec22cbe29b23df62a05be";
 const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
   ["run_node_tests.js", "5eeda7311ca7dd62e4f20d8b5070fb49e4d8d6bb342703a75e0865cf02027e35"],
   ["run_ruby_test.rb", "896e42a46b013b6130bfdea6ea76679ecd0bc046c6f057f105ec32e3f1764ef4"],
@@ -89,7 +89,7 @@ if (
   EXPECTED_PLAYWRIGHT_CONFIG_SHA256 !== AUDITED_PLAYWRIGHT_CONFIG_SHA256 ||
   EXPECTED_PLAYWRIGHT_TEST_COUNT !== AUDITED_PLAYWRIGHT_TEST_COUNT
 ) {
-  failures.push("Playwright digest and 695-test contract must match the independent policy literal.");
+  failures.push("Playwright digest and 700-test contract must match the independent policy literal.");
 }
 const playwrightRunnerDigest = createHash("sha256")
   .update(playwrightRunnerSource)

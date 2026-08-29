@@ -236,7 +236,7 @@ test("runtime reporters turn skipped Playwright and Node tests into failures", (
   assert.deepEqual(expectedFailureReporter.onEnd({ status: "passed" }), { status: "failed" });
 
   const cleanReporter = new FailOnSkippedReporter({ report: (message) => messages.push(message) });
-  cleanReporter.onBegin({}, { allTests: () => Array.from({ length: 695 }) });
+  cleanReporter.onBegin({}, { allTests: () => Array.from({ length: 700 }) });
   cleanReporter.onTestEnd({ title: "executed test" }, { status: "passed" });
   assert.equal(cleanReporter.onEnd({ status: "passed" }), undefined);
 
@@ -245,7 +245,7 @@ test("runtime reporters turn skipped Playwright and Node tests into failures", (
   });
   incompleteReporter.onBegin({}, { allTests: () => Array.from({ length: 5 }) });
   assert.deepEqual(incompleteReporter.onEnd({ status: "passed" }), { status: "failed" });
-  assert.match(messages.join("\n"), /incomplete suite.*expected=695, received=5/iu);
+  assert.match(messages.join("\n"), /incomplete suite.*expected=700, received=5/iu);
 
   const fixtureRoot = mkdtempSync(join(tmpdir(), "smart-electrics-node-skip-"));
   const rubyFixtureRoot = mkdtempSync(
@@ -403,7 +403,7 @@ test("the quality policy retains both runtime skipped-test gates", () => {
     [
       "scripts/fail_on_skipped_reporter.js",
       [
-        "const AUDITED_PLAYWRIGHT_TEST_COUNT = 695;",
+        "const AUDITED_PLAYWRIGHT_TEST_COUNT = 700;",
         "testCount !== AUDITED_PLAYWRIGHT_TEST_COUNT"
       ]
     ]
@@ -892,7 +892,7 @@ test("the quality policy keeps local browser execution deterministic", () => {
       source
         .replace(/[0-9a-f]{64}/u, contextDependentDigest)
         .replace(
-          "EXPECTED_PLAYWRIGHT_TEST_COUNT = 695",
+          "EXPECTED_PLAYWRIGHT_TEST_COUNT = 700",
           "EXPECTED_PLAYWRIGHT_TEST_COUNT = 5"
         )
   });
@@ -904,10 +904,10 @@ test("the quality policy keeps local browser execution deterministic", () => {
 
   const erasedTestInventory = runPolicyAgainstWorkflowEdits({
     "scripts/playwright_contract.js": (source) =>
-      source.replace("EXPECTED_PLAYWRIGHT_TEST_COUNT = 695", "EXPECTED_PLAYWRIGHT_TEST_COUNT = 0")
+      source.replace("EXPECTED_PLAYWRIGHT_TEST_COUNT = 700", "EXPECTED_PLAYWRIGHT_TEST_COUNT = 0")
   });
   assert.notEqual(erasedTestInventory.status, 0);
-  assert.match(erasedTestInventory.stderr, /digest and 695-test contract.*independent policy literal/iu);
+  assert.match(erasedTestInventory.stderr, /digest and 700-test contract.*independent policy literal/iu);
 
   for (const [label, property] of [
     ["working directory", 'cwd: "/tmp",'],
