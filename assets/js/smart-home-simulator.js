@@ -236,20 +236,69 @@ function enhanceSimulator(root) {
   const activePanel = () => markup.panelById.get(state.presetId);
   const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
 
-  const reservePhoneActiveSpace = () => {
-    const current = [markup.activeLabel.textContent, markup.activeSummary.textContent, markup.topologyLabel.textContent, markup.topologyDetail.textContent];
+  const measuredMaximum = (element, candidates, { limit = 1 } = {}) => {
+    const current = element.textContent;
+    const selected = [...new Set(candidates)]
+      .sort((left, right) => right.length - left.length)
+      .slice(0, limit)
     let maximum = 0;
-    markup.panels.forEach((panel) => {
-      markup.systemButtons.forEach((button) => {
-        const detail = panel.querySelector(`[data-system-detail="${CSS.escape(button.dataset.phoneSystem)}"]`);
-        markup.activeLabel.textContent = text(button);
-        markup.activeSummary.textContent = detail?.dataset.summary || button.dataset.systemSummary;
-        markup.topologyLabel.textContent = button.dataset.topologyLabel;
-        markup.topologyDetail.textContent = button.dataset.topologyDetail;
-        maximum = Math.max(maximum, markup.phoneActive.getBoundingClientRect().height);
-      });
+    selected.forEach((candidate) => {
+      element.textContent = candidate;
+      maximum = Math.max(maximum, element.getBoundingClientRect().height);
     });
-    [markup.activeLabel.textContent, markup.activeSummary.textContent, markup.topologyLabel.textContent, markup.topologyDetail.textContent] = current;
+    element.textContent = current;
+    return Math.ceil(maximum);
+  };
+
+  const reserveSceneCopySpace = () => {
+    const sceneCopy = markup.sceneTitle.closest(".smart-home__scene-copy");
+    if (!sceneCopy) return;
+    const entries = [
+      [markup.sceneEyebrow, "--smart-home-scene-eyebrow-height"],
+      [markup.sceneTitle, "--smart-home-scene-title-height"],
+      [markup.sceneLabel, "--smart-home-scene-label-height"]
+    ];
+    const current = entries.map(([element]) => element.textContent);
+    const visibility = sceneCopy.style.visibility;
+    sceneCopy.style.visibility = "hidden";
+    entries.forEach(([element, property]) => {
+      const candidates = markup.systemButtons.flatMap((button) => {
+        if (element === markup.sceneEyebrow) return button.dataset.topologyLabel;
+        if (element === markup.sceneTitle) return text(button);
+        return markup.panels.map((panel) => panel.querySelector(`[data-system-detail="${CSS.escape(button.dataset.phoneSystem)}"]`)?.dataset.summary || button.dataset.systemSummary);
+      });
+      element.style.setProperty(property, `${measuredMaximum(element, candidates)}px`);
+    });
+    entries.forEach(([element], index) => { element.textContent = current[index]; });
+    sceneCopy.style.visibility = visibility;
+  };
+
+  const reservePhoneActiveSpace = () => {
+    const entries = [
+      [markup.topologyLabel, "--smart-home-phone-kicker-height"],
+      [markup.activeLabel, "--smart-home-phone-label-height"],
+      [markup.activeSummary, "--smart-home-phone-summary-height"],
+      [markup.topologyDetail, "--smart-home-phone-topology-height"]
+    ];
+    const current = entries.map(([element]) => element.textContent);
+    const records = markup.panels.flatMap((panel) => markup.systemButtons.map((button) => {
+      const detail = panel.querySelector(`[data-system-detail="${CSS.escape(button.dataset.phoneSystem)}"]`);
+      return [button.dataset.topologyLabel, text(button), detail?.dataset.summary || button.dataset.systemSummary, button.dataset.topologyDetail];
+    }));
+    entries.forEach(([element, property], index) => {
+      element.textContent = current[index];
+      element.style.setProperty(property, `${measuredMaximum(element, records.map((record) => record[index]))}px`);
+    });
+    const activeRecords = records
+      .map((record) => ({ record, score: record.reduce((score, candidate) => score + candidate.length, 0) }))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 1);
+    let maximum = 0;
+    activeRecords.forEach(({ record }) => {
+      entries.forEach(([element], index) => { element.textContent = record[index]; });
+      maximum = Math.max(maximum, markup.phoneActive.getBoundingClientRect().height);
+    });
+    entries.forEach(([element], index) => { element.textContent = current[index]; });
     markup.phoneActive.style.setProperty("--smart-home-phone-active-height", `${Math.ceil(maximum)}px`);
   };
 
@@ -352,28 +401,47 @@ function enhanceSimulator(root) {
   };
   const controlLabel = (systemId, controlId) => text(root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] label, [data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] .smart-home__phone-control-label`));
 
-  const reservePhoneSignatureSpace = () => {
-    const current = markup.signature.textContent;
-    let maximum = 0;
-    markup.panels.forEach((panel) => {
-      markup.signature.textContent = panel.dataset.liveSummary;
-      maximum = Math.max(maximum, markup.signature.getBoundingClientRect().height);
-      markup.systemIds.forEach((systemId) => {
-        markup.controlsBySystem[systemId].forEach((control) => {
-          const values = control.type === "range"
-            ? [control.min, control.max]
-            : control.type === "toggle"
-              ? [false, true]
-              : control.options;
-          values.forEach((value) => {
-            markup.signature.textContent = `Ручне коригування на основі «${text(panel.querySelector("h3"))}»: ${text(markup.systemButtonById.get(systemId))}. ${controlLabel(systemId, control.id)}: ${controlValueLabel(systemId, control.id, value)}.`;
-            maximum = Math.max(maximum, markup.signature.getBoundingClientRect().height);
-          });
-        });
+  const reserveSceneTopologySpace = () => {
+    const entries = [
+      [markup.topologySource, "--smart-home-topology-source-height"],
+      [markup.topologyLogic, "--smart-home-topology-logic-height"],
+      [markup.topologyResult, "--smart-home-topology-result-height"]
+    ];
+    const current = entries.map(([element]) => element.textContent);
+    const visibility = markup.sceneTopology.style.visibility;
+    markup.sceneTopology.style.visibility = "hidden";
+    const sourceCandidates = markup.systemButtons.flatMap((button) => isNonEmpty(button.dataset.diagnosticObservation)
+      ? [button.dataset.diagnosticObservation]
+      : markup.panels.map((panel) => text(panel.querySelector("[data-preset-event]"))));
+    const logicCandidates = markup.systemButtons.map((button) => isNonEmpty(button.dataset.diagnosticObservation) ? button.dataset.diagnosticIsolation : button.dataset.topologyLabel);
+    const resultCandidates = markup.panels.flatMap((panel) => markup.systemButtons.flatMap((button) => {
+      const systemId = button.dataset.phoneSystem;
+      const diagnostics = isNonEmpty(button.dataset.diagnosticObservation);
+      const summary = panel.querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`)?.dataset.summary || button.dataset.systemSummary;
+      return markup.controlsBySystem[systemId].flatMap((control) => {
+        const values = control.type === "range" ? [control.min, control.max] : control.type === "toggle" ? [false, true] : control.options;
+        return values.map((value) => diagnostics
+          ? `${text(button)}: ${button.dataset.diagnosticNextStep}. ${controlLabel(systemId, control.id)}: ${controlValueLabel(systemId, control.id, value)}.`
+          : `${text(button)}: ${summary} ${controlLabel(systemId, control.id)}: ${controlValueLabel(systemId, control.id, value)}.`);
       });
+    }));
+    [sourceCandidates, logicCandidates, resultCandidates].forEach((candidates, index) => {
+      const [element, property] = entries[index];
+      element.style.setProperty(property, `${measuredMaximum(element, candidates)}px`);
     });
-    markup.signature.textContent = current;
-    markup.signature.style.setProperty("--smart-home-phone-signature-height", `${Math.ceil(maximum)}px`);
+    entries.forEach(([element], index) => { element.textContent = current[index]; });
+    markup.sceneTopology.style.visibility = visibility;
+  };
+
+  const reservePhoneSignatureSpace = () => {
+    const candidates = markup.panels.flatMap((panel) => [
+      panel.dataset.liveSummary,
+      ...markup.systemIds.flatMap((systemId) => markup.controlsBySystem[systemId].flatMap((control) => {
+        const values = control.type === "range" ? [control.min, control.max] : control.type === "toggle" ? [false, true] : control.options;
+        return values.map((value) => `Ручне коригування на основі «${text(panel.querySelector("h3"))}»: ${text(markup.systemButtonById.get(systemId))}. ${controlLabel(systemId, control.id)}: ${controlValueLabel(systemId, control.id, value)}.`);
+      }))
+    ]);
+    markup.signature.style.setProperty("--smart-home-phone-signature-height", `${measuredMaximum(markup.signature, candidates)}px`);
   };
 
   const updateControls = () => {
@@ -436,9 +504,11 @@ function enhanceSimulator(root) {
     });
     markup.systemButtons.forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
     activateScenePicture(button.dataset.systemVisual);
-    markup.sceneTitle.textContent = selectedSystemLabel;
-    markup.sceneEyebrow.textContent = button.dataset.topologyLabel;
-    markup.sceneLabel.textContent = selectedSceneContext;
+    if (!initial) {
+      markup.sceneTitle.textContent = selectedSystemLabel;
+      markup.sceneEyebrow.textContent = button.dataset.topologyLabel;
+      markup.sceneLabel.textContent = selectedSceneContext;
+    }
     markup.activeLabel.textContent = text(button);
     markup.activeSummary.textContent = detail.dataset.summary || button.dataset.systemSummary;
     markup.topologyLabel.textContent = button.dataset.topologyLabel;
@@ -474,14 +544,28 @@ function enhanceSimulator(root) {
     if (announce || cinematic || initial) markup.live.textContent = status;
   };
 
+  const sceneCopy = markup.sceneTitle.closest(".smart-home__scene-copy");
+  const initialSceneCopyVisibility = sceneCopy?.style.visibility;
+  const initialTopologyVisibility = markup.sceneTopology.style.visibility;
+  const initialPhoneActiveVisibility = markup.phoneActive.style.visibility;
+  if (sceneCopy) sceneCopy.style.visibility = "hidden";
+  markup.sceneTopology.style.visibility = "hidden";
+  markup.phoneActive.style.visibility = "hidden";
   synchronize({ initial: true });
+  reserveSceneCopySpace();
+  reserveSceneTopologySpace();
   reservePhoneActiveSpace();
+  if (sceneCopy) sceneCopy.style.visibility = initialSceneCopyVisibility;
+  markup.sceneTopology.style.visibility = initialTopologyVisibility;
+  markup.phoneActive.style.visibility = initialPhoneActiveVisibility;
   reservePhoneSignatureSpace();
   let phoneActiveResizeFrame = null;
   window.addEventListener("resize", () => {
     if (phoneActiveResizeFrame !== null) cancelAnimationFrame(phoneActiveResizeFrame);
     phoneActiveResizeFrame = requestAnimationFrame(() => {
       phoneActiveResizeFrame = null;
+      reserveSceneCopySpace();
+      reserveSceneTopologySpace();
       reservePhoneActiveSpace();
       reservePhoneSignatureSpace();
     });

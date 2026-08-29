@@ -62,7 +62,7 @@ async function assertViewport(page, width) {
 }
 
 function expectStableLayout(baseline, current, label) {
-  for (const name of ["experience", "scene", "phone", "physical", "presetOutput"]) {
+  for (const name of ["experience", "scene", "phone", "physical", "physicalStage", "physicalMedia", "presetOutput", "belowPhysical"]) {
     for (const dimension of ["top", "left", "width", "height"]) {
       expect(
         Math.abs(current[name][dimension] - baseline[name][dimension]),
@@ -75,8 +75,8 @@ function expectStableLayout(baseline, current, label) {
 async function readStableSmartHomeLayout(root) {
   return root.evaluate((simulatorRoot) => {
     const rootRect = simulatorRoot.getBoundingClientRect();
-    const relativeRect = (selector) => {
-      const rect = simulatorRoot.querySelector(selector).getBoundingClientRect();
+    const relativeRect = (selector, scope = simulatorRoot) => {
+      const rect = scope.querySelector(selector).getBoundingClientRect();
       return {
         top: rect.top - rootRect.top,
         left: rect.left - rootRect.left,
@@ -95,7 +95,10 @@ async function readStableSmartHomeLayout(root) {
       scene: relativeRect("[data-scenario-scene]"),
       phone: relativeRect("[data-smart-home-phone]"),
       physical: relativeRect("[data-smart-home-physical]"),
+      physicalStage: relativeRect("[data-smart-home-physical-stage]"),
+      physicalMedia: relativeRect("[data-smart-home-physical-media]"),
       presetOutput: relativeRect("[data-preset-explanations]"),
+      belowPhysical: relativeRect(".smart-home__formation", document),
       controls: panelState("[data-phone-control-panel]", "phoneControlPanel"),
       presets: panelState("[data-preset-panel]", "presetPanel"),
       scroll: { x: scrollX, y: scrollY }
@@ -122,7 +125,7 @@ test("keeps the smart-home experience stable while presets, systems, and manual 
         if (entry.hadRecentInput) continue;
         window.__smartHomeInitialLayoutShifts.push({
           value: entry.value,
-          sources: entry.sources.map((source) => source.node?.tagName + (source.node?.className ? `.${source.node.className}` : ""))
+          sources: entry.sources.map((source) => source.node?.outerHTML?.slice(0, 240) || source.node?.tagName)
         });
       }
     }).observe({ type: "layout-shift", buffered: true });
@@ -143,7 +146,8 @@ test("keeps the smart-home experience stable while presets, systems, and manual 
     expectOneAccessiblePanel(baseline.presets, `${width}px initial preset output`);
     const initialShift = await page.evaluate(() => window.__smartHomeInitialLayoutShifts);
     const cls = initialShift.reduce((total, entry) => total + entry.value, 0);
-    expect(cls, `${width}px initial CLS: ${JSON.stringify(initialShift)}`).toBeLessThanOrEqual(0.001);
+    expect(cls, `${width}px initial CLS: ${JSON.stringify(initialShift)}`).toBe(0);
+    await page.evaluate(() => { window.__smartHomeInitialLayoutShifts = []; });
 
     for (const [systemId] of systems) {
       await root.locator(`[data-phone-system="${systemId}"]`).evaluate((button) => button.click());
@@ -191,6 +195,32 @@ test("keeps the smart-home experience stable while presets, systems, and manual 
       expectOneAccessiblePanel(current.controls, `${width}px manual ${systemId} controls`);
       expectOneAccessiblePanel(current.presets, `${width}px manual ${systemId} output`);
     }
+
+    const physical = root.locator("[data-smart-home-physical]");
+    const physicalControls = [
+      ["stairs", "Маршрут сходами"],
+      ["stairs", "Повна циркуляція"],
+      ["stairs", "Вимкнено"],
+      ["exterior", "Вечірній ландшафт"],
+      ["exterior", "Нічне зниження"],
+      ["exterior", "Підхід"]
+    ];
+    for (const [systemId, label] of physicalControls) {
+      if (systemId === "exterior") await physical.locator('[data-smart-home-physical-system="exterior"]').evaluate((button) => button.click());
+      await physical.getByRole("button", { name: label, exact: true }).evaluate((button) => button.click());
+      const current = await readStableSmartHomeLayout(root);
+      expectStableLayout(baseline, current, `${width}px physical ${systemId}:${label}`);
+      expect(current.scroll, `${width}px physical ${systemId}:${label} must not scroll the document`).toEqual({ x: 0, y: 0 });
+      await expect(physical).toHaveAttribute("data-smart-home-physical-motion-phase", "idle");
+      await expect(physical.locator("[data-smart-home-physical-snapshot]")).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `${width}px physical ${systemId}:${label} horizontal overflow`).toBe(0);
+    }
+
+    await page.evaluate(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    const interactionShifts = await page.evaluate(() => window.__smartHomeInitialLayoutShifts);
+    expect(interactionShifts, `${width}px scripted no-input layout shifts: ${JSON.stringify(interactionShifts)}`).toEqual([]);
   }
 });
 
