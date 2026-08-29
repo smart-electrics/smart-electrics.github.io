@@ -175,9 +175,9 @@ test("assembled residence controls swap the physical room pixels without moving 
   const blackout = stage.getByRole("button", { name: "Ролети blackout", exact: true });
   await blackout.focus();
   await page.keyboard.press("Enter");
-  await expect(snapshot).toBeVisible();
-  await expect(root).toHaveAttribute("data-cinematic-physical-motion-phase", "disassemble");
-  await expect(snapshot).toHaveCSS("animation-duration", "0.32s");
+  await expect(snapshot).toBeHidden();
+  await expect(root).toHaveAttribute("data-cinematic-physical-motion-phase", "idle");
+  await expect(layer).not.toHaveAttribute("data-cinematic-physical-transition", "true");
   await expect(blackout).toHaveAttribute("aria-pressed", "true");
   await expect(stage.getByRole("button", { name: "Вечір", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(stage.locator("[aria-live]")).toHaveCount(1);
@@ -209,12 +209,11 @@ test("assembled residence controls swap the physical room pixels without moving 
     top: geometry[0].top - geometry[1].top
   });
 
-  await expect(snapshot).toBeHidden({ timeout: 2_000 });
   const cinematicSnapshot = stage.locator("[data-cinematic-outgoing-snapshot]");
-  await expect(snapshot).toBeHidden();
+  await expect(snapshot).toHaveCount(0);
   await chooseDirection(stage, "Освітлення");
-  await expect(cinematicSnapshot).toHaveAttribute("data-cinematic-snapshot-active", "true");
-  expect(await cinematicSnapshot.evaluate((element) => element.style.getPropertyValue("--cinematic-snapshot-image"))).toMatch(/room-route-blackout-(768|1536)\.webp/);
+  await expect(root).toHaveAttribute("data-cinematic-motion-phase", "idle");
+  await expect(cinematicSnapshot).toHaveCount(0);
   await expect(layer).toBeHidden();
   await expect(stage.locator("[data-cinematic-physical-controls]:visible")).toHaveCount(0);
   await stage.getByRole("button", { name: "Повернутися до всієї системи", exact: true }).click();
@@ -529,27 +528,21 @@ test("all nine residence scene families remain pre-rendered on both public surfa
   }
 });
 
-test("rapid replacement retains one image-only snapshot and clears it on animation end or reduced motion", async ({ page }) => {
-  await page.goto("/services/");
-  const { root, stage } = await stageFor(page);
-  const snapshot = stage.locator("[data-cinematic-outgoing-snapshot]");
+test("public cinematic changes apply synchronously without outgoing residues or decorative connectors", async ({ page }) => {
+  for (const route of surfaceRoutes) {
+    await page.goto(route);
+    const { root, stage } = await stageFor(page);
 
-  await chooseDirection(stage, "Освітлення");
-  await expect(snapshot).toBeVisible();
-  await expect(snapshot).toHaveAttribute("aria-hidden", "true");
-  await expect(snapshot).toHaveCSS("animation-name", "residence-spine-outgoing");
-  await expect(snapshot).toBeEmpty();
+    for (const label of ["Освітлення", "Резервне живлення", "Освітлення"]) await chooseDirection(stage, label);
+    await stage.getByRole("button", { name: "Показати зв’язок: Освітлення сходів", exact: true }).click();
+    await stage.getByRole("button", { name: "Повернутися до всієї системи", exact: true }).click();
 
-  await chooseDirection(stage, "Резервне живлення");
-  await expect(stage.locator("[data-cinematic-outgoing-snapshot]:visible")).toHaveCount(1);
-  await snapshot.dispatchEvent("animationcancel");
-  await expect(snapshot).toBeHidden();
-
-  await chooseDirection(stage, "Освітлення");
-  await expect(snapshot).toBeVisible();
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(snapshot).toBeHidden();
-  await expect(root).toHaveAttribute("data-cinematic-state", "focus");
+    await expect(root).toHaveAttribute("data-cinematic-motion-phase", "idle");
+    await expect(root).not.toHaveAttribute("data-cinematic-transition", "true");
+    await expect(stage.locator("[data-cinematic-outgoing-snapshot]:visible, [data-cinematic-physical-snapshot]:visible")).toHaveCount(0);
+    await expect(stage.locator("[data-cinematic-outgoing-snapshot], [data-cinematic-physical-snapshot]")).toHaveCount(0);
+    await expect(stage.locator("[data-cinematic-connector-lane], svg[data-cinematic-relationship-connector]")).toHaveCount(0);
+  }
 });
 
 test("reduced motion changes state without snapshots, transitions, or non-opaque text", async ({ page }) => {
@@ -600,43 +593,41 @@ test("keyboard and touch select the same residence-spine state", async ({ page, 
   await touchContext.close();
 });
 
-test("mobile and desktop spine keep one-pixel connector lanes away from controls and copy", async ({ page }) => {
-  for (const { width, height, maximumHeight, expectsLandscapeScene } of [
-    { width: 375, height: 812, maximumHeight: 1100, expectsLandscapeScene: false },
-    { width: 1440, height: 1000, maximumHeight: null, expectsLandscapeScene: true }
-  ]) {
-    await page.setViewportSize({ width, height });
-    await page.goto("/");
-    const { root, stage } = await stageFor(page);
-    await chooseDirection(stage, "Освітлення");
-
-    const geometry = await root.evaluate((element) => {
-    const visible = (candidate) => !candidate.hasAttribute("hidden") && getComputedStyle(candidate).display !== "none";
-    const lane = element.querySelector("[data-cinematic-connector-lane]");
-    const composition = element.querySelector("[data-cinematic-composition]");
-    const laneRect = lane?.getBoundingClientRect();
-    const compositionRect = composition?.getBoundingClientRect();
-    const rootRect = element.getBoundingClientRect();
-    const blockers = [...element.querySelectorAll("button, a, [data-cinematic-panel]")]
-      .filter(visible)
-      .map((candidate) => candidate.getBoundingClientRect());
-    const overlaps = laneRect ? blockers.some((rect) =>
-      laneRect.left < rect.right && laneRect.right > rect.left && laneRect.top < rect.bottom && laneRect.bottom > rect.top
-    ) : true;
-    return {
-      scrollHeight: element.scrollHeight,
-      laneThickness: laneRect ? Math.min(laneRect.width, laneRect.height) : 99,
-      compositionAspect: compositionRect ? compositionRect.width / compositionRect.height : 0,
-      bounded: Boolean(laneRect && laneRect.left >= rootRect.left && laneRect.right <= rootRect.right && laneRect.top >= rootRect.top && laneRect.bottom <= rootRect.bottom),
-      overlaps
+test("public cinematic geometry remains stable through direction, relation, physical, and rapid changes", async ({ page }) => {
+  const stableGeometry = async (root) => root.evaluate((element) => {
+    const box = (selector) => {
+      const rect = element.querySelector(selector)?.getBoundingClientRect();
+      return rect && [rect.x + window.scrollX, rect.y + window.scrollY, rect.width, rect.height]
+        .map((value) => Math.round(value * 100) / 100);
     };
-    });
+    return {
+      stage: box("[data-cinematic-stage]"),
+      composition: box("[data-cinematic-composition]"),
+      media: box("[data-cinematic-media]"),
+      overflow: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    };
+  });
 
-    if (maximumHeight) expect(geometry.scrollHeight).toBeLessThanOrEqual(maximumHeight);
-    if (expectsLandscapeScene) expect(geometry.compositionAspect).toBeCloseTo(4 / 3, 2);
-    expect(geometry.laneThickness).toBeLessThanOrEqual(2);
-    expect(geometry.bounded).toBeTruthy();
-    expect(geometry.overlaps).toBeFalsy();
+  for (const width of [375, 768, 1440, 1980]) {
+    for (const route of surfaceRoutes) {
+      await page.setViewportSize({ width, height: width < 768 ? 812 : 1200 });
+      await page.goto(route);
+      const { root, stage } = await stageFor(page);
+      const initial = await stableGeometry(root);
+
+      await chooseDirection(stage, "Освітлення");
+      await stage.getByRole("button", { name: "Показати зв’язок: Освітлення сходів", exact: true }).click();
+      await stage.getByRole("button", { name: "Маршрут сходами", exact: true }).click();
+      await stage.getByRole("button", { name: "Повернутися до всієї системи", exact: true }).click();
+      await stage.getByRole("button", { name: "Жалюзі", exact: true }).click();
+      for (const label of ["Освітлення", "Резервне живлення", "Освітлення"]) await chooseDirection(stage, label);
+
+      const settled = await stableGeometry(root);
+      expect(settled).toEqual(initial);
+      expect(settled.overflow, `${route} at ${width}px must not overflow horizontally`).toBe(0);
+      await expect(root).toHaveAttribute("data-cinematic-motion-phase", "idle");
+      await expect(root).toHaveAttribute("data-cinematic-physical-motion-phase", "idle");
+    }
   }
 });
 
@@ -650,7 +641,6 @@ test("the spine has no horizontal overflow through every required width and pass
     const overflow = await page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
     const compositionWidth = await root.locator("[data-cinematic-composition]").evaluate((element) => element.getBoundingClientRect().width);
     expect(overflow, `${width}px should not overflow`).toBe(0);
-    if (width === 375) expect(await root.evaluate((element) => element.scrollHeight)).toBeLessThanOrEqual(1100);
     if (width === 1980) expect(compositionWidth, "the 1980px stage should not retain the rejected tablet-width cap").toBeGreaterThanOrEqual(1400);
     await chooseDirection(stage, "Освітлення");
     await waitForCinematicIdle(root);

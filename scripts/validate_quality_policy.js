@@ -18,7 +18,7 @@ const AUDITED_PLAYWRIGHT_REPORTER_SHA256 =
   "0c1388452ee052ec6e504e811cac34c3543f419a6aef3e0de35d33a713d6ef32";
 const AUDITED_LOCAL_ENTRYPOINT_SHA256 = new Map([
   ["run_node_tests.js", "5eeda7311ca7dd62e4f20d8b5070fb49e4d8d6bb342703a75e0865cf02027e35"],
-  ["run_ruby_test.rb", "aacfb649825b8f515435c24d95fd63f0c6b5cfe6804ab4e088328a2d73331f5e"],
+  ["run_ruby_test.rb", "49fed89208794a55f357da9ff72cb0ed5ab3ca349b8cb98980aab567085153a9"],
   ["verify_agent_skills.rb", "37095cc3690e974f688b79d427ceadc4f69554acac5d666514c37affaad440fc"],
   ["validate_integrations.rb", "4d61fda2e1a474a0f3aaef69c1f033f7d018e87374a286fc25fc6881eaf4d531"],
   ["validate_production_assets.rb", "e89bfee3f0cd2d53776a79309703067086815ed7f233ce36572415e72e043686"],

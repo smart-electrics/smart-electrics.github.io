@@ -84,14 +84,6 @@
         </ol>
       </nav>
 
-      <span class="residence-spine__connector-lane" data-cinematic-connector-lane aria-hidden="true"></span>
-
-      <svg class="residence-spine__relationship-connector" data-cinematic-relationship-connector aria-hidden="true" focusable="false" tabindex="-1" viewBox="0 0 1 1" preserveAspectRatio="none" hidden>
-        <path data-cinematic-relationship-connector-path pathLength="1"></path>
-        <circle data-cinematic-relationship-connector-source r="3"></circle>
-        <circle data-cinematic-relationship-connector-target r="3"></circle>
-      </svg>
-
       <div class="residence-spine__view" data-cinematic-view>
         <div class="residence-spine__media" data-cinematic-media data-cinematic-route-source="cinematic-stage-{{ stage_variant }}">
           <figure
@@ -141,14 +133,11 @@
             </figure>
           {% endfor %}
 
-          <div class="residence-spine__outgoing-snapshot" data-cinematic-outgoing-snapshot aria-hidden="true" hidden></div>
-
           <div class="residence-spine__physical-layer" data-cinematic-physical-layer hidden aria-hidden="true">
             <picture class="residence-spine__physical-picture" data-cinematic-physical-picture="room">
               <img data-cinematic-physical-image src="{{ initial_physical_scene.src_768 | relative_url }}" srcset="{{ initial_physical_scene.src_768 | relative_url }} 768w, {{ initial_physical_scene.src_1536 | relative_url }} 1536w" width="768" height="512" sizes="(max-width: 767px) 100vw, 52vw" alt="{{ initial_physical_scene.alt }}" loading="lazy">
             </picture>
             {% include physical-scene-svg-overlay.html instance_id=stage_id system_id=room_physical.id %}
-            <span class="residence-spine__physical-snapshot" data-cinematic-physical-snapshot aria-hidden="true" hidden></span>
           </div>
         </div>
 

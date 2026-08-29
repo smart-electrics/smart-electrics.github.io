@@ -10,8 +10,18 @@ const compositions = [
     snapshot: "[data-cinematic-outgoing-snapshot]",
     scene: "[data-cinematic-scene]",
     panel: "[data-cinematic-panel]",
-    connector: "svg[data-cinematic-relationship-connector]",
-    source: '[data-cinematic-direction-control][aria-pressed="true"]'
+    minimalResidence: true
+  },
+  {
+    route: "/services/",
+    root: "[data-cinematic-root]",
+    stage: "[data-cinematic-stage]",
+    trigger: '[data-cinematic-direction-control=""]',
+    phase: "data-cinematic-motion-phase",
+    snapshot: "[data-cinematic-outgoing-snapshot]",
+    scene: "[data-cinematic-scene]",
+    panel: "[data-cinematic-panel]",
+    minimalResidence: true
   },
   {
     route: "/services/lighting/",
@@ -116,18 +126,29 @@ async function expectBoundedSmartHomeCrossfade(root, label) {
   expect(idle.time - reassemble.time, label + " must not delay controls for a cosmetic reassembly").toBeLessThan(100);
 }
 
-test("cinematic compositions expose a bounded causal lifecycle with a clean single-scene hold", async ({ page }) => {
+test("residence stages apply synchronous state while other cinematic compositions keep their bounded lifecycle", async ({ page }) => {
   for (const width of [375, 1440]) {
     await page.setViewportSize({ width, height: width === 375 ? 812 : 1000 });
     for (const composition of compositions) {
       const root = await ready(page, composition);
-      const trigger = composition.route === "/"
+      const trigger = composition.minimalResidence
         ? root.locator("[data-cinematic-direction-control]").first()
         : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
       const previousSmartSystem = composition.smartHome ? await root.getAttribute("data-system") : null;
       const nextSmartSystem = composition.smartHome ? await trigger.getAttribute("data-phone-system") : null;
       await recordPhaseTimeline(root, composition.phase);
       await trigger.click();
+      if (composition.minimalResidence) {
+        await expect(root).toHaveAttribute(composition.phase, "idle");
+        await expect(root).not.toHaveAttribute("data-cinematic-transition", "true");
+        await expect(root.locator(composition.snapshot)).toHaveCount(0);
+        await expect(root.locator("[data-cinematic-physical-snapshot]")).toHaveCount(0);
+        await expect(root.locator("[data-cinematic-connector-lane], svg[data-cinematic-relationship-connector]")).toHaveCount(0);
+        await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
+        await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
+        expect(await root.evaluate((element) => element.__cinematicPhaseTimeline || [])).toEqual([]);
+        continue;
+      }
       await expect(root).toHaveAttribute(composition.phase, "disassemble");
       await expect(root.locator(composition.snapshot)).toBeVisible();
       if (composition.smartHome) {
@@ -230,8 +251,9 @@ test("cinematic compositions expose a bounded causal lifecycle with a clean sing
 
 test("snapshot cancellation clears only the visual artifact and never aborts the causal lifecycle", async ({ page }) => {
   for (const composition of compositions) {
+    if (composition.minimalResidence) continue;
     const root = await ready(page, composition);
-    const trigger = composition.route === "/"
+    const trigger = composition.minimalResidence
       ? root.locator("[data-cinematic-direction-control]").first()
       : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
     await trigger.click();
@@ -258,7 +280,7 @@ test("snapshot cancellation clears only the visual artifact and never aborts the
 test("rapid interactions restart each composition from the newest selected state", async ({ page }) => {
   for (const composition of compositions) {
     const root = await ready(page, composition);
-    if (composition.route === "/") {
+    if (composition.minimalResidence) {
       const controls = root.locator("[data-cinematic-direction-control]");
       await controls.nth(0).click();
       const newestDirection = await controls.nth(3).getAttribute("data-direction-id");
@@ -315,7 +337,7 @@ test("reduced motion bypasses the choreography without hiding the selected state
   await page.emulateMedia({ reducedMotion: "reduce" });
   for (const composition of compositions) {
     const root = await ready(page, composition);
-    const trigger = composition.route === "/"
+    const trigger = composition.minimalResidence
       ? root.locator("[data-cinematic-direction-control]").first()
       : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
     await trigger.click();
@@ -358,6 +380,21 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
         inner.top >= outer.top - 0.5 && inner.bottom <= outer.bottom + 0.5;
       const panelBounds = panel.getBoundingClientRect();
       const viewBounds = view.getBoundingClientRect();
+      const physicalControls = [...panel.querySelectorAll("button[data-cinematic-physical-action]")];
+      const intersects = (first, second) => first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
+      const wordLineCountsFor = (controls) => controls.flatMap((control) => {
+        const node = [...control.childNodes].find((candidate) => candidate.nodeType === Node.TEXT_NODE);
+        if (!node) return [];
+        return [...(node.textContent || "").matchAll(/\S+/gu)].map((match) => {
+          const range = document.createRange();
+          range.setStart(node, match.index);
+          range.setEnd(node, match.index + match[0].length);
+          return range.getClientRects().length;
+        });
+      });
+      const wordLineCounts = wordLineCountsFor(physicalControls);
+      const railWordLineCounts = wordLineCountsFor([...composition.querySelectorAll("[data-cinematic-direction-control]")]);
+      const controlBounds = physicalControls.map((control) => control.getBoundingClientRect());
       const overflow = [...panel.querySelectorAll("*")].flatMap((element) => {
         const style = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -366,13 +403,29 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
           ? [`${element.tagName}${element.className ? `.${element.className}` : ""} left:${(rect.left - panelBounds.left).toFixed(1)} right:${(rect.right - panelBounds.right).toFixed(1)} top:${(rect.top - panelBounds.top).toFixed(1)} bottom:${(rect.bottom - panelBounds.bottom).toFixed(1)}`]
           : [];
       });
-      return { state: `${window.innerWidth}:${panel.dataset.cinematicPanel}`, panelInView: within(panelBounds, viewBounds), overflow };
+      return {
+        state: `${window.innerWidth}:${panel.dataset.cinematicPanel}`,
+        panelInView: within(panelBounds, viewBounds),
+        overflow,
+        physicalControlsContained: controlBounds.every((bounds) => within(bounds, panelBounds)),
+        physicalControlsDoNotOverlap: controlBounds.every((bounds, index) => controlBounds.slice(index + 1).every((other) => !intersects(bounds, other))),
+        physicalControlsMeetTarget: controlBounds.every((bounds) => bounds.width >= 44 && bounds.height >= 44),
+        physicalWordsStayWhole: wordLineCounts.every((count) => count === 1),
+        railWordsStayWhole: railWordLineCounts.every((count) => count === 1),
+        railControlsDoNotOverlap: [...composition.querySelectorAll("[data-cinematic-direction-control]")].map((control) => control.getBoundingClientRect()).every((bounds, index, controls) => controls.slice(index + 1).every((other) => !intersects(bounds, other)))
+      };
     });
     expect(bounds?.panelInView).toBe(true);
     expect(bounds?.overflow, bounds?.state).toEqual([]);
+    expect(bounds?.physicalControlsContained, bounds?.state).toBe(true);
+    expect(bounds?.physicalControlsDoNotOverlap, bounds?.state).toBe(true);
+    expect(bounds?.physicalControlsMeetTarget, bounds?.state).toBe(true);
+    expect(bounds?.physicalWordsStayWhole, bounds?.state).toBe(true);
+    expect(bounds?.railWordsStayWhole, bounds?.state).toBe(true);
+    expect(bounds?.railControlsDoNotOverlap, bounds?.state).toBe(true);
   };
 
-  for (const width of [375, 768, 900, 1024, 1440, 1980]) {
+  for (const width of [375, 768, 900, 1024, 1153, 1180, 1200, 1240, 1280, 1300, 1440, 1980]) {
     await page.setViewportSize({ width, height: width === 375 ? 844 : 1100 });
     await page.goto("/");
     const root = page.locator("[data-cinematic-root]");

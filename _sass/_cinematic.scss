@@ -189,7 +189,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   aspect-ratio: 16 / 12;
   display: grid;
   gap: clamp(0.75rem, 1.3vw, 1.25rem);
-  grid-template-columns: var(--residence-rail) 1px minmax(0, 1fr);
+  grid-template-columns: var(--residence-rail) minmax(0, 1fr);
   margin-inline: auto;
   max-width: 94rem;
   min-height: 23.5rem;
@@ -234,7 +234,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   height: auto;
   line-height: 1.16;
   min-height: 2.75rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   padding: 0.48rem 0.55rem;
   position: relative;
   text-align: left;
@@ -259,66 +259,9 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   width: 2px;
 }
 
-.residence-spine__connector-lane {
-  background: #4c382c;
-  grid-column: 2;
-  overflow: hidden;
-  position: relative;
-  width: 1px;
-}
-
-.residence-spine__connector-lane::after {
-  background: linear-gradient(180deg, var(--amber-light), var(--copper));
-  content: "";
-  height: 12.5%;
-  left: 0;
-  position: absolute;
-  top: calc((var(--cinematic-rail-index, 1) - 1) * 12.5%);
-  transform: scaleY(1);
-  transform-origin: top;
-  width: 1px;
-}
-
-.residence-spine__relationship-connector {
-  height: 100%;
-  inset: 0;
-  overflow: visible;
-  pointer-events: none;
-  position: absolute;
-  width: 100%;
-  z-index: 2;
-}
-
-.residence-spine__relationship-connector path {
-  fill: none;
-  stroke: var(--amber-light);
-  stroke-dasharray: 1;
-  stroke-dashoffset: 0;
-  stroke-width: 2;
-}
-
-.residence-spine__relationship-connector circle {
-  fill: var(--amber-light);
-  stroke: #15110e;
-  stroke-width: 1.5;
-}
-
-.residence-spine[data-cinematic-motion-phase="disassemble"] .residence-spine__relationship-connector,
-.residence-spine[data-cinematic-motion-phase="hold"] .residence-spine__relationship-connector {
-  visibility: hidden;
-}
-
-.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__relationship-connector path {
-  animation: residence-spine-relationship-draw 420ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.residence-spine[data-cinematic-transition="true"] .residence-spine__connector-lane::after {
-  animation: residence-spine-lane-draw 760ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
 .residence-spine__view {
   background: #0e0c0a;
-  grid-column: 3;
+  grid-column: 2;
   min-width: 0;
   overflow: hidden;
   position: relative;
@@ -364,8 +307,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
 
 .residence-spine__physical-layer,
 .residence-spine__physical-picture,
-.residence-spine__physical-picture img,
-.residence-spine__physical-snapshot {
+.residence-spine__physical-picture img {
   height: 100%;
   inset: 0;
   position: absolute;
@@ -378,31 +320,14 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   z-index: 1;
 }
 
+.residence-spine__physical-layer [data-physical-scene-svg-effect] {
+  transition: none;
+}
+
 .residence-spine__physical-picture img {
   display: block;
   object-fit: cover;
   object-position: 72% center;
-}
-
-.residence-spine__physical-snapshot {
-  background-image: var(--cinematic-physical-snapshot-image, none);
-  background-position: 72% center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.residence-spine__physical-snapshot[data-cinematic-physical-snapshot-active="true"] {
-  animation: residence-spine-physical-outgoing 320ms cubic-bezier(.28, .74, .22, 1) both;
-}
-
-.residence-spine[data-cinematic-physical-motion-phase="hold"] .residence-spine__physical-picture:not([hidden]) {
-  visibility: hidden;
-}
-
-.residence-spine[data-cinematic-physical-motion-phase="reassemble"] .residence-spine__physical-picture:not([hidden]) {
-  animation: residence-spine-physical-incoming 760ms cubic-bezier(.2, .72, .18, 1) both;
 }
 
 .residence-spine__panels {
@@ -479,15 +404,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
 .residence-spine__physical-controls fieldset > div {
   display: grid;
   gap: 0.35rem;
-  grid-template-columns: repeat(var(--physical-control-count), minmax(2.75rem, 1fr));
-}
-
-.residence-spine__physical-controls fieldset:first-child > div {
-  --physical-control-count: 4;
-}
-
-.residence-spine__physical-controls fieldset:last-child > div {
-  --physical-control-count: 5;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
 }
 
 .residence-spine__physical-controls button {
@@ -501,7 +418,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   line-height: 1.1;
   min-height: 2.75rem;
   min-width: 2.75rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
   padding: 0.3rem;
 }
 
@@ -517,20 +434,6 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   overflow-wrap: normal;
   padding-inline: 0.16rem;
   word-break: normal;
-}
-
-@container (max-width: 16rem) {
-  .residence-spine__physical-controls fieldset:last-child > div {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .residence-spine__physical-controls fieldset:last-child button:nth-child(-n + 3) {
-    grid-column: span 2;
-  }
-
-  .residence-spine__physical-controls fieldset:last-child button:nth-child(n + 4) {
-    grid-column: span 3;
-  }
 }
 
 .residence-spine__destination {
@@ -606,44 +509,15 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   color: var(--amber-light);
 }
 
-.residence-spine__outgoing-snapshot {
-  background-image: var(--cinematic-snapshot-image, none);
-  background-position: 72% center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  inset: 0;
-  pointer-events: none;
-  position: absolute;
-  z-index: 2;
-}
-
-.residence-spine__outgoing-snapshot[data-cinematic-snapshot-active="true"] {
-  animation: residence-spine-outgoing 320ms cubic-bezier(.28, .74, .22, 1) both;
-}
-
-.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__scene:not([hidden]) {
-  animation: residence-spine-scene-in 760ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.residence-spine[data-cinematic-motion-phase="disassemble"] .residence-spine__panel:not([hidden]) {
-  animation: residence-spine-panel-exit 300ms cubic-bezier(.28, .74, .22, 1) both;
-}
-
-.residence-spine[data-cinematic-motion-phase="hold"] .residence-spine__panels {
-  visibility: hidden;
-}
-
-.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__panel:not([hidden]) {
-  animation: residence-spine-panel-reveal 720ms 60ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
-.residence-spine[data-cinematic-motion-phase="reassemble"] .residence-spine__panel:not([hidden]) > :is(p, h3, a, div, ul) {
-  animation: residence-spine-type-reveal 480ms 90ms cubic-bezier(.2, .72, .18, 1) both;
-}
-
 .residence-spine__return {
   margin-top: 0.7rem;
   min-width: min(100%, 18rem);
+}
+
+.residence-spine__return[hidden] {
+  display: block !important;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .residence-spine button:focus-visible,
@@ -652,53 +526,6 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   outline-offset: 3px;
 }
 
-@keyframes residence-spine-outgoing {
-  from { clip-path: inset(0); transform: translate3d(0, 0, 0) scale(1); }
-  56% { clip-path: polygon(0 0, 100% 0, 100% 68%, 63% 82%, 26% 72%, 0 88%); transform: translate3d(1.1rem, -0.35rem, 0) scale(1.025); }
-  to { clip-path: inset(18% 0 36% 100%); transform: translate3d(2.35rem, -1rem, 0) scale(1.075); }
-}
-
-@keyframes residence-spine-scene-in {
-  from { clip-path: inset(0 0 0 12%); transform: scale(1.055); }
-  to { clip-path: inset(0); transform: scale(1); }
-}
-
-@keyframes residence-spine-panel-reveal {
-  from { clip-path: inset(0 100% 0 0); transform: translate3d(-0.8rem, 0, 0); }
-  to { clip-path: inset(0); transform: translate3d(0, 0, 0); }
-}
-
-@keyframes residence-spine-panel-exit {
-  from { clip-path: inset(0); transform: translate3d(0, 0, 0); }
-  to { clip-path: inset(0 0 0 100%); transform: translate3d(-0.7rem, 0, 0); }
-}
-
-@keyframes residence-spine-type-reveal {
-  from { clip-path: inset(0 100% 0 0); transform: translate3d(-0.35rem, 0, 0); }
-  to { clip-path: inset(0); transform: translate3d(0, 0, 0); }
-}
-
-@keyframes residence-spine-relationship-draw {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
-}
-
-@keyframes residence-spine-physical-outgoing {
-  from { clip-path: inset(0); transform: scale(1); }
-  54% { clip-path: inset(0 0 31% 0); transform: scale(1.018); }
-  to { clip-path: inset(0 100% 0 0); transform: scale(1.035); }
-}
-
-@keyframes residence-spine-physical-incoming {
-  from { clip-path: inset(0 0 0 100%); transform: scale(1.035); }
-  48% { clip-path: inset(0 0 0 36%); transform: scale(1.018); }
-  to { clip-path: inset(0); transform: scale(1); }
-}
-
-@keyframes residence-spine-lane-draw {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
-}
 
 /* The home copy and the selected system form one hero, rather than a hero
  * plus a catalogue of cards. */
@@ -734,7 +561,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   max-width: calc(94rem + 2.6rem);
 }
 
-@media (max-width: 72rem) {
+@media (max-width: 96rem) {
   .home-hero__frame:has(.residence-spine) {
     grid-template-areas:
       "copy"
@@ -768,7 +595,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
     display: grid;
     gap: 0.6rem;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1px auto;
+    grid-template-rows: auto auto;
     max-height: none;
     min-height: 0;
     overflow: visible;
@@ -798,9 +625,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   }
 
   .residence-spine__scene img,
-  .residence-spine__outgoing-snapshot,
-  .residence-spine__physical-picture img,
-  .residence-spine__physical-snapshot {
+  .residence-spine__physical-picture img {
     object-position: 68% center;
     background-position: 68% center;
   }
@@ -808,6 +633,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   .residence-spine__panels {
     display: block;
     grid-row: 2;
+    min-height: 36rem;
     width: 100%;
   }
 
@@ -853,7 +679,7 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
 
   .residence-spine__rail {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 2;
   }
 
   .residence-spine__rail ol {
@@ -867,35 +693,10 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
     min-height: 2.75rem;
   }
 
-  .residence-spine__connector-lane {
-    grid-column: 1;
-    grid-row: 2;
-    height: 1px;
-    width: 100%;
-  }
-
-  .residence-spine__connector-lane::after {
-    height: 1px;
-    left: 0;
-    top: 0;
-    transform: scaleX(1);
-    transform-origin: left;
-    width: 100%;
-  }
-
-  .residence-spine[data-cinematic-transition="true"] .residence-spine__connector-lane::after {
-    animation-name: residence-spine-lane-draw-mobile;
-  }
-
   .home-hero__frame .residence-spine__composition {
     max-height: none;
     min-height: 0;
   }
-}
-
-@keyframes residence-spine-lane-draw-mobile {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
 }
 
 @media (max-width: 36rem) {
@@ -921,22 +722,6 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
     padding-inline: 0.45rem;
   }
 
-  .residence-spine__physical-controls fieldset:last-child > div {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .residence-spine__physical-controls fieldset:last-child button:nth-child(-n + 3) {
-    grid-column: span 2;
-  }
-
-  .residence-spine__physical-controls fieldset:last-child button:nth-child(n + 4) {
-    grid-column: span 3;
-  }
-
-  .residence-spine__physical-controls button {
-    overflow-wrap: normal;
-    word-break: normal;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -80,10 +80,9 @@ function enhancePhysicalControls(root) {
   const stage = one(root, "[data-cinematic-stage]");
   const live = one(root, "[data-cinematic-live]");
   const layer = one(root, "[data-cinematic-physical-layer]");
-  const snapshot = one(root, "[data-cinematic-physical-snapshot]");
   const picture = one(layer || root, "picture[data-cinematic-physical-picture]");
   const image = one(picture || root, "img[data-cinematic-physical-image]");
-  if (!physical || !stage || !live || !layer || !snapshot || !picture || !image) return settleCinematicStagePending();
+  if (!physical || !stage || !live || !layer || !picture || !image) return settleCinematicStagePending();
 
   const controlContainers = [...stage.querySelectorAll("[data-cinematic-physical-controls]")];
   const containerBySystem = new Map(controlContainers.map((container) => [text(container.dataset.cinematicPhysicalControls), container]));
@@ -102,15 +101,8 @@ function enhancePhysicalControls(root) {
   let activeSystem = null;
   let physicalAvailable = false;
   let enhancementValid = true;
-  let syncPending = false;
 
   const responsiveSource = (scene) => window.matchMedia("(max-width: 767px)").matches ? scene.src768 : scene.src1536;
-  const clearTransition = () => {
-    snapshot.hidden = true;
-    snapshot.removeAttribute("data-cinematic-physical-snapshot-active");
-    snapshot.style.removeProperty("--cinematic-physical-snapshot-image");
-    layer.removeAttribute("data-cinematic-physical-transition");
-  };
   const causalSceneFor = (sceneKey) => {
     const matches = [...stage.querySelectorAll("[data-cinematic-scene-key]")].filter((scene) => scene.dataset.cinematicSceneKey === sceneKey);
     return matches.length === 1 ? matches[0] : null;
@@ -155,38 +147,18 @@ function enhancePhysicalControls(root) {
     enhancementValid = false;
     physicalAvailable = false;
     activeSystem = null;
-    syncPending = false;
     layer.hidden = true;
     controlContainers.forEach((container) => { container.hidden = true; });
-    clearTransition();
     svg.disable();
     root.removeAttribute("data-cinematic-physical-enhanced");
   };
-  const applyPendingSync = () => {
-    if (!syncPending) return;
-    syncPending = false;
-    if (!synchronize()) disablePhysicalEnhancement(); else announce();
-  };
-  const motion = createCinematicMotion({
-    onPhase: (phase) => {
-      svg.setPhase(phase);
-      if (phase === "hold") {
-        clearTransition();
-        applyPendingSync();
-      }
-      if (phase === "idle") clearTransition();
-    }
-  });
   const setAvailability = (cinematicState, relationId) => {
-    if (motion.phase !== "idle") motion.cancel();
     const sceneKey = cinematicState === "assembled" ? "assembled" : cinematicState === "reassembled" ? `relation:${text(relationId)}` : "";
     activeSystem = physical.systemForSceneKey(sceneKey);
     physicalAvailable = enhancementValid && root.dataset.cinematicEnhanced === "true" && Boolean(activeSystem);
     layer.hidden = !physicalAvailable;
     controlContainers.forEach((container) => { container.hidden = !physicalAvailable || container !== containerBySystem.get(activeSystem?.id); });
     if (!physicalAvailable) {
-      syncPending = false;
-      clearTransition();
       svg.hide();
       return;
     }
@@ -197,20 +169,8 @@ function enhancePhysicalControls(root) {
     const current = states.get(activeSystem.id);
     const nextState = activeSystem.reduce(current, { type: "select-control", controlId, valueId });
     if (nextState === current) return;
-    if (!reducedMotion.matches && snapshot.hidden) {
-      const outgoingScene = activeSystem.sceneFor(current);
-      const outgoingSource = image.currentSrc || (outgoingScene && responsiveSource(outgoingScene));
-      if (outgoingSource) {
-        snapshot.style.setProperty("--cinematic-physical-snapshot-image", cssImage(outgoingSource));
-        snapshot.hidden = false;
-        snapshot.dataset.cinematicPhysicalSnapshotActive = "true";
-        layer.dataset.cinematicPhysicalTransition = "true";
-      }
-    }
     states.set(activeSystem.id, nextState);
-    syncPending = true;
-    motion.start({ reducedMotion: reducedMotion.matches });
-    if (reducedMotion.matches) applyPendingSync();
+    if (!synchronize()) disablePhysicalEnhancement(); else announce();
   };
 
   root.addEventListener("cinematic:state-change", (event) => setAvailability(event.detail?.state, event.detail?.selectedRelationId));
@@ -218,12 +178,6 @@ function enhancePhysicalControls(root) {
     const control = event.target instanceof Element ? event.target.closest("button[data-cinematic-physical-action='select-control']") : null;
     if (!(control instanceof HTMLButtonElement) || !activeSystem || !containerBySystem.get(activeSystem.id).contains(control)) return;
     transition(control.dataset.physicalControlId, control.dataset.physicalValueId);
-  });
-  reducedMotion.addEventListener("change", (event) => {
-    if (!event.matches) return;
-    if (motion.phase !== "idle") motion.cancel();
-    clearTransition();
-    applyPendingSync();
   });
   root.dataset.cinematicPhysicalEnhanced = "true";
   svg.setPhase("idle");
