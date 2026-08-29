@@ -1881,6 +1881,35 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
   try {
     await withInteractionDiagnostics(page, async () => {
     await visit(page, "/");
+    const mobileNavigation = page.locator(".mobile-nav");
+    const mobileSummary = mobileNavigation.locator("summary");
+    const mobileSummaryResting = await mobileSummary.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderColor,
+        tapHighlightColor: style.webkitTapHighlightColor
+      };
+    });
+    expect(mobileSummaryResting.tapHighlightColor).toBe("rgba(0, 0, 0, 0)");
+    await mobileSummary.tap();
+    await expect(mobileNavigation).toHaveAttribute("open", "");
+    expect(await mobileSummary.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderColor,
+        tapHighlightColor: style.webkitTapHighlightColor
+      };
+    })).toEqual(mobileSummaryResting);
+    const mobileServices = mobileNavigation.getByRole("link", { name: "Послуги", exact: true });
+    await expect(mobileServices).not.toHaveAttribute("data-cinematic-route", "");
+    expect(await mobileServices.evaluate((element) => getComputedStyle(element).webkitTapHighlightColor)).toBe("rgba(0, 0, 0, 0)");
+    await Promise.all([page.waitForURL("**/services/"), mobileServices.tap()]);
+    await expect(page.locator("[data-cinematic-route-snapshot]")).toHaveCount(0);
+    await visit(page, "/");
+    evidence.push("navigation");
+
     const residence = page.locator("[data-cinematic-root]");
     await (await residenceDirectionWithRelation(page.locator("[data-cinematic-stage]"))).tap();
     await expect(residence).toHaveAttribute("data-cinematic-state", "focus");
@@ -1971,7 +2000,7 @@ test("touch dispatch follows the same state contracts as pointer and keyboard co
     await context.close();
   }
 
-  expect(evidence).toEqual(["residence", "service-studio", "solution", "journey", "smart-home"]);
+  expect(evidence).toEqual(["navigation", "residence", "service-studio", "solution", "journey", "smart-home"]);
   writeEvidence("touch-contracts.json", evidence);
 });
 

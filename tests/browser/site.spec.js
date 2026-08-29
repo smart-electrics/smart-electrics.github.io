@@ -22,6 +22,51 @@ const routes = [
   "/404.html"
 ];
 
+async function chromeVisualState(locator) {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const after = getComputedStyle(element, "::after");
+    return {
+      backgroundColor: style.backgroundColor,
+      borderColor: style.borderColor,
+      color: style.color,
+      filter: style.filter,
+      opacity: style.opacity,
+      transform: style.transform,
+      underlineTransform: after.transform
+    };
+  });
+}
+
+async function pressPointer(locator, page) {
+  const bounds = await locator.boundingBox();
+  if (!bounds) throw new Error("Visible chrome control requires pointer bounds");
+
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.down();
+}
+
+async function clickCreatesRouteSnapshot(locator) {
+  return locator.evaluate((anchor) => new Promise((resolve) => {
+    document.addEventListener("click", (event) => {
+      event.preventDefault();
+      window.setTimeout(() => {
+        const snapshot = document.querySelector("[data-cinematic-route-snapshot]");
+        snapshot?.remove();
+        resolve(Boolean(snapshot));
+      }, 0);
+    }, { once: true });
+    anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0, cancelable: true, view: window }));
+  }));
+}
+
+async function releaseWithoutNavigation(page) {
+  await page.evaluate(() => {
+    document.addEventListener("click", (event) => event.preventDefault(), { capture: true, once: true });
+  });
+  await page.mouse.up();
+}
+
 test("homepage states the verified offer without pretending contacts are active", async ({ page }) => {
   await page.goto("/");
 
@@ -65,23 +110,103 @@ test("outer composition remains fluid instead of freezing at a desktop max-width
   expect(Math.abs(shell.left - (viewport.width - shell.right))).toBeLessThanOrEqual(1);
 });
 
-test("navigation exposes the agreed Ukrainian labels", async ({ page }) => {
-  await page.goto("/");
+test("navigation exposes the agreed Ukrainian labels with hover-only chrome feedback", async ({ page }) => {
+  await page.goto("/services/");
+
+  await expect(
+    page.locator("header [data-cinematic-route], header [data-cinematic-route-source], header [data-cinematic-route-source-ref], footer [data-cinematic-route], footer [data-cinematic-route-source], footer [data-cinematic-route-source-ref]")
+  ).toHaveCount(0);
 
   const desktopNavigation = page.getByRole("navigation", { name: "Основна навігація" });
-  const navigation = await desktopNavigation.isVisible()
-    ? desktopNavigation
-    : page.getByRole("navigation", { name: "Мобільна навігація" });
-
-  if (!(await desktopNavigation.isVisible())) {
-    await page.locator(".mobile-nav summary").click();
-  }
+  const navigation = await desktopNavigation.isVisible() ? desktopNavigation : page.getByRole("navigation", { name: "Мобільна навігація" });
+  if (!(await desktopNavigation.isVisible())) await page.locator(".mobile-nav summary").click();
 
   for (const label of ["Послуги", "Готові рішення", "Розумний будинок", "Процес", "Про нас", "Контакти"]) {
     await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
 
   await expect(navigation.getByRole("link", { name: "Проєкти", exact: true })).toHaveCount(0);
+
+  const brand = page.getByRole("banner").getByRole("link", { name: "Smart Electrics, головна" });
+  const brandResting = await chromeVisualState(brand);
+  await brand.hover();
+  await page.waitForTimeout(200);
+  const brandHovered = await chromeVisualState(brand);
+  expect(Number(brandHovered.opacity)).toBeGreaterThanOrEqual(Number(brandResting.opacity));
+  expect(brandHovered.filter).not.toBe(brandResting.filter);
+  await pressPointer(brand, page);
+  expect(await chromeVisualState(brand)).toEqual(brandHovered);
+  await releaseWithoutNavigation(page);
+  expect(await clickCreatesRouteSnapshot(brand)).toBe(false);
+  await Promise.all([
+    page.waitForURL((url) => url.pathname === "/"),
+    brand.click()
+  ]);
+
+  if (await desktopNavigation.isVisible()) {
+    const servicesLink = desktopNavigation.getByRole("link", { name: "Послуги", exact: true });
+    const resting = await chromeVisualState(servicesLink);
+    await servicesLink.hover();
+    await page.waitForTimeout(200);
+    const hovered = await chromeVisualState(servicesLink);
+    expect(hovered.color).not.toBe(resting.color);
+    expect(hovered.underlineTransform).not.toBe(resting.underlineTransform);
+    await pressPointer(servicesLink, page);
+    expect(await chromeVisualState(servicesLink)).toEqual(hovered);
+    await releaseWithoutNavigation(page);
+    expect(await clickCreatesRouteSnapshot(servicesLink)).toBe(false);
+    await Promise.all([page.waitForURL("**/services/"), servicesLink.click()]);
+  } else {
+    const mobileMenu = page.locator(".mobile-nav");
+    const summary = mobileMenu.locator("summary");
+    const summaryResting = await chromeVisualState(summary);
+    await summary.hover();
+    const summaryHovered = await chromeVisualState(summary);
+    expect(summaryHovered.backgroundColor).not.toBe(summaryResting.backgroundColor);
+    expect(summaryHovered.borderColor).not.toBe(summaryResting.borderColor);
+    await pressPointer(summary, page);
+    expect(await chromeVisualState(summary)).toEqual(summaryHovered);
+    await page.mouse.up();
+    await expect(mobileMenu).toHaveAttribute("open", "");
+
+    const servicesLink = mobileMenu.getByRole("link", { name: "Послуги", exact: true });
+    const resting = await chromeVisualState(servicesLink);
+    await servicesLink.hover();
+    const hovered = await chromeVisualState(servicesLink);
+    expect(hovered.backgroundColor).not.toBe(resting.backgroundColor);
+    expect(hovered.color).not.toBe(resting.color);
+    await pressPointer(servicesLink, page);
+    expect(await chromeVisualState(servicesLink)).toEqual(hovered);
+    await releaseWithoutNavigation(page);
+    expect(await clickCreatesRouteSnapshot(servicesLink)).toBe(false);
+    await Promise.all([page.waitForURL("**/services/"), servicesLink.click()]);
+  }
+
+  const viewport = page.viewportSize();
+  if (viewport) await page.mouse.move(1, viewport.height - 1);
+  await page.waitForTimeout(200);
+  const currentNavigation = page.getByRole("navigation", { name: "Основна навігація" });
+  const currentScope = await currentNavigation.isVisible()
+    ? currentNavigation
+    : page.getByRole("navigation", { name: "Мобільна навігація" });
+  if (!(await currentNavigation.isVisible())) await page.locator(".mobile-nav summary").click();
+  const currentLink = currentScope.getByRole("link", { name: "Послуги", exact: true });
+  const peerLink = currentScope.getByRole("link", { name: "Процес", exact: true });
+  await expect(currentLink).toHaveAttribute("aria-current", "page");
+  expect(await chromeVisualState(currentLink)).toEqual(await chromeVisualState(peerLink));
+
+  const destinationBrand = page.getByRole("banner").getByRole("link", { name: "Smart Electrics, головна" });
+  await page.goto("/services/");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(".skip-link")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(destinationBrand).toBeFocused();
+  const focus = await destinationBrand.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { color: style.outlineColor, style: style.outlineStyle, width: style.outlineWidth };
+  });
+  expect(focus.style).not.toBe("none");
+  expect(focus.width).not.toBe("0px");
 });
 
 test("service details keep the Services section active in both navigation variants", async ({ page }) => {
