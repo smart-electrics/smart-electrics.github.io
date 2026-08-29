@@ -117,6 +117,25 @@ async function activeSvgParameterSignature(overlay, systemId) {
     .join("|"));
 }
 
+async function expectLocalPhysicalLightFields(physical, systemId) {
+  const overlay = physical.locator("[data-physical-scene-svg-overlay][data-physical-scene-svg-instance='smart-home-physical']");
+  const fields = await overlay.locator(`[data-physical-scene-svg-system="${systemId}"]:not([hidden]) [data-physical-scene-svg-layer]:not([hidden])`).evaluateAll((layers) => layers.map((layer) => {
+    const shape = layer.querySelector("[data-physical-scene-svg-shape]");
+    const box = shape?.getBBox();
+    return {
+      effect: layer.dataset.physicalSceneSvgEffect,
+      kind: shape?.dataset.physicalSceneSvgShape,
+      width: box?.width,
+      height: box?.height
+    };
+  }));
+  expect(fields.length, `${systemId} needs several locally registered light fields`).toBeGreaterThanOrEqual(3);
+  expect(fields.every(({ effect, kind }) => effect === "glow" && ["circle", "ellipse"].includes(kind)), `${systemId} must use only local glow circles or ellipses`).toBe(true);
+  expect(fields.every(({ width, height }) => Math.max(width, height) <= 180), `${systemId} light fields must remain local to their fixtures`).toBe(true);
+  await expect(overlay.locator(`[data-physical-scene-svg-system="${systemId}"]:not([hidden]) [data-physical-scene-svg-shape="path"], [data-physical-scene-svg-system="${systemId}"]:not([hidden]) [data-physical-scene-svg-shape="line"], [data-physical-scene-svg-system="${systemId}"]:not([hidden]) [data-physical-scene-svg-shape="polyline"]`)).toHaveCount(0);
+  return activeSvgParameterSignature(overlay, systemId);
+}
+
 test("the nine public systems project their selected context into one visible SVG physical layer", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(route);
@@ -342,7 +361,7 @@ test("upgrades the complete nine-system, seven-preset configuration into one int
   expect(await page.getByRole("main").innerText()).not.toMatch(forbiddenCopy);
 });
 
-test("physical stair and exterior scenes are subordinate to the canonical phone and swap exact media", async ({ page }) => {
+test("physical stair and exterior scenes use distinct local light fields while swapping exact media", async ({ page }) => {
   await page.goto(route);
   const root = await simulator(page);
   const physical = root.locator("[data-smart-home-physical]");
@@ -357,7 +376,8 @@ test("physical stair and exterior scenes are subordinate to the canonical phone 
   const expectedInitialVariant = page.viewportSize().width <= 768 ? "-768.webp" : "-1536.webp";
   await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, expectedInitialVariant)).toBe(true);
   await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=off");
-  await expectSubordinatePhysicalContext(physical, "stairs", "route");
+  await expectSubordinatePhysicalContext(physical, "stairs", "glow");
+  const stairParameters = [await expectLocalPhysicalLightFields(physical, "stairs")];
   const directControl = await physical.getByRole("button", { name: "Маршрут сходами", exact: true }).evaluate((button) => {
     const physicalRoot = button.closest("[data-smart-home-physical]");
     const phases = [];
@@ -387,15 +407,35 @@ test("physical stair and exterior scenes are subordinate to the canonical phone 
     transform: getComputedStyle(element).transform,
     visibility: getComputedStyle(element).visibility
   }))).toEqual({ animations: 0, clipPath: "none", transform: "none", visibility: "visible" });
-  await expectSubordinatePhysicalContext(physical, "stairs", "route");
+  await expectSubordinatePhysicalContext(physical, "stairs", "glow");
+  stairParameters.push(await expectLocalPhysicalLightFields(physical, "stairs"));
   await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `stairs-route${expectedInitialVariant}`)).toBe(true);
   await expect(physical).toHaveAttribute("data-smart-home-physical-motion-phase", "idle");
-  await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
-  await physical.getByRole("button", { name: "Нічне зниження", exact: true }).click();
-  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "exterior:exterior_lighting=reduced-night");
-  await expectSubordinatePhysicalContext(physical, "exterior", "route");
-  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `exterior-reduced-night${expectedInitialVariant}`)).toBe(true);
+
+  await physical.getByRole("button", { name: "Повна циркуляція", exact: true }).click();
+  await expect(picture).toHaveAttribute("data-smart-home-physical-picture", "stairs:stair_lighting=full");
+  await expectSubordinatePhysicalContext(physical, "stairs", "glow");
+  stairParameters.push(await expectLocalPhysicalLightFields(physical, "stairs"));
+  await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `stairs-full${expectedInitialVariant}`)).toBe(true);
   await expect(physical).toHaveAttribute("data-smart-home-physical-motion-phase", "idle");
+  expect(new Set(stairParameters).size, "stairs states need distinct physical SVG parameters").toBe(3);
+
+  await physical.getByRole("button", { name: "Зовнішнє освітлення", exact: true }).click();
+  const exteriorStates = [
+    ["Підхід", "approach"],
+    ["Вечірній ландшафт", "evening"],
+    ["Нічне зниження", "reduced-night"]
+  ];
+  const exteriorParameters = [];
+  for (const [label, value] of exteriorStates) {
+    await physical.getByRole("button", { name: label, exact: true }).click();
+    await expect(picture).toHaveAttribute("data-smart-home-physical-picture", `exterior:exterior_lighting=${value}`);
+    await expectSubordinatePhysicalContext(physical, "exterior", "glow");
+    exteriorParameters.push(await expectLocalPhysicalLightFields(physical, "exterior"));
+    await expect.poll(() => image.evaluate((element, suffix) => element.currentSrc ? new URL(element.currentSrc).pathname.endsWith(suffix) : false, `exterior-${value}${expectedInitialVariant}`)).toBe(true);
+    await expect(physical).toHaveAttribute("data-smart-home-physical-motion-phase", "idle");
+  }
+  expect(new Set(exteriorParameters).size, "exterior states need distinct physical SVG parameters").toBe(3);
 });
 
 test("malformed subordinate physical picker, control, or initial media fails closed", async ({ page }) => {

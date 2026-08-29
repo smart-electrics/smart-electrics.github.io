@@ -111,17 +111,49 @@ svg:
 
     - id: stairs
       layers:
-        - id: stairs-sequential-route
-          effect: route
-          geometry: { kind: path, points: [[1330, 902], [1256, 840], [1190, 766], [1126, 690], [1062, 614], [1000, 536], [940, 458], [894, 390]] }
-          binding: { control_id: stair_lighting, type: segment, parameter: progress, output: { "off": 0, route: 0.54, full: 1 } }
+        - id: stairs-step-lower
+          effect: glow
+          geometry: { kind: ellipse, cx: 1288, cy: 856, rx: 18, ry: 10 }
+          binding: { control_id: stair_lighting, type: segment, parameter: level, output: { "off": 0, route: 0.72, full: 0.96 } }
+        - id: stairs-step-lower-middle
+          effect: glow
+          geometry: { kind: ellipse, cx: 1252, cy: 782, rx: 16, ry: 9 }
+          binding: { control_id: stair_lighting, type: segment, parameter: level, output: { "off": 0, route: 0.64, full: 0.92 } }
+        - id: stairs-step-middle
+          effect: glow
+          geometry: { kind: ellipse, cx: 1208, cy: 710, rx: 15, ry: 8 }
+          binding: { control_id: stair_lighting, type: segment, parameter: level, output: { "off": 0, route: 0.46, full: 0.88 } }
+        - id: stairs-step-upper-middle
+          effect: glow
+          geometry: { kind: ellipse, cx: 1166, cy: 640, rx: 14, ry: 8 }
+          binding: { control_id: stair_lighting, type: segment, parameter: level, output: { "off": 0, route: 0.26, full: 0.84 } }
+        - id: stairs-step-upper
+          effect: glow
+          geometry: { kind: ellipse, cx: 1127, cy: 574, rx: 13, ry: 7 }
+          binding: { control_id: stair_lighting, type: segment, parameter: level, output: { "off": 0, route: 0.12, full: 0.78 } }
 
     - id: exterior
       layers:
-        - id: exterior-approach-path
-          effect: route
-          geometry: { kind: path, points: [[408, 910], [520, 838], [610, 782], [670, 730], [708, 684], [732, 632]] }
-          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.48, evening: 0.82, reduced-night: 0.18 } }
+        - id: exterior-bollard-near-left
+          effect: glow
+          geometry: { kind: circle, cx: 204, cy: 900, r: 36 }
+          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.84, evening: 0.46, reduced-night: 0.18 } }
+        - id: exterior-bollard-middle-left
+          effect: glow
+          geometry: { kind: circle, cx: 360, cy: 845, r: 32 }
+          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.78, evening: 0.54, reduced-night: 0.16 } }
+        - id: exterior-bollard-middle-right
+          effect: glow
+          geometry: { kind: circle, cx: 814, cy: 796, r: 32 }
+          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.74, evening: 0.6, reduced-night: 0.15 } }
+        - id: exterior-step-wash
+          effect: glow
+          geometry: { kind: ellipse, cx: 667, cy: 736, rx: 70, ry: 28 }
+          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.82, evening: 0.48, reduced-night: 0.2 } }
+        - id: exterior-entry-canopy
+          effect: glow
+          geometry: { kind: ellipse, cx: 686, cy: 552, rx: 62, ry: 24 }
+          binding: { control_id: exterior_lighting, type: segment, parameter: level, output: { approach: 0.56, evening: 0.72, reduced-night: 0.24 } }
 
     - id: lighting
       layers:
