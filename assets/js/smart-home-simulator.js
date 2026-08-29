@@ -236,18 +236,13 @@ function enhanceSimulator(root) {
   const activePanel = () => markup.panelById.get(state.presetId);
   const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
 
-  const measuredMaximum = (element, candidates, { limit = 1 } = {}) => {
+  const measureLongestTextCandidateHeight = (element, candidates) => {
     const current = element.textContent;
-    const selected = [...new Set(candidates)]
-      .sort((left, right) => right.length - left.length)
-      .slice(0, limit)
-    let maximum = 0;
-    selected.forEach((candidate) => {
-      element.textContent = candidate;
-      maximum = Math.max(maximum, element.getBoundingClientRect().height);
-    });
+    const candidate = [...new Set(candidates)].sort((left, right) => right.length - left.length)[0] || "";
+    element.textContent = candidate;
+    const height = element.getBoundingClientRect().height;
     element.textContent = current;
-    return Math.ceil(maximum);
+    return Math.ceil(height);
   };
 
   const reserveSceneCopySpace = () => {
@@ -267,7 +262,7 @@ function enhanceSimulator(root) {
         if (element === markup.sceneTitle) return text(button);
         return markup.panels.map((panel) => panel.querySelector(`[data-system-detail="${CSS.escape(button.dataset.phoneSystem)}"]`)?.dataset.summary || button.dataset.systemSummary);
       });
-      element.style.setProperty(property, `${measuredMaximum(element, candidates)}px`);
+      element.style.setProperty(property, `${measureLongestTextCandidateHeight(element, candidates)}px`);
     });
     entries.forEach(([element], index) => { element.textContent = current[index]; });
     sceneCopy.style.visibility = visibility;
@@ -287,7 +282,7 @@ function enhanceSimulator(root) {
     }));
     entries.forEach(([element, property], index) => {
       element.textContent = current[index];
-      element.style.setProperty(property, `${measuredMaximum(element, records.map((record) => record[index]))}px`);
+      element.style.setProperty(property, `${measureLongestTextCandidateHeight(element, records.map((record) => record[index]))}px`);
     });
     const activeRecords = records
       .map((record) => ({ record, score: record.reduce((score, candidate) => score + candidate.length, 0) }))
@@ -427,7 +422,7 @@ function enhanceSimulator(root) {
     }));
     [sourceCandidates, logicCandidates, resultCandidates].forEach((candidates, index) => {
       const [element, property] = entries[index];
-      element.style.setProperty(property, `${measuredMaximum(element, candidates)}px`);
+      element.style.setProperty(property, `${measureLongestTextCandidateHeight(element, candidates)}px`);
     });
     entries.forEach(([element], index) => { element.textContent = current[index]; });
     markup.sceneTopology.style.visibility = visibility;
@@ -441,7 +436,7 @@ function enhanceSimulator(root) {
         return values.map((value) => `Ручне коригування на основі «${text(panel.querySelector("h3"))}»: ${text(markup.systemButtonById.get(systemId))}. ${controlLabel(systemId, control.id)}: ${controlValueLabel(systemId, control.id, value)}.`);
       }))
     ]);
-    markup.signature.style.setProperty("--smart-home-phone-signature-height", `${measuredMaximum(markup.signature, candidates)}px`);
+    markup.signature.style.setProperty("--smart-home-phone-signature-height", `${measureLongestTextCandidateHeight(markup.signature, candidates)}px`);
   };
 
   const updateControls = () => {
