@@ -61,6 +61,139 @@ async function assertViewport(page, width) {
   if (width === 1980) expect(bounds.sceneWidth, "1980px stage width").toBeGreaterThanOrEqual(1400);
 }
 
+function expectStableLayout(baseline, current, label) {
+  for (const name of ["experience", "scene", "phone", "physical", "presetOutput"]) {
+    for (const dimension of ["top", "left", "width", "height"]) {
+      expect(
+        Math.abs(current[name][dimension] - baseline[name][dimension]),
+        `${label}: ${name}.${dimension} must remain within one rendered pixel`
+      ).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+async function readStableSmartHomeLayout(root) {
+  return root.evaluate((simulatorRoot) => {
+    const rootRect = simulatorRoot.getBoundingClientRect();
+    const relativeRect = (selector) => {
+      const rect = simulatorRoot.querySelector(selector).getBoundingClientRect();
+      return {
+        top: rect.top - rootRect.top,
+        left: rect.left - rootRect.left,
+        width: rect.width,
+        height: rect.height
+      };
+    };
+    const panelState = (selector, attribute) => [...simulatorRoot.querySelectorAll(selector)].map((panel) => ({
+      id: panel.dataset[attribute],
+      hidden: panel.hidden,
+      inert: panel.inert,
+      ariaHidden: panel.getAttribute("aria-hidden")
+    }));
+    return {
+      experience: relativeRect("[data-smart-home-experience]"),
+      scene: relativeRect("[data-scenario-scene]"),
+      phone: relativeRect("[data-smart-home-phone]"),
+      physical: relativeRect("[data-smart-home-physical]"),
+      presetOutput: relativeRect("[data-preset-explanations]"),
+      controls: panelState("[data-phone-control-panel]", "phoneControlPanel"),
+      presets: panelState("[data-preset-panel]", "presetPanel"),
+      scroll: { x: scrollX, y: scrollY }
+    };
+  });
+}
+
+function expectOneAccessiblePanel(panels, label) {
+  const active = panels.filter((panel) => !panel.hidden);
+  expect(active, `${label}: exactly one panel is active`).toHaveLength(1);
+  expect(active[0].inert, `${label}: active panel is interactive`).toBe(false);
+  expect(active[0].ariaHidden, `${label}: active panel is exposed`).toBe("false");
+  expect(
+    panels.filter((panel) => panel !== active[0] && panel.inert && panel.ariaHidden === "true" && panel.hidden),
+    `${label}: every inactive panel is inert and hidden from assistive technology`
+  ).toHaveLength(panels.length - 1);
+}
+
+test("keeps the smart-home experience stable while presets, systems, and manual controls change", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.__smartHomeInitialLayoutShifts = [];
+    new PerformanceObserver((entries) => {
+      for (const entry of entries.getEntries()) {
+        if (entry.hadRecentInput) continue;
+        window.__smartHomeInitialLayoutShifts.push({
+          value: entry.value,
+          sources: entry.sources.map((source) => source.node?.tagName + (source.node?.className ? `.${source.node.className}` : ""))
+        });
+      }
+    }).observe({ type: "layout-shift", buffered: true });
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  for (const width of [375, 768, 1153, 1300, 1440, 1980]) {
+    await page.setViewportSize({ width, height: 1200 });
+    await page.goto(route);
+    await page.evaluate(async () => {
+      await document.fonts?.ready;
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    });
+    const root = await simulator(page);
+    const baseline = await readStableSmartHomeLayout(root);
+    expect(baseline.scroll, `${width}px initial layout must not scroll the document`).toEqual({ x: 0, y: 0 });
+    expectOneAccessiblePanel(baseline.controls, `${width}px initial phone controls`);
+    expectOneAccessiblePanel(baseline.presets, `${width}px initial preset output`);
+    const initialShift = await page.evaluate(() => window.__smartHomeInitialLayoutShifts);
+    const cls = initialShift.reduce((total, entry) => total + entry.value, 0);
+    expect(cls, `${width}px initial CLS: ${JSON.stringify(initialShift)}`).toBeLessThanOrEqual(0.001);
+
+    for (const [systemId] of systems) {
+      await root.locator(`[data-phone-system="${systemId}"]`).evaluate((button) => button.click());
+      await expect(root).toHaveAttribute("data-system", systemId);
+      const current = await readStableSmartHomeLayout(root);
+      expectStableLayout(baseline, current, `${width}px system ${systemId}`);
+      expect(current.scroll, `${width}px system ${systemId} must not scroll the document`).toEqual({ x: 0, y: 0 });
+      expectOneAccessiblePanel(current.controls, `${width}px system ${systemId} controls`);
+      expectOneAccessiblePanel(current.presets, `${width}px system ${systemId} preset output`);
+    }
+
+    for (const preset of presetExpectations) {
+      await root.locator(`[data-preset-radio][value="${preset.id}"]`).evaluate((radio) => {
+        radio.checked = true;
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await expect(root).toHaveAttribute("data-preset", preset.id);
+      const current = await readStableSmartHomeLayout(root);
+      expectStableLayout(baseline, current, `${width}px preset ${preset.id}`);
+      expectOneAccessiblePanel(current.controls, `${width}px preset ${preset.id} controls`);
+      expectOneAccessiblePanel(current.presets, `${width}px preset ${preset.id} output`);
+    }
+
+    const manualControls = [
+      ["lighting", '[data-phone-range][data-control-id="brightness"]', "range"],
+      ["shading", '[data-phone-segment][data-control-id="treatment"][data-control-value="blinds"]', "button"],
+      ["climate", '[data-phone-segment][data-control-id="comfort"]:not([aria-pressed="true"])', "button"],
+      ["security", '[data-phone-segment][data-control-id="coverage"]:not([aria-pressed="true"])', "button"],
+      ["audio", '[data-phone-toggle][data-control-id="muted"]', "button"]
+    ];
+    for (const [systemId, selector, type] of manualControls) {
+      await root.locator(`[data-phone-system="${systemId}"]`).evaluate((button) => button.click());
+      const control = root.locator(selector).first();
+      await control.evaluate((element, interactionType) => {
+        if (interactionType === "range") {
+          const range = element;
+          range.value = range.value === range.max ? range.min : range.max;
+          range.dispatchEvent(new Event("input", { bubbles: true }));
+        } else {
+          element.click();
+        }
+      }, type);
+      const current = await readStableSmartHomeLayout(root);
+      expectStableLayout(baseline, current, `${width}px manual ${systemId}`);
+      expectOneAccessiblePanel(current.controls, `${width}px manual ${systemId} controls`);
+      expectOneAccessiblePanel(current.presets, `${width}px manual ${systemId} output`);
+    }
+  }
+});
+
 async function readPresetPreview(root) {
   return root.evaluate((simulatorRoot) => {
     const preview = simulatorRoot.querySelector("[data-scene-preview]");

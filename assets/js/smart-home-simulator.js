@@ -128,6 +128,7 @@ function validateMarkup(root) {
   const activeSummary = only(root, "[data-phone-system-summary]");
   const topologyLabel = only(root, "[data-phone-topology-label]");
   const topologyDetail = only(root, "[data-phone-topology-detail]");
+  const phoneActive = only(root, ".smart-home__phone-active");
   const sceneTopology = only(root, "[data-scene-topology]");
   const topologySource = only(root, "[data-topology-source]");
   const topologyLogic = only(root, "[data-topology-logic]");
@@ -168,7 +169,7 @@ function validateMarkup(root) {
 
   if (
     !phone || !experience || !staticExplainer || !scene || !scenePreview || !live || !signature ||
-    !sceneTopology || topologyConnectors.length !== 2 || ![sceneTitle, sceneEyebrow, sceneLabel, activeLabel, activeSummary, topologyLabel, topologyDetail, topologySource, topologyLogic, topologyResult].every((item) => isNonEmpty(text(item))) ||
+    !sceneTopology || !phoneActive || topologyConnectors.length !== 2 || ![sceneTitle, sceneEyebrow, sceneLabel, activeLabel, activeSummary, topologyLabel, topologyDetail, topologySource, topologyLogic, topologyResult].every((item) => isNonEmpty(text(item))) ||
     allRadios.length !== radios.length || checked.length !== 1 || !uniqueIds(presetIds) || !sameIds(radios.map((radio) => radio.value), presetIds) ||
     !uniqueIds(systemIds) || !sameIds(staticLabels.map((label) => label.dataset.systemLabel), systemIds) ||
     !sameIds(controlPanelIds, systemIds) || !uniqueIds(visualIds) || !sameIds(visualIds, systemButtons.map((button) => button.dataset.systemVisual)) ||
@@ -201,7 +202,7 @@ function validateMarkup(root) {
   }
 
   if (!panelById.has(initialPresetId) || !presets[initialPresetId] || presetSystemIds[initialPresetId] !== initialSystemId) return null;
-  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, pictureByVisualId: new Map(picture.map((candidate) => [candidate.dataset.scenePicture, candidate])), imageByVisualId: new Map(picture.map((candidate, index) => [candidate.dataset.scenePicture, pictureImages[index]])), controlPanels, controlPanelById, controlsBySystem, presets, presetSystemIds, initialPresetId, initialSystemId };
+  return { phone, experience, staticExplainer, scene, scenePreview, sceneTitle, sceneEyebrow, sceneLabel, sceneTopology, topologySource, topologyLogic, topologyResult, live, signature, activeLabel, activeSummary, topologyLabel, topologyDetail, phoneActive, radios, presetIds, panels, panelById, systemIds, systemButtons, systemButtonById, pictures: picture, pictureByVisualId: new Map(picture.map((candidate) => [candidate.dataset.scenePicture, candidate])), imageByVisualId: new Map(picture.map((candidate, index) => [candidate.dataset.scenePicture, pictureImages[index]])), controlPanels, controlPanelById, controlsBySystem, presets, presetSystemIds, initialPresetId, initialSystemId };
 }
 
 function enhanceSimulator(root) {
@@ -234,6 +235,23 @@ function enhanceSimulator(root) {
   }
   const activePanel = () => markup.panelById.get(state.presetId);
   const detailFor = (systemId) => activePanel().querySelector(`[data-system-detail="${CSS.escape(systemId)}"]`);
+
+  const reservePhoneActiveSpace = () => {
+    const current = [markup.activeLabel.textContent, markup.activeSummary.textContent, markup.topologyLabel.textContent, markup.topologyDetail.textContent];
+    let maximum = 0;
+    markup.panels.forEach((panel) => {
+      markup.systemButtons.forEach((button) => {
+        const detail = panel.querySelector(`[data-system-detail="${CSS.escape(button.dataset.phoneSystem)}"]`);
+        markup.activeLabel.textContent = text(button);
+        markup.activeSummary.textContent = detail?.dataset.summary || button.dataset.systemSummary;
+        markup.topologyLabel.textContent = button.dataset.topologyLabel;
+        markup.topologyDetail.textContent = button.dataset.topologyDetail;
+        maximum = Math.max(maximum, markup.phoneActive.getBoundingClientRect().height);
+      });
+    });
+    [markup.activeLabel.textContent, markup.activeSummary.textContent, markup.topologyLabel.textContent, markup.topologyDetail.textContent] = current;
+    markup.phoneActive.style.setProperty("--smart-home-phone-active-height", `${Math.ceil(maximum)}px`);
+  };
 
   const synchronizePhysicalSceneSvg = () => {
     let frame = null;
@@ -305,7 +323,11 @@ function enhanceSimulator(root) {
   };
 
   const synchronizePanelInertness = (inert) => {
-    markup.panels.forEach((panel) => { panel.inert = inert; });
+    markup.panels.forEach((panel) => {
+      const hidden = panel !== activePanel();
+      panel.inert = inert || hidden;
+      panel.setAttribute("aria-hidden", String(inert || hidden));
+    });
   };
 
   const activateScenePicture = (visualId) => {
@@ -330,14 +352,44 @@ function enhanceSimulator(root) {
   };
   const controlLabel = (systemId, controlId) => text(root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] label, [data-phone-control="${CSS.escape(systemId)}:${CSS.escape(controlId)}"] .smart-home__phone-control-label`));
 
+  const reservePhoneSignatureSpace = () => {
+    const current = markup.signature.textContent;
+    let maximum = 0;
+    markup.panels.forEach((panel) => {
+      markup.signature.textContent = panel.dataset.liveSummary;
+      maximum = Math.max(maximum, markup.signature.getBoundingClientRect().height);
+      markup.systemIds.forEach((systemId) => {
+        markup.controlsBySystem[systemId].forEach((control) => {
+          const values = control.type === "range"
+            ? [control.min, control.max]
+            : control.type === "toggle"
+              ? [false, true]
+              : control.options;
+          values.forEach((value) => {
+            markup.signature.textContent = `Ручне коригування на основі «${text(panel.querySelector("h3"))}»: ${text(markup.systemButtonById.get(systemId))}. ${controlLabel(systemId, control.id)}: ${controlValueLabel(systemId, control.id, value)}.`;
+            maximum = Math.max(maximum, markup.signature.getBoundingClientRect().height);
+          });
+        });
+      });
+    });
+    markup.signature.textContent = current;
+    markup.signature.style.setProperty("--smart-home-phone-signature-height", `${Math.ceil(maximum)}px`);
+  };
+
   const updateControls = () => {
     markup.systemIds.forEach((systemId) => {
-      markup.controlPanelById.get(systemId).hidden = systemId !== state.systemId;
+      const controlPanel = markup.controlPanelById.get(systemId);
+      const panelHidden = systemId !== state.systemId;
+      controlPanel.hidden = panelHidden;
+      controlPanel.inert = panelHidden;
+      controlPanel.setAttribute("aria-hidden", String(panelHidden));
       for (const control of markup.controlsBySystem[systemId]) {
         const value = state.valuesBySystem[systemId][control.id];
         const controlRoot = root.querySelector(`[data-phone-control="${CSS.escape(systemId)}:${CSS.escape(control.id)}"]`);
         const isVisible = !control.visibleWhen || control.visibleWhen.expectedValues.includes(state.valuesBySystem[systemId][control.visibleWhen.controlId]);
         controlRoot.hidden = !isVisible;
+        controlRoot.inert = !isVisible || panelHidden;
+        controlRoot.setAttribute("aria-hidden", String(!isVisible || panelHidden));
         if (!isVisible && controlRoot.contains(document.activeElement)) {
           markup.phone.focus({ preventScroll: true });
         }
@@ -376,7 +428,12 @@ function enhanceSimulator(root) {
     markup.phone.hidden = false;
     markup.staticExplainer.hidden = true;
     markup.radios.forEach((radio) => { radio.checked = radio.value === state.presetId; });
-    markup.panels.forEach((candidate) => { candidate.hidden = candidate !== panel; });
+    markup.panels.forEach((candidate) => {
+      const hidden = candidate !== panel;
+      candidate.hidden = hidden;
+      candidate.inert = hidden;
+      candidate.setAttribute("aria-hidden", String(hidden));
+    });
     markup.systemButtons.forEach((candidate) => candidate.setAttribute("aria-pressed", String(candidate === button)));
     activateScenePicture(button.dataset.systemVisual);
     markup.sceneTitle.textContent = selectedSystemLabel;
@@ -402,11 +459,13 @@ function enhanceSimulator(root) {
     });
     synchronizePhysicalSceneSvg();
     const diagnostics = isNonEmpty(button.dataset.diagnosticObservation);
-    markup.topologySource.textContent = diagnostics ? button.dataset.diagnosticObservation : text(panel.querySelector("[data-preset-event]"));
-    markup.topologyLogic.textContent = diagnostics ? button.dataset.diagnosticIsolation : button.dataset.topologyLabel;
-    markup.topologyResult.textContent = diagnostics
-      ? `${selectedSystemLabel}: ${button.dataset.diagnosticNextStep}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
-      : `${selectedSystemLabel}: ${selectedSceneContext} ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`;
+    if (!initial) {
+      markup.topologySource.textContent = diagnostics ? button.dataset.diagnosticObservation : text(panel.querySelector("[data-preset-event]"));
+      markup.topologyLogic.textContent = diagnostics ? button.dataset.diagnosticIsolation : button.dataset.topologyLabel;
+      markup.topologyResult.textContent = diagnostics
+        ? `${selectedSystemLabel}: ${button.dataset.diagnosticNextStep}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
+        : `${selectedSystemLabel}: ${selectedSceneContext} ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`;
+    }
     updateControls();
     const status = state.manual
       ? `Ручне коригування на основі «${panel.querySelector("h3").textContent.trim()}»: ${text(button)}. ${controlLabel(state.systemId, changedControl.id)}: ${controlValueLabel(state.systemId, changedControl.id, changedValue)}.`
@@ -416,6 +475,17 @@ function enhanceSimulator(root) {
   };
 
   synchronize({ initial: true });
+  reservePhoneActiveSpace();
+  reservePhoneSignatureSpace();
+  let phoneActiveResizeFrame = null;
+  window.addEventListener("resize", () => {
+    if (phoneActiveResizeFrame !== null) cancelAnimationFrame(phoneActiveResizeFrame);
+    phoneActiveResizeFrame = requestAnimationFrame(() => {
+      phoneActiveResizeFrame = null;
+      reservePhoneActiveSpace();
+      reservePhoneSignatureSpace();
+    });
+  });
 
   let transitionGeneration = 0;
   const motion = createCinematicMotion({

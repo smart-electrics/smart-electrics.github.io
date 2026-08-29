@@ -537,6 +537,7 @@
   border-inline-start: 1px solid var(--phone-copper);
   display: grid;
   gap: 0.28rem;
+  min-block-size: var(--smart-home-phone-active-height, auto);
   padding-inline-start: 0.75rem;
 }
 
@@ -574,9 +575,28 @@
   padding-top: 0.8rem;
 }
 
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-controls {
+  display: grid;
+  grid-template-areas: "controls";
+}
+
 .smart-home__phone-control-panel {
   display: grid;
   gap: 0.75rem;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-control-panel {
+  grid-area: controls;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-control-panel[hidden] {
+  display: grid !important;
+  visibility: hidden;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__phone-control-panel [data-phone-control][hidden] {
+  display: grid !important;
+  visibility: hidden;
 }
 
 .smart-home__phone-control-panel > h4 {
@@ -709,6 +729,10 @@
   padding: 0.75rem 0.25rem 0.1rem;
 }
 
+.smart-home__phone-signature {
+  min-block-size: var(--smart-home-phone-signature-height, auto);
+}
+
 .smart-home__phone-live {
   border: 0;
   clip: rect(0 0 0 0);
@@ -731,6 +755,14 @@
   padding-top: clamp(2rem, 4vw, 4.5rem);
 }
 
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-explanations {
+  grid-template-areas: "heading panel";
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__configuration-heading {
+  grid-area: heading;
+}
+
 .smart-home__configuration-heading h2 {
   font-size: clamp(2.05rem, 4vw, 4.6rem);
 }
@@ -744,6 +776,15 @@
   gap: 1rem clamp(1rem, 2.4vw, 3rem);
   grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.25fr);
   padding: 1.25rem 0 0;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-panel {
+  grid-area: panel;
+}
+
+[data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-panel[hidden] {
+  display: grid !important;
+  visibility: hidden;
 }
 
 .smart-home__preset-panel > div:first-child h3 {
@@ -934,6 +975,12 @@
 
   .smart-home__preset-panel {
     grid-template-columns: 1fr;
+  }
+
+  [data-smart-home-simulator][data-enhanced="true"] .smart-home__preset-explanations {
+    grid-template-areas:
+      "heading"
+      "panel";
   }
 }
 
