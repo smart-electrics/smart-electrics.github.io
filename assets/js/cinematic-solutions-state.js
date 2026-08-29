@@ -7,16 +7,38 @@ function frozenIds(ids) {
   return Object.freeze([...ids]);
 }
 
-function configurationEntries(graph, mapping) {
+/**
+ * A small, DOM-free ownership token for asynchronous scene decodes. A newer
+ * request always supersedes the older one, so a stale decode can never commit
+ * its scene, controls, or copy after the user has chosen something else.
+ */
+export function createCinematicSolutionsHandoff() {
+  let generation = 0;
+  return Object.freeze({
+    begin() {
+      generation += 1;
+      return generation;
+    },
+    isCurrent(token) {
+      return Number.isInteger(token) && token === generation;
+    }
+  });
+}
+
+function configurationEntries(graph, mapping, scenes) {
   if (mapping === null || typeof mapping !== "object" || Array.isArray(mapping)) {
     throw new TypeError("Cinematic solutions must be a mapping.");
   }
+  if (scenes === null || typeof scenes !== "object" || Array.isArray(scenes)) {
+    throw new TypeError("Cinematic solution scenes must be a mapping.");
+  }
   const entries = Object.entries(mapping);
-  if (entries.length === 0) throw new TypeError("Cinematic solutions must not be empty.");
+  if (entries.length === 0 || !sameIds(Object.keys(scenes), Object.keys(mapping))) throw new TypeError("Cinematic solutions must not be empty.");
 
   const directionIds = new Set(graph.directions.map((direction) => direction.id));
   const relationsById = new Map(graph.relations.map((relation) => [relation.id, relation]));
   return entries.map(([solutionId, config]) => {
+    const scene = scenes[solutionId];
     if (
       !isId(solutionId) ||
       config === null ||
@@ -27,12 +49,19 @@ function configurationEntries(graph, mapping) {
       config.direction_ids.length === 0 ||
       !config.direction_ids.every(isId) ||
       new Set(config.direction_ids).size !== config.direction_ids.length ||
-      !isId(config.relation_id)
+      !isId(config.relation_id) ||
+      scene === null ||
+      typeof scene !== "object" ||
+      Array.isArray(scene) ||
+      !isId(scene.focus_direction_id)
     ) {
       throw new TypeError("Cinematic solution IDs must be declared exactly once.");
     }
     if (config.direction_ids.some((directionId) => !directionIds.has(directionId))) {
       throw new TypeError("Cinematic solution directions must reference the canonical graph.");
+    }
+    if (!config.direction_ids.includes(scene.focus_direction_id)) {
+      throw new TypeError("Cinematic solution focus must belong to the solution directions.");
     }
     const relation = relationsById.get(config.relation_id);
     if (!relation) throw new TypeError("Cinematic solution relation must reference the canonical graph.");
@@ -42,7 +71,8 @@ function configurationEntries(graph, mapping) {
     return Object.freeze({
       id: solutionId,
       directionIds: frozenIds(config.direction_ids),
-      relationId: config.relation_id
+      relationId: config.relation_id,
+      focusDirectionId: scene.focus_direction_id
     });
   });
 }
@@ -51,9 +81,9 @@ function configurationEntries(graph, mapping) {
  * Pure, solution-owned state model. It composes the canonical #24 graph state
  * without adding a second graph or sharing the service-studio reducer.
  */
-export function createCinematicSolutionsState(graph, mapping) {
+export function createCinematicSolutionsState(graph, mapping, scenes) {
   const cinematic = createCinematicState(graph);
-  const configs = configurationEntries(graph, mapping);
+  const configs = configurationEntries(graph, mapping, scenes);
   const configsById = new Map(configs.map((config) => [config.id, config]));
 
   const makeState = (cinematicState, config) => Object.freeze({
@@ -65,7 +95,7 @@ export function createCinematicSolutionsState(graph, mapping) {
   });
   const assembled = (config) => makeState(cinematic.initialState, config);
   const focused = (config) => makeState(
-    cinematic.reduce(cinematic.initialState, { type: "select-direction", directionId: config.directionIds[0] }),
+    cinematic.reduce(cinematic.initialState, { type: "select-direction", directionId: config.focusDirectionId }),
     config
   );
   const reassembled = (config) => makeState(
@@ -79,7 +109,7 @@ export function createCinematicSolutionsState(graph, mapping) {
     const config = configsById.get(state.selectedSolutionId);
     if (!config || !sameIds(state.selectedDirectionIds, config.directionIds)) return false;
     if (state.state === "assembled") return state.selectedDirectionId === null && state.selectedRelationId === null;
-    if (state.state === "focus") return state.selectedDirectionId === config.directionIds[0] && state.selectedRelationId === null;
+    if (state.state === "focus") return state.selectedDirectionId === config.focusDirectionId && state.selectedRelationId === null;
     if (state.state === "reassembled") {
       const relation = graph.relations.find((candidate) => candidate.id === config.relationId);
       return state.selectedDirectionId === relation?.direction_id && state.selectedRelationId === config.relationId;
@@ -98,7 +128,7 @@ export function createCinematicSolutionsState(graph, mapping) {
       if (action?.type === "select-solution" && isId(action.solutionId)) {
         const selected = configsById.get(action.solutionId);
         if (!selected) return state;
-        return state.state === "focus" && selected.id === state.selectedSolutionId ? state : focused(selected);
+        return state.state === "assembled" && selected.id === state.selectedSolutionId ? state : assembled(selected);
       }
       return state;
     }

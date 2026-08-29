@@ -44,7 +44,8 @@ const compositions = [
     scene: "[data-cinematic-solutions-scene]",
     panel: "[data-cinematic-solutions-panel]",
     connector: "svg[data-cinematic-solutions-relationship-connector]",
-    source: '[data-cinematic-solutions-solution-control][aria-pressed="true"]'
+    source: '[data-cinematic-solutions-solution-control][aria-pressed="true"]',
+    solutionStudio: true
   },
   {
     route: "/smart-home/",
@@ -147,6 +148,15 @@ test("residence stages apply synchronous state while other cinematic composition
         await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
         await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
         expect(await root.evaluate((element) => element.__cinematicPhaseTimeline || [])).toEqual([]);
+        continue;
+      }
+      if (composition.solutionStudio) {
+        await expect(root).toHaveAttribute(composition.phase, "idle");
+        await expect(root).toHaveAttribute("data-cinematic-solutions-state", "focus");
+        await expect(root.locator(composition.snapshot)).toHaveCount(0);
+        await expect(root.locator(composition.connector)).toHaveCount(0);
+        await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
+        await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
         continue;
       }
       await expect(root).toHaveAttribute(composition.phase, "disassemble");
@@ -253,6 +263,13 @@ test("snapshot cancellation clears only the visual artifact and never aborts the
   for (const composition of compositions) {
     if (composition.minimalResidence) continue;
     const root = await ready(page, composition);
+    if (composition.solutionStudio) {
+      await root.locator(composition.trigger).click();
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+      await expect(root.locator(composition.snapshot)).toHaveCount(0);
+      await expect(root.locator(composition.connector)).toHaveCount(0);
+      continue;
+    }
     const trigger = composition.minimalResidence
       ? root.locator("[data-cinematic-direction-control]").first()
       : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
@@ -316,6 +333,23 @@ test("rapid interactions restart each composition from the newest selected state
       await expect(root).toHaveAttribute("data-system", newestPresetSystem);
       await expect(root).toHaveAttribute(composition.phase, "idle");
       await expect(root.locator(`${composition.scene} picture[data-scene-picture]:visible`)).toHaveAttribute("data-scene-picture", newestPresetSystem);
+    } else if (composition.solutionStudio) {
+      const solutionControls = root.locator("[data-cinematic-solutions-solution-control]");
+      const newestControl = solutionControls.last();
+      const newestSolution = await newestControl.getAttribute("data-cinematic-solutions-solution-id");
+      await solutionControls.first().click();
+      await root.locator('[data-cinematic-solutions-action="select-focus"]').click();
+      await root.locator('[data-cinematic-solutions-action="select-reassembled"]').click();
+      await newestControl.click();
+      await expect(root).toHaveAttribute("data-cinematic-solutions-state", "assembled");
+      await expect(root).toHaveAttribute(composition.phase, "idle");
+      await expect(root).toHaveAttribute("data-cinematic-solutions-solution-id", newestSolution);
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-cinematic-solutions-scene", "assembled");
+      await expect(root.locator(`${composition.scene}:visible`)).toHaveAttribute("data-cinematic-solutions-solution-id", newestSolution);
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-cinematic-solutions-panel", "assembled");
+      await expect(root.locator(`${composition.panel}:visible`)).toHaveAttribute("data-cinematic-solutions-solution-id", newestSolution);
+      await expect(root.locator(composition.snapshot)).toHaveCount(0);
+      await expect(root.locator(composition.connector)).toHaveCount(0);
     } else {
       const newestSolution = await root.getAttribute("data-cinematic-solutions-solution-id");
       await root.locator('[data-cinematic-solutions-action="select-focus"]').click();
@@ -342,7 +376,12 @@ test("reduced motion bypasses the choreography without hiding the selected state
       : root.locator(composition.trigger).nth(composition.smartHome ? 1 : 0);
     await trigger.click();
     await expect(root).toHaveAttribute(composition.phase, "idle");
-    await expect(root.locator(composition.snapshot)).toBeHidden();
+    if (composition.solutionStudio) {
+      await expect(root.locator(composition.snapshot)).toHaveCount(0);
+      await expect(root.locator(composition.connector)).toHaveCount(0);
+    } else {
+      await expect(root.locator(composition.snapshot)).toBeHidden();
+    }
     await expect(root.locator(`${composition.scene}:visible`)).toHaveCount(1);
     await expect(root.locator(`${composition.panel}:visible`)).toHaveCount(1);
     expect(await root.locator("*").evaluateAll((elements) => elements.filter((element) => {

@@ -1,9 +1,9 @@
 apartment-comfort-and-control:
   direction_ids: [electrical-design, lighting, smart-home-integration, panels-and-protection, low-voltage]
-  relation_id: smart-home-integration--climate
+  relation_id: smart-home-integration--curtains-tulle-roller-shutters
 private-house-full-automation:
   direction_ids: [electrical-design, panels-and-protection, backup-power, lighting, smart-home-integration, low-voltage]
-  relation_id: backup-power--backup
+  relation_id: lighting--outdoor-lighting
 architectural-lighting:
   direction_ids: [lighting, electrical-design, electrical-installation, smart-home-integration]
   relation_id: lighting--stair-lighting

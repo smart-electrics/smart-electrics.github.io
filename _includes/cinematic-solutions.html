@@ -1,5 +1,6 @@
 {% assign cinematic = site.data.cinematic_system %}
 {% assign solution_mapping = site.data.cinematic_solutions %}
+{% assign solution_scenes = site.data.solution_scenes %}
 {% assign ordered_solutions = site.solutions | sort: "order" %}
 {% assign state_ids = "assembled,focus,reassembled" | split: "," %}
 {% if page.solutions_catalogue %}
@@ -16,30 +17,30 @@
 {% assign cinematic_solution_ids = cinematic_solutions | map: "slug" %}
 {% assign cinematic_mapping_ids = ordered_solutions | map: "slug" %}
 
-<section class="cinematic-solutions" data-cinematic-solutions-root data-cinematic-solutions-mode="{{ cinematic_solutions_mode }}" data-cinematic-solutions-selected-solution-id="{{ selected_solution_id }}" data-cinematic-solutions-state="assembled" aria-labelledby="{% if cinematic_solutions_mode == 'atlas' %}cinematic-solutions-title{% else %}cinematic-solution-title{% endif %}">
+<section class="cinematic-solutions" data-cinematic-solutions-root data-cinematic-solutions-mode="{{ cinematic_solutions_mode }}" data-cinematic-solutions-selected-solution-id="{{ selected_solution_id }}" data-cinematic-solutions-state="assembled" data-cinematic-solutions-view="stage" aria-label="{% if cinematic_solutions_mode == 'atlas' %}Готові рішення{% else %}Готове рішення{% endif %}">
   <div class="cinematic-solutions__fallback" data-cinematic-solutions-fallback>
     {% if cinematic_solutions_mode == "atlas" %}
       <header class="cinematic-solutions__fallback-intro">
-        <p class="section-kicker">Атлас конфігурацій</p>
-        <h1 id="cinematic-solutions-title">Починаємо з потреби об’єкта, а не з переліку технологій.</h1>
+        <p class="section-kicker">Готові рішення</p>
+        <h1 id="cinematic-solutions-title">Починаємо з простору та його електричної логіки.</h1>
         <p>Кожна конфігурація поєднує складові електричної системи, які можна адаптувати до конкретного електромонтажного проєкту.</p>
       </header>
     {% endif %}
     {% for solution in cinematic_solutions %}
-      {% include cinematic-solution-fallback.html solution=solution detail=is_solution_detail %}
+      {% include cinematic-solution-fallback.html solution=solution detail=is_solution_detail priority=forloop.first %}
     {% endfor %}
   </div>
 
-  <div class="cinematic-solutions__stage" data-cinematic-solutions-stage hidden>
+  <div class="cinematic-solutions__stage" data-cinematic-solutions-stage>
     <header class="cinematic-solutions__heading">
       <div>
-        <p class="section-kicker">{% if cinematic_solutions_mode == "atlas" %}Атлас конфігурацій{% else %}Готове рішення{% endif %}</p>
+        <p class="section-kicker">{% if cinematic_solutions_mode == "atlas" %}Готові рішення{% else %}Готове рішення{% endif %}</p>
         {% if cinematic_solutions_mode == "atlas" %}
-          <h1 id="cinematic-solutions-stage-title">Готові до адаптації конфігурації</h1>
+          <h1 id="cinematic-solutions-stage-title">Конфігурації, готові до адаптації</h1>
         {% else %}
           <h1 id="cinematic-solution-stage-title">{{ page.title }}</h1>
         {% endif %}
-        <p>{% if cinematic_solutions_mode == "atlas" %}Оберіть конфігурацію, щоб побачити її системи та ключовий зв’язок між системами.{% else %}Розгляньте склад конфігурації, ключові напрями та взаємозв’язок систем.{% endif %}</p>
+        <p>{% if cinematic_solutions_mode == "atlas" %}Оберіть конфігурацію та розгляньте простір, ключову систему і сценарій його використання.{% else %}Розгляньте простір, ключову систему і сценарій цієї конфігурації.{% endif %}</p>
       </div>
       {% if cinematic_solutions_mode == "atlas" %}
         <nav class="cinematic-solutions__selector" aria-label="Готові рішення">
@@ -52,58 +53,49 @@
 
     <p class="cinematic-solutions__live" data-cinematic-solutions-live aria-live="polite" aria-atomic="true"></p>
     <div class="cinematic-solutions__composition">
-      <nav class="cinematic-solutions__rail" aria-label="Стани конфігурації">
+      <nav class="cinematic-solutions__rail" aria-label="Перегляд конфігурації">
         <ol>
           {% for state_id in state_ids %}
             {% case state_id %}
-              {% when "assembled" %}{% assign state_label = "Склад" %}
-              {% when "focus" %}{% assign state_label = "У фокусі" %}
-              {% when "reassembled" %}{% assign state_label = "Зв’язок" %}
+              {% when "assembled" %}{% assign state_label = "Простір" %}
+              {% when "focus" %}{% assign state_label = "Ключова система" %}
+              {% when "reassembled" %}{% assign state_label = "Сценарій простору" %}
             {% endcase %}
             <li><button type="button" data-cinematic-solutions-control data-cinematic-solutions-action="select-{{ state_id }}" data-cinematic-solutions-control-state="{{ state_id }}" aria-pressed="{% if state_id == "assembled" %}true{% else %}false{% endif %}">{{ state_label }}</button></li>
           {% endfor %}
         </ol>
       </nav>
 
-      <div class="cinematic-solutions__media" aria-hidden="true" data-cinematic-route-source="cinematic-solutions-media">
+      <div class="cinematic-solutions__media" data-cinematic-route-source="cinematic-solutions-media">
         {% for solution in cinematic_solutions %}
+          {% assign solution_config = solution_mapping[solution.slug] %}
+          {% assign solution_scene_config = solution_scenes[solution.slug] %}
           {% for state_id in state_ids %}
-            {% assign scene_config = solution_mapping[solution.slug] %}
-            <figure class="cinematic-solutions__scene" data-cinematic-solutions-scene="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ scene_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ scene_config.direction_ids | join: '|' }}"{% unless forloop.parentloop.first and forloop.first %} hidden{% endunless %}>
+            {% assign state_config = solution_scene_config.states[state_id] %}
+            <figure class="cinematic-solutions__scene" data-cinematic-solutions-scene="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ solution_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ solution_config.direction_ids | join: '|' }}" data-cinematic-solutions-focus-direction-id="{{ solution_scene_config.focus_direction_id }}"{% unless forloop.parentloop.first and forloop.first %} hidden inert aria-hidden="true"{% endunless %}>
               <picture>
-                <source media="(max-width: 767px)" srcset="{{ solution.image_768 | relative_url }}" width="768" height="512">
-                <source srcset="{{ solution.image_1536 | relative_url }}" width="1536" height="1024">
-                <img src="{{ solution.image_1536 | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, min(68vw, 1536px)" alt="" loading="lazy" decoding="async"{% if solution.image_focus %} style="object-position: {{ solution.image_focus }}"{% endif %}>
+                <source media="(max-width: 767px)" srcset="{{ '/assets/images/solutions/' | append: state_config.image | append: '-768.webp' | relative_url }}" width="768" height="512">
+                <source srcset="{{ '/assets/images/solutions/' | append: state_config.image | append: '-1536.webp' | relative_url }}" width="1536" height="1024">
+                <img src="{{ '/assets/images/solutions/' | append: state_config.image | append: '-1536.webp' | relative_url }}" width="1536" height="1024" sizes="(max-width: 767px) 100vw, min(68vw, 1536px)" alt="{{ state_config.alt }}" loading="{% if forloop.parentloop.first and forloop.first %}eager{% else %}lazy{% endif %}"{% if forloop.parentloop.first and forloop.first %} fetchpriority="high"{% endif %} decoding="async" style="object-position: {{ state_config.image_focus }}">
               </picture>
             </figure>
           {% endfor %}
         {% endfor %}
-        <span class="cinematic-solutions__outgoing-snapshot" data-cinematic-solutions-outgoing-snapshot aria-hidden="true" hidden></span>
       </div>
 
       <div class="cinematic-solutions__panels">
         {% for solution in cinematic_solutions %}
           {% assign solution_config = solution_mapping[solution.slug] %}
+          {% assign solution_scene_config = solution_scenes[solution.slug] %}
           {% assign relation = cinematic.relations | where: "id", solution_config.relation_id | first %}
           {% assign relation_owner = cinematic.directions | where: "id", relation.direction_id | first %}
           {% assign relation_owner_service = site.services | where: "slug", relation_owner.service_slug | first %}
           {% for state_id in state_ids %}
-            {% case state_id %}
-              {% when "assembled" %}
-                {% assign state_label = "Склад конфігурації" %}
-                {% assign state_summary = solution.description %}
-              {% when "focus" %}
-                {% assign state_label = "У фокусі" %}
-                {% assign state_summary = solution.focus %}
-              {% when "reassembled" %}
-                {% assign state_label = "Як системи пов’язані" %}
-                {% assign state_summary = relation.child.description %}
-            {% endcase %}
-            <article class="cinematic-solutions__panel" data-cinematic-solutions-panel="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ solution_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ solution_config.direction_ids | join: '|' }}"{% unless forloop.parentloop.first and forloop.first %} hidden{% endunless %}>
-              <p class="cinematic-solutions__panel-kicker">{{ state_label }}</p>
-              <h2>{{ solution.title }}</h2>
-              {% if state_id == "reassembled" %}<h3 class="cinematic-solutions__relation-label" data-cinematic-solutions-relation-label>{{ relation.child.label }}</h3>{% endif %}
-              <p data-cinematic-solutions-summary>{{ state_summary | strip }}</p>
+            {% assign state_config = solution_scene_config.states[state_id] %}
+            <article class="cinematic-solutions__panel" data-cinematic-solutions-panel="{{ state_id }}" data-cinematic-solutions-solution-id="{{ solution.slug }}" data-cinematic-solutions-relation-id="{{ solution_config.relation_id }}" data-cinematic-solutions-direction-ids="{{ solution_config.direction_ids | join: '|' }}" data-cinematic-solutions-focus-direction-id="{{ solution_scene_config.focus_direction_id }}"{% unless forloop.parentloop.first and forloop.first %} hidden inert aria-hidden="true"{% endunless %}>
+              <p class="cinematic-solutions__panel-kicker">{{ state_config.label }}</p>
+              <h2>{{ state_config.title }}</h2>
+              <p data-cinematic-solutions-summary>{{ state_config.summary }}</p>
               {% if state_id == "assembled" %}
                 <ul data-cinematic-solutions-related>
                   {% for related_slug in solution.related_solutions %}
@@ -122,7 +114,7 @@
               {% else %}
                 <div class="cinematic-solutions__link-groups">
                   <section class="cinematic-solutions__link-group" data-cinematic-solutions-service-links aria-labelledby="solution-{{ solution.slug }}-relation-services">
-                    <h4 id="solution-{{ solution.slug }}-relation-services">Пов’язані послуги</h4>
+                    <h3 id="solution-{{ solution.slug }}-relation-services">Пов’язані послуги</h3>
                     <ul data-cinematic-solutions-related>
                       {% if relation_owner_service %}<li><a href="{{ relation_owner_service.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-solutions-media">{{ relation_owner.label }}</a></li>{% endif %}
                       {% for related_direction_id in relation.related_direction_ids %}
@@ -133,7 +125,7 @@
                     </ul>
                   </section>
                   <section class="cinematic-solutions__link-group" data-cinematic-solutions-solution-links aria-labelledby="solution-{{ solution.slug }}-related-solutions">
-                    <h4 id="solution-{{ solution.slug }}-related-solutions">Пов’язані готові рішення</h4>
+                    <h3 id="solution-{{ solution.slug }}-related-solutions">Пов’язані готові рішення</h3>
                     <ul data-cinematic-solutions-related>
                       {% for related_slug in solution.related_solutions %}
                         {% assign related_solution = site.solutions | where: "slug", related_slug | first %}
@@ -143,20 +135,40 @@
                   </section>
                 </div>
               {% endif %}
-              {% if cinematic_solutions_mode == "atlas" %}<p><a class="cinematic-solutions__detail-link" href="{{ solution.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-solutions-media">Переглянути конфігурацію</a></p>{% endif %}
+              {% if cinematic_solutions_mode == "atlas" %}
+                <p class="cinematic-solutions__detail-row"><a class="cinematic-solutions__detail-link" href="{{ solution.url | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-solutions-media">Переглянути конфігурацію</a></p>
+              {% else %}
+                <p class="cinematic-solutions__detail-row"><a class="cinematic-solutions__detail-link" href="{{ '/solutions/' | relative_url }}" data-cinematic-route data-cinematic-route-source-ref="cinematic-solutions-media">До всіх готових рішень</a></p>
+              {% endif %}
             </article>
           {% endfor %}
         {% endfor %}
       </div>
-      <svg class="cinematic-solutions__relationship-connector" data-cinematic-solutions-relationship-connector aria-hidden="true" focusable="false" tabindex="-1" viewBox="0 0 1 1" preserveAspectRatio="none" hidden>
-        <path data-cinematic-solutions-relationship-connector-path pathLength="1"></path>
-        <circle data-cinematic-relationship-connector-source r="3"></circle>
-        <circle data-cinematic-relationship-connector-target r="3"></circle>
-      </svg>
     </div>
   </div>
 
   <script type="application/json" data-cinematic-solutions-config>{"mode":{{ cinematic_solutions_mode | jsonify }},"mapping_ids":{{ cinematic_mapping_ids | jsonify }},"solution_ids":{{ cinematic_solution_ids | jsonify }},"selected_solution_id":{{ selected_solution_id | jsonify }}}</script>
   <script type="application/json" data-cinematic-solutions-mapping>{{ solution_mapping | jsonify }}</script>
+  <script type="application/json" data-cinematic-solutions-scenes>{{ solution_scenes | jsonify }}</script>
   <script type="application/json" data-cinematic-solutions-graph>{{ cinematic | jsonify }}</script>
+  <noscript>
+    <style>
+      [data-cinematic-solutions-root] > [data-cinematic-solutions-stage] { display: none !important; }
+      [data-cinematic-solutions-root] > [data-cinematic-solutions-fallback] { display: grid !important; }
+    </style>
+  </noscript>
+  <script>
+    (() => {
+      const root = document.currentScript.closest("[data-cinematic-solutions-root]");
+      window.addEventListener("load", () => {
+        if (!root || root.dataset.cinematicSolutionsEnhanced === "true") return;
+        const fallback = root.querySelector("[data-cinematic-solutions-fallback]");
+        const stage = root.querySelector("[data-cinematic-solutions-stage]");
+        if (!fallback || !stage) return;
+        root.dataset.cinematicSolutionsView = "fallback";
+        fallback.hidden = false;
+        stage.hidden = true;
+      }, { once: true });
+    })();
+  </script>
 </section>
