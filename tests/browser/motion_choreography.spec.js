@@ -395,6 +395,9 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
       const wordLineCounts = wordLineCountsFor(physicalControls);
       const railWordLineCounts = wordLineCountsFor([...composition.querySelectorAll("[data-cinematic-direction-control]")]);
       const controlBounds = physicalControls.map((control) => control.getBoundingClientRect());
+      const inactivePanelsExcluded = [...composition.querySelectorAll("[data-cinematic-panel][hidden]")].every((inactivePanel) =>
+        inactivePanel.inert && inactivePanel.getAttribute("aria-hidden") === "true"
+      );
       const overflow = [...panel.querySelectorAll("*")].flatMap((element) => {
         const style = getComputedStyle(element);
         const rect = element.getBoundingClientRect();
@@ -412,6 +415,7 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
         physicalControlsMeetTarget: controlBounds.every((bounds) => bounds.width >= 44 && bounds.height >= 44),
         physicalWordsStayWhole: wordLineCounts.every((count) => count === 1),
         railWordsStayWhole: railWordLineCounts.every((count) => count === 1),
+        inactivePanelsExcluded,
         railControlsDoNotOverlap: [...composition.querySelectorAll("[data-cinematic-direction-control]")].map((control) => control.getBoundingClientRect()).every((bounds, index, controls) => controls.slice(index + 1).every((other) => !intersects(bounds, other)))
       };
     });
@@ -422,6 +426,7 @@ test("residence panels remain wholly inside the dominant scene frame at every ta
     expect(bounds?.physicalControlsMeetTarget, bounds?.state).toBe(true);
     expect(bounds?.physicalWordsStayWhole, bounds?.state).toBe(true);
     expect(bounds?.railWordsStayWhole, bounds?.state).toBe(true);
+    expect(bounds?.inactivePanelsExcluded, bounds?.state).toBe(true);
     expect(bounds?.railControlsDoNotOverlap, bounds?.state).toBe(true);
   };
 

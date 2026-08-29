@@ -111,7 +111,13 @@ function enhanceValidated(root) {
     if (!activeScene || !activePanel) return false;
 
     scenes.forEach((scene) => { scene.hidden = scene !== activeScene; });
-    panels.forEach((panel) => { panel.hidden = panel !== activePanel; });
+    panels.forEach((panel) => {
+      const inactive = panel !== activePanel;
+      panel.hidden = inactive;
+      panel.inert = inactive;
+      if (inactive) panel.setAttribute("aria-hidden", "true");
+      else panel.removeAttribute("aria-hidden");
+    });
     directionControls.forEach((control) => {
       control.setAttribute("aria-pressed", String(control.dataset.directionId === state.selectedDirectionId));
     });

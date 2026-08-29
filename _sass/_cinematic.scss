@@ -561,7 +561,13 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   max-width: calc(94rem + 2.6rem);
 }
 
-@media (max-width: 96rem) {
+@media (min-width: 82.0625rem) {
+  .home-hero__frame .residence-spine__panels {
+    width: min(52%, 27rem);
+  }
+}
+
+@media (max-width: 82rem) {
   .home-hero__frame:has(.residence-spine) {
     grid-template-areas:
       "copy"
@@ -631,9 +637,8 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
   }
 
   .residence-spine__panels {
-    display: block;
+    display: grid;
     grid-row: 2;
-    min-height: 36rem;
     width: 100%;
   }
 
@@ -641,8 +646,22 @@ html[data-cinematic-stage-pending="true"] .residence-spine[data-cinematic-root]:
     border-right: 0;
     border-top: 1px solid #4a392d;
     gap: 0.55rem;
+    grid-area: 1 / 1;
+    height: auto;
     min-height: 0;
     padding: 0.75rem;
+  }
+
+  .residence-spine__panels > [data-cinematic-panel][hidden] {
+    display: grid !important;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .residence-spine__panels [data-cinematic-physical-controls][hidden] {
+    display: grid !important;
+    pointer-events: none;
+    visibility: hidden;
   }
 
   .residence-spine__panel h3 {
