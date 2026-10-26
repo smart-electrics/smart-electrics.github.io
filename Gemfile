@@ -11,7 +11,7 @@ group :jekyll_plugins do
 end
 
 group :test do
-  gem "html-proofer", "~> 5.2.2"
+  gem "html-proofer", "~> 5.2.3"
   gem "minitest", "~> 6.0.6"
   gem "nokogiri", "~> 1.19"
 end
